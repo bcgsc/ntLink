@@ -30,9 +30,7 @@ w			Window size for minimizers (bp) [1000]
 n			Minimum graph edge weight [1]
 g			Minimum gap size (bp) [20]
 m			Maximum number of contigs in a run for full transitive edge addition [10]
-bloom_size              Size of Bloom filter [1G]
 a                        Minimum number of anchored ONT reads required for an edge [1]
-solid                   If True, use solid BF [False]
 z			Minimum size of contig (bp) to scaffold [1000]
 
 Note: 

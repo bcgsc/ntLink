@@ -26,12 +26,6 @@ t=4
 # Minimum contig size
 z=500
 
-# Use solid Bloom filter?
-solid=False
-
-# Size of Bloom filters to construct
-bloom_size=1G
-
 # Number of threads for ntjoin_assemble.py (Change with caution -- multi-processing increases memory)
 assemble_t=1
 
@@ -89,21 +83,12 @@ help:
 	@echo "n			Minimum graph edge weight [1]"
 	@echo "g			Minimum gap size (bp) [20]"
 	@echo "m			Maximum number of contigs in a run for full transitive edge addition [10]"
-	@echo "bloom_size   Size of Bloom filter [1G]"
 	@echo "a            Minimum number of anchored ONT reads required for an edge [1]"
-	@echo "solid        If True, use solid BF [False]"
 	@echo "z			Minimum size of contig (bp) to scaffold [1000]"
 	@echo ""
 	@echo "Note: "
 	@echo "	- Ensure all assembly and read files are in the current working directory, making soft links if neccessary"
 	@echo ""
-
-ntJoin_scaffold: check_params \
-	$(min_ref_targets) \
-	$(target).k$(k).w$(w).tsv \
-	$(target).fai \
-	$(target).k$(k).w$(w).n$(n).z$(z).assigned.scaffolds.fa \
-	$(target).k$(k).w$(w).n$(n).z$(z).ntJoin.scaffolds.fa
 
 scaffold: ntJoin_graph \
 	abyss_scaffold
@@ -111,24 +96,10 @@ scaffold: ntJoin_graph \
 ntJoin_graph: check_params \
 	$(min_ref_targets) \
 	$(target).k$(k).w$(w).tsv \
-	$(target).fai \
-	$(prefix).scaffold.dot \
-	$(prefix).tigpair_checkpoint.tsv
-
-links_scaffold: $(prefix).tigpair_checkpoint.tsv \
-	quast_$(target).k$(k).w$(w).n$(n).z$(z).links.fa
+	$(prefix).scaffold.dot
 
 abyss_scaffold: $(prefix).scaffold.dot \
 	$(target).k$(k).w$(w).n$(n).z$(z).abyss-scaffold.fa
-
-all_scaffolders: $(target).k$(k).w$(w).n$(n).z$(z).abyss-scaffold.fa \
-	$(target).k$(k).w$(w).n$(n).z$(z).links.fa \
-	$(target).k$(k).w$(w).n$(n).z$(z).ntJoin.scaffolds.fa
-
-compare_scaffolders_analysis: $(prefix).abyssfac.tsv \
-	quast_$(target).k$(k).w$(w).n$(n).z$(z).abyss-scaffold.fa \
-	quast_$(target).k$(k).w$(w).n$(n).z$(z).links.fa \
-	quast_$(target).k$(k).w$(w).n$(n).z$(z).all.scaffolds.fa
 
 check_params:
 ifeq ($(reads), None)
@@ -137,7 +108,6 @@ endif
 ifeq ($(target), None)
 	$(error ERROR: Must set target)
 endif
-
 
 version:
 	@echo "ntLink v0.0.1"
@@ -150,22 +120,8 @@ clean:
 .DELETE_ON_ERROR:
 .SECONDARY:
 
-%.k$(k).z$(z).bf: %
-	cat $< |seqtk seq -L$(z) |$(time) abyss-bloom build -v -k $(k) -b $(bloom_size) -t rolling-hash -j $(t) $@ -
-
-out.k$(k).z$(z).solid.bf: $(target).k$(k).z$(z).bf $(bf_ref_targets)
-	$(time) abyss-bloom intersect -v -k $(k) $@ $^
-
-ifeq ($(solid), True)
-%.k$(k).w$(w).tsv: % out.k$(k).z$(z).solid.bf
-	$(time) $(ntlink_path)/src/indexlr --pos --strand -k $(k) -w $(w) -t $(t) -s out.k$(k).z$(z).solid.bf $< > $@
-else
 %.k$(k).w$(w).tsv: %
 	$(time) $(ntlink_path)/src/indexlr --pos --strand -k $(k) -w $(w) -t $(t) $< > $@
-endif
-
-%.fai: %
-	$(time) samtools faidx $<
 
 %.fa.gz: %.fa
 	$(time) $(gzip) $<
@@ -174,50 +130,9 @@ $(prefix).scaffold.dot: $(target).k$(k).w$(w).tsv $(min_ref_targets)
 	$(time) $(ntlink_path)/bin/ntjoin_long_pair.py -p $(prefix) -n $(n) -s $<  \
 	-k $(k) -a $(a) -z $(z) $(min_ref_targets)
 
-$(prefix).tigpair_checkpoint.tsv: $(prefix).scaffold.dot
-	touch $@
-
-$(target).k$(k).w$(w).n$(n).z$(z).assigned.scaffolds.fa: $(prefix).scaffold.dot $(target)
-ifeq ($(agp), True)
-	$(time) $(ntlink_path)/bin/ntjoin_long_scaffold.py -p $(prefix) \
-	-z $(z) -g $(g) -n $(n) -t $(assemble_t)  --agp -k $(k) -w $(w) -d $< $(target)
-else
-	$(time) $(ntlink_path)/bin/ntjoin_long_scaffold.py -p $(prefix) \
-	-z $(z) -g $(g) -n $(n) -t $(assemble_t) -k $(k) -w $(w) -d $< $(target)
-endif
-
-$(target).k$(k).w$(w).n$(n).z$(z).ntJoin.scaffolds.fa: $(target).k$(k).w$(w).n$(n).z$(z).all.scaffolds.fa
-	ln -sf $< $@
-
-
-$(target).k$(k).w$(w).n$(n).z$(z).unassigned.scaffolds.fa: $(target).k$(k).w$(w).n$(n).z$(z).assigned.scaffolds.fa
-	touch $@
-
-%.all.scaffolds.fa: %.assigned.scaffolds.fa %.unassigned.scaffolds.fa
-	$(time) cat $^ > $@
-
-# Run abyss-scaffolding layout
-
 # Run abyss-scaffold scaffolding layout
 $(prefix).abyss-scaffold.path: $(prefix).scaffold.dot
 	$(time) abyss-scaffold -k2 -n$(n)-20 -s$(z) --min-gap $(g) -g $(prefix).scaffold.abyss-scaffold.dot $(target) $< > $@
 
 $(target).k$(k).w$(w).n$(n).z$(z).abyss-scaffold.fa: $(prefix).abyss-scaffold.path
 	$(time) MergeContigs -k2 $(target) $< > $@
-
-# Run LINKS scaffolding layout
-$(target).k$(k).w$(w).n$(n).z$(z).links.fa: $(target).k$(k).w$(w).n$(n).z$(z).assigned.scaffolds.fa
-	touch empty.fof
-	$(time) LINKS -f $(target) -s empty.fof -b $(prefix) -z $(z) -l $(n)
-	ln -s $(prefix).scaffolds.fa $@
-
-# abyss-fac stats
-$(prefix).abyssfac.tsv: $(target).k$(k).w$(w).n$(n).z$(z).all.scaffolds.fa $(target).k$(k).w$(w).n$(n).z$(z).abyss-scaffold.fa $(target).k$(k).w$(w).n$(n).z$(z).links.fa
-	abyss-fac $^ > $@
-
-# Quast
-# Set reference
-ref=None
-quast_%: %
-	quast -t 24 -o quast_$* -r $(ref) --fast --scaffold-gap-max-size 100000 --split-scaffolds \
-		$*
