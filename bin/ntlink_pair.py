@@ -13,14 +13,14 @@ import itertools
 import sys
 import numpy as np
 import igraph as ig
-from ntjoin_assemble import Ntjoin
-
+import ntlink_utils as utils
 
 MinimizerEdge = namedtuple("MinimizerEdge", ["mx_i", "mx_i_pos", "mx_i_strand",
                                              "mx_j", "mx_j_pos", "mx_j_strand",
                                              "ONT_name"])
 Minimizer = namedtuple("Minimizer", ["contig", "position", "strand"])
 Minimizer_with_hash = namedtuple("Minimizer_with_hash", ["mx_hash", "contig", "position", "strand"])
+
 class ScaffoldPair:
     "Object that represents a scaffold pair"
     def __init__(self, source_contig, source_ori, target_contig, target_ori):
@@ -96,8 +96,8 @@ class ContigRun:
                "index={index}".format(contig=self.contig, hit_count=self.hit_count,
                                       subsumed=self.subsumed, index=self.index)
 
-class NtjoinLong():
-    "Represents an Ntjoin graph construction run"
+class NtLink():
+    "Represents an ntLink graph construction run"
 
     @staticmethod
     def print_directed_graph(graph, out_prefix):
@@ -110,13 +110,13 @@ class NtjoinLong():
 
         for node in graph.vs():
             node_label = "\"{scaffold}\" [l={length}]\n".\
-                format(scaffold=node['name'], length=NtjoinLong.scaffolds[node['name'][:-1]].length)
+                format(scaffold=node['name'], length=NtLink.scaffolds[node['name'][:-1]].length)
             outfile.write(node_label)
 
         for edge in graph.es():
             edge_str = "\"{source}\" -> \"{target}\" [d={d} e={e} n={n}]\n".\
-                format(source=Ntjoin.vertex_name(graph, edge.source),
-                       target=Ntjoin.vertex_name(graph, edge.target),
+                format(source=utils.vertex_name(graph, edge.source),
+                       target=utils.vertex_name(graph, edge.target),
                        d=int(edge['d']), e=edge['e'], n=edge['n'])
             outfile.write(edge_str)
 
@@ -147,8 +147,8 @@ class NtjoinLong():
         out_file_name = prefix + ".tigpair_checkpoint.tsv"
         out_file = open(out_file_name, 'w')
         for edge in graph.es():
-            source = self.convert_links_scaf_id(Ntjoin.vertex_name(graph, edge.source), links_numbering)
-            target = self.convert_links_scaf_id(Ntjoin.vertex_name(graph, edge.target), links_numbering)
+            source = self.convert_links_scaf_id(utils.vertex_name(graph, edge.source), links_numbering)
+            target = self.convert_links_scaf_id(utils.vertex_name(graph, edge.target), links_numbering)
             distance_est = int(edge['d'])
             links = int(edge['n'])
 
@@ -176,17 +176,17 @@ class NtjoinLong():
 
         # Correct for the overhanging sequence before/after terminal minimizers
         if u_ori == "+":
-            u_ctg = NtjoinLong.list_mx_info[self.args.s][u_mx].contig
-            u_ctglen = NtjoinLong.scaffolds[u_ctg].length
-            a = u_ctglen - NtjoinLong.list_mx_info[self.args.s][u_mx].position - self.args.k
+            u_ctg = NtLink.list_mx_info[self.args.s][u_mx].contig
+            u_ctglen = NtLink.scaffolds[u_ctg].length
+            a = u_ctglen - NtLink.list_mx_info[self.args.s][u_mx].position - self.args.k
         else:
-            a = NtjoinLong.list_mx_info[self.args.s][u_mx].position
+            a = NtLink.list_mx_info[self.args.s][u_mx].position
         if v_ori == "+":
-            b = NtjoinLong.list_mx_info[self.args.s][v_mx].position
+            b = NtLink.list_mx_info[self.args.s][v_mx].position
         else:
-            v_ctg = NtjoinLong.list_mx_info[self.args.s][v_mx].contig
-            v_ctglen = NtjoinLong.scaffolds[v_ctg].length
-            b = v_ctglen - NtjoinLong.list_mx_info[self.args.s][v_mx].position - self.args.k
+            v_ctg = NtLink.list_mx_info[self.args.s][v_mx].contig
+            v_ctglen = NtLink.scaffolds[v_ctg].length
+            b = v_ctglen - NtLink.list_mx_info[self.args.s][v_mx].position - self.args.k
 
         try:
             assert a >= 0
@@ -194,8 +194,8 @@ class NtjoinLong():
         except:
             print("ERROR: Gap distance estimation less than 0", "Vertex 1:", u_mx, "Vertex 2:", v_mx,
                   sep="\n")
-            print("Minimizer positions:", NtjoinLong.list_mx_info[self.args.s][u_mx].position,
-                  NtjoinLong.list_mx_info[self.args.s][v_mx].position)
+            print("Minimizer positions:", NtLink.list_mx_info[self.args.s][u_mx].position,
+                  NtLink.list_mx_info[self.args.s][v_mx].position)
             print("Estimated distance: ", est_distance)
             raise AssertionError
 
@@ -253,18 +253,18 @@ class NtjoinLong():
                 continue
             for mx_edge in graph.es()[edge.index]["support"]:
                 assert mx_edge.mx_i_pos < mx_edge.mx_j_pos
-                assert mx_edge.mx_i == Ntjoin.vertex_name(graph, edge.source) or \
-                       mx_edge.mx_i == Ntjoin.vertex_name(graph, edge.target)
-                assert mx_edge.mx_j == Ntjoin.vertex_name(graph, edge.source) or \
-                       mx_edge.mx_j == Ntjoin.vertex_name(graph, edge.target)
-                if mx_edge.mx_i_strand == NtjoinLong.list_mx_info[self.args.s][mx_edge.mx_i].strand:
-                    source_ctg, source_ori = NtjoinLong.list_mx_info[self.args.s][mx_edge.mx_i].contig, "+"
+                assert mx_edge.mx_i == utils.vertex_name(graph, edge.source) or \
+                       mx_edge.mx_i == utils.vertex_name(graph, edge.target)
+                assert mx_edge.mx_j == utils.vertex_name(graph, edge.source) or \
+                       mx_edge.mx_j == utils.vertex_name(graph, edge.target)
+                if mx_edge.mx_i_strand == NtLink.list_mx_info[self.args.s][mx_edge.mx_i].strand:
+                    source_ctg, source_ori = NtLink.list_mx_info[self.args.s][mx_edge.mx_i].contig, "+"
                 else:
-                    source_ctg, source_ori = NtjoinLong.list_mx_info[self.args.s][mx_edge.mx_i].contig, "-"
-                if mx_edge.mx_j_strand == NtjoinLong.list_mx_info[self.args.s][mx_edge.mx_j].strand:
-                    target_ctg, target_ori = NtjoinLong.list_mx_info[self.args.s][mx_edge.mx_j].contig, "+"
+                    source_ctg, source_ori = NtLink.list_mx_info[self.args.s][mx_edge.mx_i].contig, "-"
+                if mx_edge.mx_j_strand == NtLink.list_mx_info[self.args.s][mx_edge.mx_j].strand:
+                    target_ctg, target_ori = NtLink.list_mx_info[self.args.s][mx_edge.mx_j].contig, "+"
                 else:
-                    target_ctg, target_ori = NtjoinLong.list_mx_info[self.args.s][mx_edge.mx_j].contig, "-"
+                    target_ctg, target_ori = NtLink.list_mx_info[self.args.s][mx_edge.mx_j].contig, "-"
                 new_pair = self.normalize_pair(source_ctg, source_ori, target_ctg, target_ori)
                 gap_estimate = self.calculate_gap_size_check(mx_edge.mx_i, source_ori, mx_edge.mx_j, target_ori,
                                                              mx_edge.mx_j_pos - mx_edge.mx_i_pos)
@@ -277,14 +277,14 @@ class NtjoinLong():
         "Given a contig pair, normalizes, defines orientation and estimates the gap size"
 
         assert mx_edge.mx_i_pos < mx_edge.mx_j_pos
-        if mx_edge.mx_i_strand == NtjoinLong.list_mx_info[self.args.s][mx_edge.mx_i].strand:
-            source_ctg, source_ori = NtjoinLong.list_mx_info[self.args.s][mx_edge.mx_i].contig, "+"
+        if mx_edge.mx_i_strand == NtLink.list_mx_info[self.args.s][mx_edge.mx_i].strand:
+            source_ctg, source_ori = NtLink.list_mx_info[self.args.s][mx_edge.mx_i].contig, "+"
         else:
-            source_ctg, source_ori = NtjoinLong.list_mx_info[self.args.s][mx_edge.mx_i].contig, "-"
-        if mx_edge.mx_j_strand == NtjoinLong.list_mx_info[self.args.s][mx_edge.mx_j].strand:
-            target_ctg, target_ori = NtjoinLong.list_mx_info[self.args.s][mx_edge.mx_j].contig, "+"
+            source_ctg, source_ori = NtLink.list_mx_info[self.args.s][mx_edge.mx_i].contig, "-"
+        if mx_edge.mx_j_strand == NtLink.list_mx_info[self.args.s][mx_edge.mx_j].strand:
+            target_ctg, target_ori = NtLink.list_mx_info[self.args.s][mx_edge.mx_j].contig, "+"
         else:
-            target_ctg, target_ori = NtjoinLong.list_mx_info[self.args.s][mx_edge.mx_j].contig, "-"
+            target_ctg, target_ori = NtLink.list_mx_info[self.args.s][mx_edge.mx_j].contig, "-"
         new_pair = self.normalize_pair(source_ctg, source_ori, target_ctg, target_ori)
         gap_estimate = self.calculate_gap_size_check(mx_edge.mx_i, source_ori, mx_edge.mx_j, target_ori,
                                                      mx_edge.mx_j_pos - mx_edge.mx_i_pos)
@@ -300,8 +300,8 @@ class NtjoinLong():
         "Filter out edges where distance estimate is incongruous with either scaffold"
         new_pairs = {}
         for pair in pairs:
-            if pairs[pair].get_gap_estimate() <= NtjoinLong.scaffolds[pair.source_contig].length*-1 or \
-                pairs[pair].get_gap_estimate() <= NtjoinLong.scaffolds[pair.target_contig].length*-1:
+            if pairs[pair].get_gap_estimate() <= NtLink.scaffolds[pair.source_contig].length*-1 or \
+                pairs[pair].get_gap_estimate() <= NtLink.scaffolds[pair.target_contig].length*-1:
                 continue
             new_pairs[pair] = pairs[pair]
         return new_pairs
@@ -345,7 +345,7 @@ class NtjoinLong():
         graph.add_vertices(list(vertices))
         graph.add_edges(formatted_edges)
 
-        edge_attributes = {Ntjoin.edge_index(graph, s, t): {'d': edges[s][t].get_gap_estimate(),
+        edge_attributes = {utils.edge_index(graph, s, t): {'d': edges[s][t].get_gap_estimate(),
                                                             "e": 100,
                                                             "n": edges[s][t].n_supporting_reads()}
                            for s in edges for t in edges[s]}
@@ -361,8 +361,8 @@ class NtjoinLong():
         "Returns dictionary of contigs of appropriate length, mx hits, whether subsumed"
         contig_list = []
         for mx, _, _ in mx_list:
-            contig = NtjoinLong.list_mx_info[self.args.s][mx].contig
-            if NtjoinLong.scaffolds[contig].length >= self.args.z:
+            contig = NtLink.list_mx_info[self.args.s][mx].contig
+            if NtLink.scaffolds[contig].length >= self.args.z:
                 contig_list.append(contig)
 
         contig_runs = [(ctg, len(list(hits))) for ctg, hits in itertools.groupby(contig_list)]
@@ -427,10 +427,10 @@ class NtjoinLong():
                             print(line[0], [str(accepted_anchor_contigs[ctg_run])
                                             for ctg_run in accepted_anchor_contigs])
                         mx_pos_split = [mx_tup for mx_tup in mx_pos_split
-                                        if NtjoinLong.list_mx_info[self.args.s][mx_tup[0]].contig in
+                                        if NtLink.list_mx_info[self.args.s][mx_tup[0]].contig in
                                         accepted_anchor_contigs]
                         for mx, pos, strand in mx_pos_split:
-                            mx_contig = NtjoinLong.list_mx_info[self.args.s][mx].contig
+                            mx_contig = NtLink.list_mx_info[self.args.s][mx].contig
                             if mx_contig not in accepted_anchor_contigs:
                                 continue
                             if accepted_anchor_contigs[mx_contig].first_mx is None:
@@ -467,9 +467,9 @@ class NtjoinLong():
 
     @staticmethod
     def parse_arguments():
-        "Parse ntJoin arguments"
+        "Parse ntLink arguments"
         parser = argparse.ArgumentParser(
-            description="ntJoin: Scaffolding genome assemblies using reference assemblies and minimizer graphs",
+            description="ntLink: Scaffolding genome assemblies using long reads",
             epilog="Note: Script expects that each input minimizer TSV file has a matching fasta file.\n"
                    "Example: myscaffolds.fa.k32.w1000.tsv - myscaffolds.fa is the expected matching fasta",
             formatter_class=argparse.RawTextHelpFormatter)
@@ -484,14 +484,14 @@ class NtjoinLong():
         parser.add_argument("-m", help="Maximum number of contigs in a run for full transitive edge addition",
                             required=False, default=10, type=int)
         parser.add_argument("-z", help="Minimum size of contig to scaffold", required=False, default=500, type=int)
-        parser.add_argument("-v", "--version", action='version', version='ntJoin v1.0.2')
+        parser.add_argument("-v", "--version", action='version', version='ntLink v0.0.1')
         parser.add_argument("--verbose", help="Verbose output logging", action='store_true')
         parser.add_argument("--agp", help="Output AGP file describing scaffolds", action="store_true")
 
         return parser.parse_args()
 
     def print_parameters(self):
-        "Print the set parameters for the ntJoin run"
+        "Print the set parameters for the ntLink run"
         print("Parameters:")
         print("\tReference TSV files: ", self.args.FILES)
         print("\t-s ", self.args.s)
@@ -505,14 +505,13 @@ class NtjoinLong():
             print("\t--agp")
 
     def main(self):
-        "Run ntJoin graph stage"
-        print("Running ntJoin long ...\n")
+        "Run ntLink graph stage"
+        print("Running ntLink ...\n")
         self.print_parameters()
 
         # Read in the minimizers for target assembly
         mxs_info, mxs = self.read_minimizers(self.args.s)
-        NtjoinLong.list_mx_info = {self.args.s: mxs_info}
-        Ntjoin.list_mx_info = {self.args.s: mxs_info}
+        NtLink.list_mx_info = {self.args.s: mxs_info}
 
         # Load target scaffolds into memory
         min_match = re.search(r'^(\S+).k\d+.w\d+\.tsv', self.args.s)
@@ -521,9 +520,8 @@ class NtjoinLong():
             print("\ttarget_assembly.fa.k<k>.w<w>.tsv, where <k> and <w> are parameters used for minimizering")
             sys.exit(1)
         assembly_fa = min_match.group(1)
-        scaffolds = Ntjoin.read_fasta_file(assembly_fa)  # scaffold_id -> Scaffold
-        NtjoinLong.scaffolds = scaffolds
-        Ntjoin.scaffolds = scaffolds
+        scaffolds = utils.read_fasta_file(assembly_fa)  # scaffold_id -> Scaffold
+        NtLink.scaffolds = scaffolds
 
         # Get directed scaffold pairs, gap estimates from long reads
         pairs = self.find_scaffold_pairs(mxs)
@@ -542,7 +540,7 @@ class NtjoinLong():
         graph, max_weight = self.build_scaffold_graph(pairs)
         graph = self.filter_graph_global(graph)
 
-        NtjoinLong.max_weight = max_weight
+        NtLink.max_weight = max_weight
 
         # Print out the directed graph
         self.print_directed_graph(graph, self.args.p)
@@ -553,12 +551,12 @@ class NtjoinLong():
         print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
 
     def __init__(self):
-        "Create an ntJoin instance"
+        "Create an ntLink instance"
         self.args = self.parse_arguments()
 
 def main():
-    "Run ntJoin"
-    NtjoinLong().main()
+    "Run ntLink"
+    NtLink().main()
 
 if __name__ == "__main__":
     main()
