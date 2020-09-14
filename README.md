@@ -26,18 +26,20 @@ reads		        List of long read files (separated by a space)
 prefix			Prefix of intermediate output files [out.k<k>.w<w>.n<n>]
 t			Number of threads [4]
 k			K-mer size for minimizers [32]
-w			Window size for minimizers (bp) [1000]
-n			Minimum graph edge weight [1]
+w			Window size for minimizers (bp) [250]
+n			Minimum graph edge weight [2]
 g			Minimum gap size (bp) [20]
 m			Maximum number of contigs in a run for full transitive edge addition [10]
 a                        Minimum number of anchored ONT reads required for an edge [1]
-z			Minimum size of contig (bp) to scaffold [1000]
+z			Minimum size of contig (bp) to scaffold [500]
 
 Note: 
 	- Ensure all assembly and read files are in the current working directory, making soft links if neccessary
 ```
 
 Running `ntLink help` prints the help documentation.
+
+* Input reads files can be gzipped (or not), and in either fastq or fasta format
 
 #### Example
 Input files:

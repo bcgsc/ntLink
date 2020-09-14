@@ -1,21 +1,19 @@
 #!/usr/bin/make -rRf
 
-# ntLink: Scaffold assemblies using long reads
+# ntLink: Scaffold assemblies using long reads and minimizers
 # Written by Lauren Coombe @lcoombe
 # ntLink v0.0.1
 
 # Input files
 target=None
 reads=None
-min_ref_targets=$(addsuffix .k$(k).w$(w).tsv, $(reads))
-fai_ref_targets=$(addsuffix .fai, $(reads))
-bf_ref_targets=$(addsuffix .k$(k).z$(z).bf, $(reads))
+min_reads_targets=$(addsuffix .k$(k).w$(w).tsv, $(reads))
 
 # Path to pairing code
 ntlink_path=$(shell dirname $(realpath $(MAKEFILE_LIST)))
 
 # Window size
-w=1000
+w=250
 
 # Kmer size
 k=32
@@ -76,22 +74,22 @@ help:
 	@echo "prefix			Prefix of intermediate output files [out.k<k>.w<w>.n<n>]"
 	@echo "t			Number of threads [4]"
 	@echo "k			K-mer size for minimizers [32]"
-	@echo "w			Window size for minimizers (bp) [1000]"
-	@echo "n			Minimum graph edge weight [1]"
+	@echo "w			Window size for minimizers (bp) [250]"
+	@echo "n			Minimum graph edge weight [2]"
 	@echo "g			Minimum gap size (bp) [20]"
 	@echo "m			Maximum number of contigs in a run for full transitive edge addition [10]"
 	@echo "a			Minimum number of anchored ONT reads required for an edge [1]"
-	@echo "z			Minimum size of contig (bp) to scaffold [1000]"
+	@echo "z			Minimum size of contig (bp) to scaffold [500]"
 	@echo ""
 	@echo "Note: "
 	@echo "	- Ensure all assembly and read files are in the current working directory, making soft links if neccessary"
 	@echo ""
 
-scaffold: ntLink_graph \
+scaffold: check_params \
+	ntLink_graph \
 	abyss_scaffold
 
-ntLink_graph: check_params \
-	$(min_ref_targets) \
+ntLink_graph: $(min_reads_targets) \
 	$(target).k$(k).w$(w).tsv \
 	$(prefix).scaffold.dot
 
@@ -113,7 +111,7 @@ version:
 clean:
 	rm $(target).k$(k).w$(w).tsv $(reads).k$(k).w$(w).tsv
 
-.PHONY: help scaffold version long check_params clean
+.PHONY: help scaffold version check_params clean
 .DELETE_ON_ERROR:
 .SECONDARY:
 
@@ -123,9 +121,9 @@ clean:
 %.fa.gz: %.fa
 	$(time) $(gzip) $<
 
-$(prefix).scaffold.dot: $(target).k$(k).w$(w).tsv $(min_ref_targets)
+$(prefix).scaffold.dot: $(target).k$(k).w$(w).tsv min_reads_targets
 	$(time) $(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -s $<  \
-	-k $(k) -a $(a) -z $(z) $(min_ref_targets)
+	-k $(k) -a $(a) -z $(z) $(min_reads_targets)
 
 # Run abyss-scaffold scaffolding layout
 $(prefix).abyss-scaffold.path: $(prefix).scaffold.dot
