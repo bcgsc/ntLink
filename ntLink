@@ -26,9 +26,6 @@ t=4
 # Minimum contig size
 z=500
 
-# Number of threads for ntjoin_assemble.py (Change with caution -- multi-processing increases memory)
-assemble_t=1
-
 # Minimum edge weight
 n=2
 
@@ -75,7 +72,7 @@ help:
 	@echo ""
 	@echo "Options:"
 	@echo "target			Target assembly to be scaffolded in fasta format"
-	@echo "reads		List of long read files (separated by a space)"
+	@echo "reads			List of long read files (separated by a space)"
 	@echo "prefix			Prefix of intermediate output files [out.k<k>.w<w>.n<n>]"
 	@echo "t			Number of threads [4]"
 	@echo "k			K-mer size for minimizers [32]"
@@ -83,17 +80,17 @@ help:
 	@echo "n			Minimum graph edge weight [1]"
 	@echo "g			Minimum gap size (bp) [20]"
 	@echo "m			Maximum number of contigs in a run for full transitive edge addition [10]"
-	@echo "a            Minimum number of anchored ONT reads required for an edge [1]"
+	@echo "a			Minimum number of anchored ONT reads required for an edge [1]"
 	@echo "z			Minimum size of contig (bp) to scaffold [1000]"
 	@echo ""
 	@echo "Note: "
 	@echo "	- Ensure all assembly and read files are in the current working directory, making soft links if neccessary"
 	@echo ""
 
-scaffold: ntJoin_graph \
+scaffold: ntLink_graph \
 	abyss_scaffold
 
-ntJoin_graph: check_params \
+ntLink_graph: check_params \
 	$(min_ref_targets) \
 	$(target).k$(k).w$(w).tsv \
 	$(prefix).scaffold.dot
@@ -127,7 +124,7 @@ clean:
 	$(time) $(gzip) $<
 
 $(prefix).scaffold.dot: $(target).k$(k).w$(w).tsv $(min_ref_targets)
-	$(time) $(ntlink_path)/bin/ntjoin_long_pair.py -p $(prefix) -n $(n) -s $<  \
+	$(time) $(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -s $<  \
 	-k $(k) -a $(a) -z $(z) $(min_ref_targets)
 
 # Run abyss-scaffold scaffolding layout
