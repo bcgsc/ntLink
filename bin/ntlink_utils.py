@@ -4,11 +4,11 @@ General utility functions for ntLink
 
 __author__ = "Lauren Coombe @lcoombe"
 
-import igraph as ig
 import datetime
-from read_fasta import read_fasta
 from collections import namedtuple
 import sys
+
+from read_fasta import read_fasta
 
 Scaffold = namedtuple("Scaffold", ["id", "length", "sequence"])
 

@@ -6,19 +6,18 @@ __author__ = 'laurencoombe'
 
 import argparse
 import datetime
-import re
 from collections import defaultdict
 from collections import namedtuple
 import itertools
 import sys
 import numpy as np
 import igraph as ig
-import ntlink_utils as ntlink_utils
+import ntlink_utils
 
 MinimizerEdge = namedtuple("MinimizerEdge", ["mx_i", "mx_i_pos", "mx_i_strand",
                                              "mx_j", "mx_j_pos", "mx_j_strand"])
 Minimizer = namedtuple("Minimizer", ["contig", "position", "strand"])
-Minimizer_with_hash = namedtuple("Minimizer_with_hash", ["mx_hash", "contig", "position", "strand"])
+MinimizerWithHash = namedtuple("Minimizer_with_hash", ["mx_hash", "contig", "position", "strand"])
 
 class ScaffoldPair:
     "Object that represents a scaffold pair"
@@ -141,13 +140,13 @@ class NtLink():
         try:
             assert a >= 0
             assert b >= 0
-        except:
+        except AssertionError as assert_error:
             print("ERROR: Gap distance estimation less than 0", "Vertex 1:", u_mx, "Vertex 2:", v_mx,
                   sep="\n")
             print("Minimizer positions:", NtLink.list_mx_info[u_mx].position,
                   NtLink.list_mx_info[v_mx].position)
             print("Estimated distance: ", est_distance)
-            raise AssertionError
+            raise assert_error
 
         gap_size = est_distance - a - b
         return int(gap_size)
@@ -312,7 +311,7 @@ class NtLink():
         pair, gap_est = self.calculate_pair_info(MinimizerEdge(mx_i.mx_hash, mx_i.position, mx_i.strand,
                                                                mx_j.mx_hash, mx_j.position, mx_j.strand))
         if check_added is not None and pair in check_added:
-            return
+            return None
 
         if pair not in pairs:
             pairs[pair] = PairInfo()
@@ -320,6 +319,8 @@ class NtLink():
         if accepted_anchor_contigs[ctg_i].hit_count > 1 and \
                         accepted_anchor_contigs[ctg_j].hit_count > 1:
             pairs[pair].anchor += 1
+
+        return pair
 
     def find_scaffold_pairs(self, list_mxs_target):
         "Builds up pairing information between scaffolds"
@@ -346,15 +347,17 @@ class NtLink():
                             print(line[0], [str(accepted_anchor_contigs[ctg_run])
                                             for ctg_run in accepted_anchor_contigs])
 
-                        # Filter ordered minimizer list to only include accepted contigs, keep track of hashes for gap sizes
+                        # Filter ordered minimizer list for accepted contigs, keep track of hashes for gap sizes
                         mx_pos_split = [mx_tup for mx_tup in mx_pos_split
                                         if NtLink.list_mx_info[mx_tup[0]].contig in
                                         accepted_anchor_contigs]
                         for mx, pos, strand in mx_pos_split:
                             mx_contig = NtLink.list_mx_info[mx].contig
                             if accepted_anchor_contigs[mx_contig].first_mx is None:
-                                accepted_anchor_contigs[mx_contig].first_mx = Minimizer_with_hash(mx, mx_contig, int(pos), strand)
-                            accepted_anchor_contigs[mx_contig].terminal_mx = Minimizer_with_hash(mx, mx_contig, int(pos), strand)
+                                accepted_anchor_contigs[mx_contig].first_mx = MinimizerWithHash(mx, mx_contig,
+                                                                                                int(pos), strand)
+                            accepted_anchor_contigs[mx_contig].terminal_mx = MinimizerWithHash(mx, mx_contig,
+                                                                                               int(pos), strand)
 
                         if len(contig_runs) <= self.args.f:
                             # Add all transitive edges for pairs
@@ -369,13 +372,15 @@ class NtLink():
                                 added_pairs.add(new_pair)
 
                             # Add transitive edges over weakly supported contigs
-                            contig_runs_filter = [ctg for ctg in contig_runs if accepted_anchor_contigs[ctg].hit_count > 1]
+                            contig_runs_filter = [ctg for ctg in contig_runs
+                                                  if accepted_anchor_contigs[ctg].hit_count > 1]
                             for ctg_i, ctg_j in zip(contig_runs_filter, contig_runs_filter[1:]):
                                 self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, check_added=added_pairs)
 
         return pairs
 
     def write_pairs(self, pairs):
+        "Write the scaffold pairs to file"
         pair_out = open(self.args.p + ".pairs.tsv", 'w')
         for pair in pairs:
             pair_out.write("\t".join([pair.source_contig + pair.source_ori,
