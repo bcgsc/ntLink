@@ -14,7 +14,7 @@ Concept: Rene Warren and Lauren Coombe
 
 Design and implementation: Lauren Coombe
 
-## Usage
+### Usage
 ```
 ntLink: Scaffolding assemblies using long reads
 ntLink v0.0.1
@@ -50,7 +50,7 @@ ntLink command:
 ```
 ntLink scaffold target=my_assembly.fa reads='long_reads_1.fq.gz long_reads_2.fq.gz k=32 w=500'
 ```
- ## Installation
+ ### Installation
  Installing from source code:
  ```
 git clone https://github.com/bcgsc/ntLink.git
@@ -58,6 +58,26 @@ cd src
 make
 ```
 
-## Dependencies
-* Python3 ()
+### Dependencies
+* Python3 ([Numpy](https://numpy.org/), [Python-igraph](https://igraph.org/python/))
 * [ABySS](https://github.com/bcgsc/abyss)
+* [zlib](https://zlib.net/)
+
+Python dependencies can be installed with:
+```
+pip3 install -r requirements
+```
+
+### License
+ntLink Copyright (c) 2020 British Columbia Cancer Agency Branch. All rights reserved.
+
+ntLink is released under the GNU General Public License v3
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 3.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/.
+
+For commercial licensing options, please contact Patrick Rebstein (prebstein@bccancer.bc.ca).
+
