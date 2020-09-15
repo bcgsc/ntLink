@@ -30,8 +30,9 @@ w			Window size for minimizers (bp) [250]
 n			Minimum graph edge weight [2]
 g			Minimum gap size (bp) [20]
 f			Maximum number of contigs in a run for full transitive edge addition [10]
-a                        Minimum number of anchored ONT reads required for an edge [1]
+a                       Minimum number of anchored ONT reads required for an edge [1]
 z			Minimum size of contig (bp) to scaffold [500]
+v                       If 1, track time and memory for each step of the pipeline [0]
 
 Note: 
 	- Ensure all assembly and read files are in the current working directory, making soft links if neccessary

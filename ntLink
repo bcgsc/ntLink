@@ -49,10 +49,15 @@ export TIMEFMT=time user=%U system=%S elapsed=%E cpu=%P memory=%M job=%J
 endif
 
 # Record run time and memory usage in a file using GNU time
+v=0
+ifeq ($(v), 0)
+time=
+else
 ifneq ($(shell command -v gtime),)
 time=command gtime -v -o $@.time
 else
 time=command time -v -o $@.time
+endif
 endif
 
 # Compress in parallel
@@ -80,6 +85,7 @@ help:
 	@echo "f			Maximum number of contigs in a run for full transitive edge addition [10]"
 	@echo "a			Minimum number of anchored ONT reads required for an edge [1]"
 	@echo "z			Minimum size of contig (bp) to scaffold [500]"
+	@echo "v			If 1, track time and memory for each step of the pipeline [0]"
 	@echo ""
 	@echo "Note: "
 	@echo "	- Ensure all assembly and read files are in the current working directory, making soft links if neccessary"
