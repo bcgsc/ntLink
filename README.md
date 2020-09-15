@@ -1,20 +1,20 @@
 # ntLink
 Long read assembly scaffolder using minimizers
 
-### Description of the algorithm
+## Description of the algorithm
 ntLink uses minimizers to perform a lightweight mapping between the input target assembly and the supplied long reads.
 
-#### General steps in the algorithm:
+### General steps in the algorithm:
 1. Compute ordered minimizer sketches of the input assembly and long reads
 2. Use minimizers to map long reads to the input assembly contigs, and use the information to output contig pairs
 3. Scaffold the assembly using the contig pairing information using `abyss-scaffold`
 
-### Credits
+## Credits
 Concept: Rene Warren and Lauren Coombe
 
 Design and implementation: Lauren Coombe
 
-### Usage
+## Usage
 ```
 ntLink: Scaffolding assemblies using long reads
 ntLink v0.0.1
@@ -41,7 +41,7 @@ Running `ntLink help` prints the help documentation.
 
 * Input reads files can be gzipped (or not), and in either fastq or fasta format
 
-#### Example
+### Example
 Input files:
 * target assembly `my_assembly.fa`
 * long read files `long_reads_1.fq.gz`, `long_reads_2.fq.gz`
@@ -50,7 +50,7 @@ ntLink command:
 ```
 ntLink scaffold target=my_assembly.fa reads='long_reads_1.fq.gz long_reads_2.fq.gz k=32 w=500'
 ```
- ### Installation
+ ## Installation
  Installing from source code:
  ```
 git clone https://github.com/bcgsc/ntLink.git
@@ -58,7 +58,7 @@ cd src
 make
 ```
 
-### Dependencies
+## Dependencies
 * Python3 ([Numpy](https://numpy.org/), [Python-igraph](https://igraph.org/python/))
 * [ABySS](https://github.com/bcgsc/abyss)
 * [zlib](https://zlib.net/)
@@ -68,7 +68,7 @@ Python dependencies can be installed with:
 pip3 install -r requirements
 ```
 
-### License
+## License
 ntLink Copyright (c) 2020 British Columbia Cancer Agency Branch. All rights reserved.
 
 ntLink is released under the GNU General Public License v3
