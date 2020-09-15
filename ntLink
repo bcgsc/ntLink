@@ -121,7 +121,7 @@ clean:
 %.fa.gz: %.fa
 	$(time) $(gzip) $<
 
-$(prefix).scaffold.dot: $(target).k$(k).w$(w).tsv min_reads_targets
+$(prefix).scaffold.dot: $(target).k$(k).w$(w).tsv $(min_reads_targets)
 	$(time) $(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
 	-k $(k) -a $(a) -z $(z) -f $(f) $(min_reads_targets)
 
