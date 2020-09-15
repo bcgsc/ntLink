@@ -65,7 +65,7 @@ make
 
 Python dependencies can be installed with:
 ```
-pip3 install -r requirements
+pip3 install -r requirements.txt
 ```
 
 ## License
