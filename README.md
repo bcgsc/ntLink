@@ -29,7 +29,7 @@ k			K-mer size for minimizers [32]
 w			Window size for minimizers (bp) [250]
 n			Minimum graph edge weight [2]
 g			Minimum gap size (bp) [20]
-m			Maximum number of contigs in a run for full transitive edge addition [10]
+f			Maximum number of contigs in a run for full transitive edge addition [10]
 a                        Minimum number of anchored ONT reads required for an edge [1]
 z			Minimum size of contig (bp) to scaffold [500]
 
@@ -50,3 +50,14 @@ ntLink command:
 ```
 ntLink scaffold target=my_assembly.fa reads='long_reads_1.fq.gz long_reads_2.fq.gz k=32 w=500'
 ```
+ ## Installation
+ Installing from source code:
+ ```
+git clone https://github.com/bcgsc/ntLink.git
+cd src
+make
+```
+
+## Dependencies
+* Python3 ()
+* [ABySS](https://github.com/bcgsc/abyss)

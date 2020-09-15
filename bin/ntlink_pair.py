@@ -13,11 +13,10 @@ import itertools
 import sys
 import numpy as np
 import igraph as ig
-import ntlink_utils as utils
+import ntlink_utils as ntlink_utils
 
 MinimizerEdge = namedtuple("MinimizerEdge", ["mx_i", "mx_i_pos", "mx_i_strand",
-                                             "mx_j", "mx_j_pos", "mx_j_strand",
-                                             "ONT_name"])
+                                             "mx_j", "mx_j_pos", "mx_j_strand"])
 Minimizer = namedtuple("Minimizer", ["contig", "position", "strand"])
 Minimizer_with_hash = namedtuple("Minimizer_with_hash", ["mx_hash", "contig", "position", "strand"])
 
@@ -70,7 +69,7 @@ class PairInfo:
                                                                     a=self.anchor)
 
 class ContigRun:
-    "Represents information about a contig run based on a long reaad"
+    "Represents information about a contig run based on a long read"
     def __init__(self, contig, index, hit_count):
         self.contig = contig
         self.index = index
@@ -115,78 +114,29 @@ class NtLink():
 
         for edge in graph.es():
             edge_str = "\"{source}\" -> \"{target}\" [d={d} e={e} n={n}]\n".\
-                format(source=utils.vertex_name(graph, edge.source),
-                       target=utils.vertex_name(graph, edge.target),
+                format(source=ntlink_utils.vertex_name(graph, edge.source),
+                       target=ntlink_utils.vertex_name(graph, edge.target),
                        d=int(edge['d']), e=edge['e'], n=edge['n'])
             outfile.write(edge_str)
 
         outfile.write("}\n")
 
-    @staticmethod
-    def convert_links_scaf_id(vertex_name, links_numbering):
-        "Convert abyss-scaffold style naming to LINKS-style"
-        if vertex_name[-1] == "+":
-            return "{ori}{vertex}".format(ori="f", vertex=links_numbering[vertex_name[:-1]])
-        return "{ori}{vertex}".format(ori="r", vertex=links_numbering[vertex_name[:-1]])
-
-    def print_links_tigpair(self, graph, prefix):
-        "Prints pairs in LINKS format"
-        min_match = re.search(r'^(\S+).k\d+.w\d+\.tsv', self.args.s)
-        assembly_fa = min_match.group(1)
-        links_numbering = {}
-        header_re = re.compile(r'>(\S+)')
-        counter = 1
-        with open(assembly_fa, 'r') as assembly:
-            for line in assembly:
-                line = line.strip()
-                header_match = re.search(header_re, line)
-                if header_match:
-                    links_numbering[header_match.group(1)] = counter
-                    counter += 1
-
-        out_file_name = prefix + ".tigpair_checkpoint.tsv"
-        out_file = open(out_file_name, 'w')
-        for edge in graph.es():
-            source = self.convert_links_scaf_id(utils.vertex_name(graph, edge.source), links_numbering)
-            target = self.convert_links_scaf_id(utils.vertex_name(graph, edge.target), links_numbering)
-            distance_est = int(edge['d'])
-            links = int(edge['n'])
-
-            if distance_est < 0:
-                dist_category = -1
-            elif distance_est <= 10:
-                dist_category = 10
-            elif distance_est <= 500:
-                dist_category = 500
-            elif distance_est <= 1000:
-                dist_category = 1000
-            elif distance_est <= 5000:
-                dist_category = 5000
-            else:
-                dist_category = 10000
-            out_str = "{dist_category}\t{source}\t{target}\t{links}\t{gap_links}\n".format(dist_category=dist_category,
-                                                                                           source=source, target=target,
-                                                                                           links=links,
-                                                                                           gap_links=links*distance_est)
-            out_file.write(out_str)
-
-
-    def calculate_gap_size_check(self, u_mx, u_ori, v_mx, v_ori, est_distance):
+    def calculate_gap_size(self, u_mx, u_ori, v_mx, v_ori, est_distance):
         "Calculates the estimated distance between two contigs, assuming full contig"
 
         # Correct for the overhanging sequence before/after terminal minimizers
         if u_ori == "+":
-            u_ctg = NtLink.list_mx_info[self.args.s][u_mx].contig
+            u_ctg = NtLink.list_mx_info[u_mx].contig
             u_ctglen = NtLink.scaffolds[u_ctg].length
-            a = u_ctglen - NtLink.list_mx_info[self.args.s][u_mx].position - self.args.k
+            a = u_ctglen - NtLink.list_mx_info[u_mx].position - self.args.k
         else:
-            a = NtLink.list_mx_info[self.args.s][u_mx].position
+            a = NtLink.list_mx_info[u_mx].position
         if v_ori == "+":
-            b = NtLink.list_mx_info[self.args.s][v_mx].position
+            b = NtLink.list_mx_info[v_mx].position
         else:
-            v_ctg = NtLink.list_mx_info[self.args.s][v_mx].contig
+            v_ctg = NtLink.list_mx_info[v_mx].contig
             v_ctglen = NtLink.scaffolds[v_ctg].length
-            b = v_ctglen - NtLink.list_mx_info[self.args.s][v_mx].position - self.args.k
+            b = v_ctglen - NtLink.list_mx_info[v_mx].position - self.args.k
 
         try:
             assert a >= 0
@@ -194,8 +144,8 @@ class NtLink():
         except:
             print("ERROR: Gap distance estimation less than 0", "Vertex 1:", u_mx, "Vertex 2:", v_mx,
                   sep="\n")
-            print("Minimizer positions:", NtLink.list_mx_info[self.args.s][u_mx].position,
-                  NtLink.list_mx_info[self.args.s][v_mx].position)
+            print("Minimizer positions:", NtLink.list_mx_info[u_mx].position,
+                  NtLink.list_mx_info[v_mx].position)
             print("Estimated distance: ", est_distance)
             raise AssertionError
 
@@ -206,13 +156,14 @@ class NtLink():
     def read_minimizers(tsv_filename):
         "Read the minimizers from a file, removing duplicate minimizers"
         print(datetime.datetime.today(), ": Reading minimizers", tsv_filename, file=sys.stdout)
-        mx_info = {}  # mx -> (contig, position)
+        mx_info = {}  # mx -> Minimizer object
         mxs = []  # List of lists of minimizers
         dup_mxs = set()  # Set of minimizers identified as duplicates
         with open(tsv_filename, 'r') as tsv:
             for line in tsv:
                 line = line.strip().split("\t")
                 if len(line) > 1:
+                    ctg_name = line[0]
                     mx_pos_split = line[1].split(" ")
                     mxs.append([mx_pos.split(":")[0] for mx_pos in mx_pos_split])
                     for mx_pos in mx_pos_split:
@@ -220,7 +171,7 @@ class NtLink():
                         if mx in mx_info:  # This is a duplicate, add to dup set, don't add to dict
                             dup_mxs.add(mx)
                         else:
-                            mx_info[mx] = Minimizer(line[0], int(pos), strand)
+                            mx_info[mx] = Minimizer(ctg_name, int(pos), strand)
 
         mx_info = {mx: mx_info[mx] for mx in mx_info if mx not in dup_mxs}
         mxs_filt = []
@@ -245,53 +196,25 @@ class NtLink():
                             source_ctg, self.reverse_orientation(source_ori))
 
 
-    def find_scaffolding_edges(self, graph):
-        "Iterates over edges in a graph, and tallies connections between different scaffolds"
-        pairs = {} # (source + ori, target + ori)
-        for edge in graph.es():
-            if "target" in graph.es()[edge.index]["support"]:
-                continue
-            for mx_edge in graph.es()[edge.index]["support"]:
-                assert mx_edge.mx_i_pos < mx_edge.mx_j_pos
-                assert mx_edge.mx_i == utils.vertex_name(graph, edge.source) or \
-                       mx_edge.mx_i == utils.vertex_name(graph, edge.target)
-                assert mx_edge.mx_j == utils.vertex_name(graph, edge.source) or \
-                       mx_edge.mx_j == utils.vertex_name(graph, edge.target)
-                if mx_edge.mx_i_strand == NtLink.list_mx_info[self.args.s][mx_edge.mx_i].strand:
-                    source_ctg, source_ori = NtLink.list_mx_info[self.args.s][mx_edge.mx_i].contig, "+"
-                else:
-                    source_ctg, source_ori = NtLink.list_mx_info[self.args.s][mx_edge.mx_i].contig, "-"
-                if mx_edge.mx_j_strand == NtLink.list_mx_info[self.args.s][mx_edge.mx_j].strand:
-                    target_ctg, target_ori = NtLink.list_mx_info[self.args.s][mx_edge.mx_j].contig, "+"
-                else:
-                    target_ctg, target_ori = NtLink.list_mx_info[self.args.s][mx_edge.mx_j].contig, "-"
-                new_pair = self.normalize_pair(source_ctg, source_ori, target_ctg, target_ori)
-                gap_estimate = self.calculate_gap_size_check(mx_edge.mx_i, source_ori, mx_edge.mx_j, target_ori,
-                                                             mx_edge.mx_j_pos - mx_edge.mx_i_pos)
-                if new_pair not in pairs:
-                    pairs[new_pair] = []
-                pairs[new_pair].append((gap_estimate, mx_edge.ONT_name))
-        return pairs
-
     def calculate_pair_info(self, mx_edge):
         "Given a contig pair, normalizes, defines orientation and estimates the gap size"
 
         assert mx_edge.mx_i_pos < mx_edge.mx_j_pos
-        if mx_edge.mx_i_strand == NtLink.list_mx_info[self.args.s][mx_edge.mx_i].strand:
-            source_ctg, source_ori = NtLink.list_mx_info[self.args.s][mx_edge.mx_i].contig, "+"
+        if mx_edge.mx_i_strand == NtLink.list_mx_info[mx_edge.mx_i].strand:
+            source_ctg, source_ori = NtLink.list_mx_info[mx_edge.mx_i].contig, "+"
         else:
-            source_ctg, source_ori = NtLink.list_mx_info[self.args.s][mx_edge.mx_i].contig, "-"
-        if mx_edge.mx_j_strand == NtLink.list_mx_info[self.args.s][mx_edge.mx_j].strand:
-            target_ctg, target_ori = NtLink.list_mx_info[self.args.s][mx_edge.mx_j].contig, "+"
+            source_ctg, source_ori = NtLink.list_mx_info[mx_edge.mx_i].contig, "-"
+        if mx_edge.mx_j_strand == NtLink.list_mx_info[mx_edge.mx_j].strand:
+            target_ctg, target_ori = NtLink.list_mx_info[mx_edge.mx_j].contig, "+"
         else:
-            target_ctg, target_ori = NtLink.list_mx_info[self.args.s][mx_edge.mx_j].contig, "-"
+            target_ctg, target_ori = NtLink.list_mx_info[mx_edge.mx_j].contig, "-"
         new_pair = self.normalize_pair(source_ctg, source_ori, target_ctg, target_ori)
-        gap_estimate = self.calculate_gap_size_check(mx_edge.mx_i, source_ori, mx_edge.mx_j, target_ori,
-                                                     mx_edge.mx_j_pos - mx_edge.mx_i_pos)
+        gap_estimate = self.calculate_gap_size(mx_edge.mx_i, source_ori, mx_edge.mx_j, target_ori,
+                                               mx_edge.mx_j_pos - mx_edge.mx_i_pos)
         return (new_pair, gap_estimate)
 
     def filter_weak_anchor_pairs(self, pairs):
-        "Filter out edges where there isn't at least threshold # well-anchored read"
+        "Filter out edges where there isn't at least threshold # well-anchored reads"
         new_pair = {pair: pairs[pair] for pair in pairs if pairs[pair].anchor >= self.args.a}
         return new_pair
 
@@ -301,7 +224,7 @@ class NtLink():
         new_pairs = {}
         for pair in pairs:
             if pairs[pair].get_gap_estimate() <= NtLink.scaffolds[pair.source_contig].length*-1 or \
-                pairs[pair].get_gap_estimate() <= NtLink.scaffolds[pair.target_contig].length*-1:
+                    pairs[pair].get_gap_estimate() <= NtLink.scaffolds[pair.target_contig].length*-1:
                 continue
             new_pairs[pair] = pairs[pair]
         return new_pairs
@@ -314,6 +237,7 @@ class NtLink():
 
     def build_scaffold_graph(self, pairs):
         "Builds a scaffold graph given the pairs info"
+        print(datetime.datetime.today(), ": Building scaffold graph", file=sys.stdout)
 
         graph = ig.Graph(directed=True)
 
@@ -345,23 +269,21 @@ class NtLink():
         graph.add_vertices(list(vertices))
         graph.add_edges(formatted_edges)
 
-        edge_attributes = {utils.edge_index(graph, s, t): {'d': edges[s][t].get_gap_estimate(),
-                                                            "e": 100,
-                                                            "n": edges[s][t].n_supporting_reads()}
+        edge_attributes = {ntlink_utils.edge_index(graph, s, t): {'d': edges[s][t].get_gap_estimate(),
+                                                                  "e": 100,
+                                                                  "n": edges[s][t].n_supporting_reads()}
                            for s in edges for t in edges[s]}
         graph.es()["d"] = [edge_attributes[e]['d'] for e in sorted(edge_attributes.keys())]
         graph.es()["e"] = [edge_attributes[e]['e'] for e in sorted(edge_attributes.keys())]
         graph.es()["n"] = [edge_attributes[e]['n'] for e in sorted(edge_attributes.keys())]
 
-        max_weight = max([edge_attributes[e]['n'] for e in edge_attributes.keys()])
-
-        return graph, max_weight
+        return graph
 
     def get_accepted_anchor_contigs(self, mx_list):
         "Returns dictionary of contigs of appropriate length, mx hits, whether subsumed"
         contig_list = []
         for mx, _, _ in mx_list:
-            contig = NtLink.list_mx_info[self.args.s][mx].contig
+            contig = NtLink.list_mx_info[mx].contig
             if NtLink.scaffolds[contig].length >= self.args.z:
                 contig_list.append(contig)
 
@@ -383,13 +305,12 @@ class NtLink():
 
         return return_contigs_hits, return_contig_runs
 
-    def add_pair(self, accepted_anchor_contigs, ctg_i, ctg_j, ont_read, pairs, check_added=None):
+    def add_pair(self, accepted_anchor_contigs, ctg_i, ctg_j, pairs, check_added=None):
         "Add pair to dictionary of pairs"
         mx_i = accepted_anchor_contigs[ctg_i].terminal_mx
         mx_j = accepted_anchor_contigs[ctg_j].first_mx
         pair, gap_est = self.calculate_pair_info(MinimizerEdge(mx_i.mx_hash, mx_i.position, mx_i.strand,
-                                                               mx_j.mx_hash, mx_j.position, mx_j.strand,
-                                                               ont_read))
+                                                               mx_j.mx_hash, mx_j.position, mx_j.strand))
         if check_added is not None and pair in check_added:
             return
 
@@ -409,9 +330,7 @@ class NtLink():
         pairs = {} # source -> target -> [gap estimate]
 
         # Add the long read edges to the graph
-        file_count = 0
         for mx_long_file in self.args.FILES:
-            file_count += 1
             with open(mx_long_file, 'r') as long_mxs:
                 for line in long_mxs:
                     line = line.strip().split("\t")
@@ -426,35 +345,42 @@ class NtLink():
                         if self.args.verbose and accepted_anchor_contigs and len(accepted_anchor_contigs) > 1:
                             print(line[0], [str(accepted_anchor_contigs[ctg_run])
                                             for ctg_run in accepted_anchor_contigs])
+
+                        # Filter ordered minimizer list to only include accepted contigs, keep track of hashes for gap sizes
                         mx_pos_split = [mx_tup for mx_tup in mx_pos_split
-                                        if NtLink.list_mx_info[self.args.s][mx_tup[0]].contig in
+                                        if NtLink.list_mx_info[mx_tup[0]].contig in
                                         accepted_anchor_contigs]
                         for mx, pos, strand in mx_pos_split:
-                            mx_contig = NtLink.list_mx_info[self.args.s][mx].contig
-                            if mx_contig not in accepted_anchor_contigs:
-                                continue
+                            mx_contig = NtLink.list_mx_info[mx].contig
                             if accepted_anchor_contigs[mx_contig].first_mx is None:
                                 accepted_anchor_contigs[mx_contig].first_mx = Minimizer_with_hash(mx, mx_contig, int(pos), strand)
                             accepted_anchor_contigs[mx_contig].terminal_mx = Minimizer_with_hash(mx, mx_contig, int(pos), strand)
 
-                        if len(contig_runs) <= self.args.m:
+                        if len(contig_runs) <= self.args.f:
                             # Add all transitive edges for pairs
                             for ctg_pair in itertools.combinations(contig_runs, 2):
                                 ctg_i, ctg_j = ctg_pair
-                                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, line[0], pairs)
+                                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs)
                         else:
                             added_pairs = set()
                             # Add adjacent pairs
                             for ctg_i, ctg_j in zip(contig_runs, contig_runs[1:]):
-                                new_pair = self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, line[0], pairs)
+                                new_pair = self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs)
                                 added_pairs.add(new_pair)
 
                             # Add transitive edges over weakly supported contigs
                             contig_runs_filter = [ctg for ctg in contig_runs if accepted_anchor_contigs[ctg].hit_count > 1]
                             for ctg_i, ctg_j in zip(contig_runs_filter, contig_runs_filter[1:]):
-                                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, line[0], pairs, check_added=added_pairs)
+                                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, check_added=added_pairs)
 
         return pairs
+
+    def write_pairs(self, pairs):
+        pair_out = open(self.args.p + ".pairs.tsv", 'w')
+        for pair in pairs:
+            pair_out.write("\t".join([pair.source_contig + pair.source_ori,
+                                      pair.target_contig + pair.target_ori, str(pairs[pair])]) + "\n")
+        pair_out.close()
 
     def filter_graph_global(self, graph):
         "Filter the graph globally based on minimum edge weight"
@@ -470,57 +396,50 @@ class NtLink():
         "Parse ntLink arguments"
         parser = argparse.ArgumentParser(
             description="ntLink: Scaffolding genome assemblies using long reads",
-            epilog="Note: Script expects that each input minimizer TSV file has a matching fasta file.\n"
+            epilog="Note: Script expects that the input minimizer TSV file has a matching fasta file.\n"
                    "Example: myscaffolds.fa.k32.w1000.tsv - myscaffolds.fa is the expected matching fasta",
             formatter_class=argparse.RawTextHelpFormatter)
-        parser.add_argument("FILES", nargs="+", help="Minimizer TSV files of references")
+        parser.add_argument("FILES", nargs="+", help="Minimizer TSV files of long reads")
         parser.add_argument("-a", help="Minimum number of anchoring ONT for an edge", required=False,
                             type=int, default=1)
-        parser.add_argument("-s", help="Target scaffolds minimizer TSV file", required=True)
+        parser.add_argument("-s", help="Target scaffolds fasta file", required=True)
+        parser.add_argument("-m", help="Target scaffolds minimizer TSV file")
         parser.add_argument("-p", help="Output prefix [out]", default="out",
                             type=str, required=False)
         parser.add_argument("-n", help="Minimum edge weight [1]", default=1, type=int)
         parser.add_argument("-k", help="Kmer size used for minimizer step", required=True, type=int)
-        parser.add_argument("-m", help="Maximum number of contigs in a run for full transitive edge addition",
+        parser.add_argument("-f", help="Maximum number of contigs in a run for full transitive edge addition",
                             required=False, default=10, type=int)
         parser.add_argument("-z", help="Minimum size of contig to scaffold", required=False, default=500, type=int)
         parser.add_argument("-v", "--version", action='version', version='ntLink v0.0.1')
         parser.add_argument("--verbose", help="Verbose output logging", action='store_true')
-        parser.add_argument("--agp", help="Output AGP file describing scaffolds", action="store_true")
 
         return parser.parse_args()
 
     def print_parameters(self):
         "Print the set parameters for the ntLink run"
         print("Parameters:")
-        print("\tReference TSV files: ", self.args.FILES)
+        print("\tReads TSV files: ", self.args.FILES)
         print("\t-s ", self.args.s)
+        print("\t-m ", self.args.m)
         print("\t-p ", self.args.p)
         print("\t-n ", self.args.n)
         print("\t-k ", self.args.k)
         print("\t-a ", self.args.a)
         print("\t-z ", self.args.z)
-        print("\t-m ", self.args.m)
-        if self.args.agp:
-            print("\t--agp")
+        print("\t-f ", self.args.f)
 
     def main(self):
         "Run ntLink graph stage"
-        print("Running ntLink ...\n")
+        print("Running pairing stage of ntLink ...\n")
         self.print_parameters()
 
         # Read in the minimizers for target assembly
-        mxs_info, mxs = self.read_minimizers(self.args.s)
-        NtLink.list_mx_info = {self.args.s: mxs_info}
+        mxs_info, mxs = self.read_minimizers(self.args.m)
+        NtLink.list_mx_info = mxs_info
 
         # Load target scaffolds into memory
-        min_match = re.search(r'^(\S+).k\d+.w\d+\.tsv', self.args.s)
-        if not min_match:
-            print("ERROR: Target assembly minimizer TSV file must follow the naming convention:")
-            print("\ttarget_assembly.fa.k<k>.w<w>.tsv, where <k> and <w> are parameters used for minimizering")
-            sys.exit(1)
-        assembly_fa = min_match.group(1)
-        scaffolds = utils.read_fasta_file(assembly_fa)  # scaffold_id -> Scaffold
+        scaffolds = ntlink_utils.read_fasta_file(self.args.s)  # scaffold_id -> Scaffold
         NtLink.scaffolds = scaffolds
 
         # Get directed scaffold pairs, gap estimates from long reads
@@ -530,23 +449,14 @@ class NtLink():
 
         pairs = self.filter_weak_anchor_pairs(pairs)
 
-        pair_out = open(self.args.p + ".pairs.tsv", 'w')
-        for pair in pairs:
-            pair_out.write("\t".join([pair.source_contig + pair.source_ori,
-                                      pair.target_contig + pair.target_ori, str(pairs[pair])]) + "\n")
-        pair_out.close()
+        self.write_pairs(pairs)
 
         # Build directed graph
-        graph, max_weight = self.build_scaffold_graph(pairs)
+        graph = self.build_scaffold_graph(pairs)
         graph = self.filter_graph_global(graph)
-
-        NtLink.max_weight = max_weight
 
         # Print out the directed graph
         self.print_directed_graph(graph, self.args.p)
-
-        # Print LINKS-formatted graph
-        self.print_links_tigpair(graph, self.args.p)
 
         print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
 

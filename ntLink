@@ -34,7 +34,7 @@ g=20
 a=1
 
 # Maximum number of contigs in a run for full transitive edge addition
-m=10
+f=10
 
 # Prefix for output files
 prefix=out.k$(k).w$(w).n$(n).z$(z)
@@ -77,7 +77,7 @@ help:
 	@echo "w			Window size for minimizers (bp) [250]"
 	@echo "n			Minimum graph edge weight [2]"
 	@echo "g			Minimum gap size (bp) [20]"
-	@echo "m			Maximum number of contigs in a run for full transitive edge addition [10]"
+	@echo "f			Maximum number of contigs in a run for full transitive edge addition [10]"
 	@echo "a			Minimum number of anchored ONT reads required for an edge [1]"
 	@echo "z			Minimum size of contig (bp) to scaffold [500]"
 	@echo ""
@@ -122,8 +122,8 @@ clean:
 	$(time) $(gzip) $<
 
 $(prefix).scaffold.dot: $(target).k$(k).w$(w).tsv min_reads_targets
-	$(time) $(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -s $<  \
-	-k $(k) -a $(a) -z $(z) $(min_reads_targets)
+	$(time) $(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
+	-k $(k) -a $(a) -z $(z) -f $(f) $(min_reads_targets)
 
 # Run abyss-scaffold scaffolding layout
 $(prefix).abyss-scaffold.path: $(prefix).scaffold.dot

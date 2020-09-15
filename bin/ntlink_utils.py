@@ -24,14 +24,8 @@ def read_fasta_file(filename):
     "Read a fasta file into memory. Returns dictionary of scafID -> Scaffold"
     print(datetime.datetime.today(), ": Reading fasta file", filename, file=sys.stdout)
     scaffolds = {}
-    try:
-        with open(filename, 'r') as fasta:
-            for header, seq, _, _ in read_fasta(fasta):
-                scaffolds[header] = Scaffold(id=header, length=len(seq), sequence=seq)
-    except FileNotFoundError:
-        print("ERROR: File", filename, "not found.")
-        print("Minimizer TSV file must follow the naming convention:")
-        print("\tassembly.fa.k<k>.w<w>.tsv, where <k> and <w> are parameters used for minimizering,\n"
-              "and assembly.fa is the scaffolds fasta file")
-        sys.exit(1)
+    with open(filename, 'r') as fasta:
+        for header, seq, _, _ in read_fasta(fasta):
+            scaffolds[header] = Scaffold(id=header, length=len(seq), sequence=seq)
+
     return scaffolds
