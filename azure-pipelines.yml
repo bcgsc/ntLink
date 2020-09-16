@@ -37,6 +37,7 @@ jobs:
   - script: make -C src check
     displayName: Test C++ executables
   - script: |
+      export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH
       sudo HOMEBREW_NO_AUTO_UPDATE=1 /home/linuxbrew/.linuxbrew/bin/brew install abyss
       cd tests
       pytest ntlink_pytest.py
