@@ -59,6 +59,14 @@ cd src
 make
 ```
 
+#### Testing your installation
+To test your ntLink installation:
+```
+cd tests
+./test_installation.sh
+```
+The expected output files can be found in: `tests/expected_outputs`
+
 ## Dependencies
 * Python3 ([Numpy](https://numpy.org/), [Python-igraph](https://igraph.org/python/))
 * [ABySS](https://github.com/bcgsc/abyss)
