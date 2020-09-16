@@ -2,12 +2,13 @@
 Long read assembly scaffolder using minimizers
 
 ## Description of the algorithm
-ntLink uses minimizers to perform a lightweight mapping between the input target assembly and the supplied long reads.
+ntLink uses minimizers to perform a lightweight mapping between the input target assembly and the supplied long reads. It then uses these long reads mappings to order and orient the input assembly contigs.
 
 ### General steps in the algorithm:
 1. Compute ordered minimizer sketches of the input assembly and long reads
-2. Use minimizers to map long reads to the input assembly contigs, and use the information to output contig pairs
-3. Scaffold the assembly using the contig pairing information using `abyss-scaffold`
+2. Use minimizers to map long reads to the input assembly contigs
+3. Use the mapping information to output a scaffold graph, where the nodes are scaffolds and the edges are joins suggested by the long read data
+4. Scaffold the assembly using the scaffold graph with `abyss-scaffold`
 
 ## Credits
 Concept: Rene Warren and Lauren Coombe
