@@ -50,7 +50,7 @@ Input files:
 
 ntLink command:
 ```
-ntLink scaffold target=my_assembly.fa reads='long_reads_1.fq.gz long_reads_2.fq.gz k=32 w=500'
+ntLink scaffold target=my_assembly.fa reads='long_reads_1.fq.gz long_reads_2.fq.gz' k=32 w=500
 ```
  ## Installation
  Installing from source code:
