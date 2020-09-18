@@ -82,7 +82,7 @@ printUsage(const std::string& progname)
 	             "  --strand   include minimizer strand in the output\n"
 	             "  -v         enable verbose output\n"
 	             "  -o FILE    write output to FILE, default is stdout\n"
-	             "  -t N       use N number of threads (default 1, max 5)\n"
+	             "  -t N       use N number of threads (default 1, max 16)\n"
 	             "  --help     display this help and exit\n"
 	             "  FILE       space separated list of FASTQ files\n";
 }
