@@ -9,7 +9,7 @@
 #include <vector>
 
 const size_t BLOCK_SIZE = 64;
-const size_t BUFFER_SIZE = 16384;
+const size_t BUFFER_SIZE = 4096;
 
 // A block of data, so that threads don't work with one read at a time
 template<typename T>
