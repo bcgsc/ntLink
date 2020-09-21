@@ -82,7 +82,7 @@ printUsage(const std::string& progname)
 	             "  --strand   include minimizer strand in the output\n"
 	             "  -v         enable verbose output\n"
 	             "  -o FILE    write output to FILE, default is stdout\n"
-	             "  -t N       use N number of threads (default 1, max 16)\n"
+	             "  -t N       use N number of threads (default 1, max 5)\n"
 	             "  --help     display this help and exit\n"
 	             "  FILE       space separated list of FASTQ files\n";
 }
@@ -132,10 +132,10 @@ main(int argc, char* argv[])
 			break;
 		case 't':
 			t = strtoul(optarg, &end, 10);
-			if (t > 16) {
-				t = 16;
+			if (t > 5) {
+				t = 5;
 				std::cerr << progname
-				          << ": Using more than 16 threads does not scale, reverting to 16.\n";
+				          << ": Using more than 5 threads does not scale, reverting to 5.\n";
 			}
 			break;
 		default:
