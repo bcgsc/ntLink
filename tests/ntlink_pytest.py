@@ -32,8 +32,8 @@ def test_1():
 
     # Clean-up files
     files_to_delete = ["scaffolds_1.fa.k32.w250.n2.z500.abyss-scaffold.fa", "scaffolds_1.fa.k32.w250.tsv",
-                       "long_reads_1.fa.k32.w250.tsv", "test1.abyss-scaffold.path",
-                       "test1.pairs.tsv", "test1.scaffold.abyss-scaffold.dot", "test1.scaffold.dot"]
+                       "test1.abyss-scaffold.path", "test1.pairs.tsv",
+                       "test1.scaffold.abyss-scaffold.dot", "test1.scaffold.dot"]
     cleanup_files(files_to_delete)
 
 
@@ -56,8 +56,8 @@ def test_2():
 
     # Clean-up files
     files_to_delete = ["scaffolds_2.fa.k32.w100.n2.z500.abyss-scaffold.fa", "scaffolds_2.fa.k32.w100.tsv",
-                       "long_reads_2.fq.gz.k32.w100.tsv", "test2.abyss-scaffold.path",
-                       "test2.pairs.tsv", "test2.scaffold.abyss-scaffold.dot", "test2.scaffold.dot"]
+                       "test2.abyss-scaffold.path", "test2.pairs.tsv",
+                       "test2.scaffold.abyss-scaffold.dot", "test2.scaffold.dot"]
     cleanup_files(files_to_delete)
 
 def test_3():
@@ -79,7 +79,7 @@ def test_3():
         assert path in expected_paths
 
     # Clean-up files
-    files_to_delete = ["long_reads_3.fa.gz.k24.w250.tsv", "scaffolds_3.fa.k24.w250.n2.z500.abyss-scaffold.fa",
+    files_to_delete = ["scaffolds_3.fa.k24.w250.n2.z500.abyss-scaffold.fa",
                        "scaffolds_3.fa.k24.w250.tsv", "test3.abyss-scaffold.path", "test3.pairs.tsv",
                        "test3.scaffold.abyss-scaffold.dot", "test3.scaffold.dot"]
     cleanup_files(files_to_delete)
