@@ -30,25 +30,30 @@ print_error_msg(const std::string& msg)
 static void
 print_usage()
 {
-	std::cerr << "Usage: " << PROGNAME
-	          << "  -k K -w W [-r repeat_bf_path] [-s solid_bf_path] [--id] [--bx] [--pos] [--seq] "
-	             "[-o FILE] FILE...\n\n"
-	             "  -k K        Use K as k-mer size.\n"
-	             "  -w W        Use W as sliding-window size.\n"
-	             "  --id        Include read ids in the output.\n"
-	             "  --bx        Include read barcodes in the output.\n"
-	             "  --pos       Include minimizer positions in the output (appended with : after minimizer value).\n"
-							 "  --strand    Include minimizer strands in the output (appended with : after minimizer value).\n"
-	             "  --seq       Include minimizer sequences in the output (appended with : after minimizer value).\n"
-							 "              If a combination of --pos, --strand, and --seq options are provided, they're appended in the --pos, --strand, --seq order after the minimizer value."
-	             "  -r repeat_bf_path  Use a Bloom filter to filter out repetitive minimizers.\n"
-	             "  -s solid_bf_path  Use a Bloom filter to only select solid minimizers.\n"
-	             "  -o FILE     Write output to FILE, default is stdout.\n"
-	             "  -t T        Use T number of threads (default 5, max 5) per input file.\n"
-	             "  --help      Display this help and exit.\n"
-							 "  --version   Display version and exit.\n"
-	             "  FILE        Space separated list of FASTA/Q files."
-	          << std::endl;
+	std::cerr
+	    << "Usage: " << PROGNAME
+	    << "  -k K -w W [-r repeat_bf_path] [-s solid_bf_path] [--id] [--bx] [--pos] [--seq] "
+	       "[-o FILE] FILE...\n\n"
+	       "  -k K        Use K as k-mer size.\n"
+	       "  -w W        Use W as sliding-window size.\n"
+	       "  --id        Include read ids in the output.\n"
+	       "  --bx        Include read barcodes in the output.\n"
+	       "  --pos       Include minimizer positions in the output (appended with : after "
+	       "minimizer value).\n"
+	       "  --strand    Include minimizer strands in the output (appended with : after minimizer "
+	       "value).\n"
+	       "  --seq       Include minimizer sequences in the output (appended with : after "
+	       "minimizer value).\n"
+	       "              If a combination of --pos, --strand, and --seq options are provided, "
+	       "they're appended in the --pos, --strand, --seq order after the minimizer value."
+	       "  -r repeat_bf_path  Use a Bloom filter to filter out repetitive minimizers.\n"
+	       "  -s solid_bf_path  Use a Bloom filter to only select solid minimizers.\n"
+	       "  -o FILE     Write output to FILE, default is stdout.\n"
+	       "  -t T        Use T number of threads (default 5, max 5) per input file.\n"
+	       "  --help      Display this help and exit.\n"
+	       "  --version   Display version and exit.\n"
+	       "  FILE        Space separated list of FASTA/Q files."
+	    << std::endl;
 }
 
 int
@@ -67,8 +72,9 @@ main(int argc, char* argv[])
 	bool failed = false;
 	static const struct option longopts[] = {
 		{ "id", no_argument, &with_id, 1 },   { "bx", no_argument, &with_bx, 1 },
-		{ "pos", no_argument, &with_pos, 1 }, { "strand", no_argument, &with_strand, 1 }, { "seq", no_argument, &with_seq, 1 },
-		{ "help", no_argument, &help, 1 }, { "version", no_argument, &help, 1 },   { nullptr, 0, nullptr, 0 }
+		{ "pos", no_argument, &with_pos, 1 }, { "strand", no_argument, &with_strand, 1 },
+		{ "seq", no_argument, &with_seq, 1 }, { "help", no_argument, &help, 1 },
+		{ "version", no_argument, &help, 1 }, { nullptr, 0, nullptr, 0 }
 	};
 	while ((c = getopt_long(argc, argv, "k:w:o:t:r:s:", longopts, &optindex)) != -1) {
 		switch (c) {
