@@ -1,4 +1,3 @@
-
 #include "btllib/indexlr.hpp"
 #include "btllib/bloom_filter.hpp"
 
@@ -19,7 +18,7 @@
 #include <string>
 #include <vector>
 
-const static char* PROGNAME = "indexlr";
+const static char* PROGNAME = "indexlr v1.0";
 const static size_t OUTPUT_PERIOD = 512;
 
 static void
@@ -34,18 +33,21 @@ print_usage()
 	std::cerr << "Usage: " << PROGNAME
 	          << "  -k K -w W [-r repeat_bf_path] [-s solid_bf_path] [--id] [--bx] [--pos] [--seq] "
 	             "[-o FILE] FILE...\n\n"
-	             "  -k K        use K as k-mer size\n"
-	             "  -w W        use W as sliding-window size\n"
-	             "  --id        include read ids in the output\n"
-	             "  --bx        include read barcodes in the output\n"
-	             "  --pos       include minimizer positions in the output\n"
-	             "  --seq       include minimizer sequences in the output\n"
-	             "  -r repeat_bf_path  use a Bloom filter to filter out repetitive minimizers\n"
-	             "  -s solid_bf_path  use a Bloom filter to only select solid minimizers\n"
-	             "  -o FILE     write output to FILE, default is stdout\n"
-	             "  -t T        use T number of threads (default 5, max 5) per input file\n"
-	             "  --help      display this help and exit\n"
-	             "  FILE        space separated list of FASTA/Q files"
+	             "  -k K        Use K as k-mer size.\n"
+	             "  -w W        Use W as sliding-window size.\n"
+	             "  --id        Include read ids in the output.\n"
+	             "  --bx        Include read barcodes in the output.\n"
+	             "  --pos       Include minimizer positions in the output (appended with : after minimizer value).\n"
+							 "  --strand    Include minimizer strands in the output (appended with : after minimizer value).\n"
+	             "  --seq       Include minimizer sequences in the output (appended with : after minimizer value).\n"
+							 "              If a combination of --pos, --strand, and --seq options are provided, they're appended in the --pos, --strand, --seq order after the minimizer value."
+	             "  -r repeat_bf_path  Use a Bloom filter to filter out repetitive minimizers.\n"
+	             "  -s solid_bf_path  Use a Bloom filter to only select solid minimizers.\n"
+	             "  -o FILE     Write output to FILE, default is stdout.\n"
+	             "  -t T        Use T number of threads (default 5, max 5) per input file.\n"
+	             "  --help      Display this help and exit.\n"
+							 "  --version   Display version and exit.\n"
+	             "  FILE        Space separated list of FASTA/Q files."
 	          << std::endl;
 }
 
@@ -54,26 +56,19 @@ main(int argc, char* argv[])
 {
 	int c;
 	int optindex = 0;
-	int help = 0;
-	unsigned k = 0;
-	unsigned w = 0;
+	int help = 0, version = 0;
+	unsigned k = 0, w = 0, t = 5;
 	bool w_set = false;
 	bool k_set = false;
-	unsigned t = 5;
-	int with_id = 0;
-	int with_bx = 0;
-	int with_pos = 0;
-	int with_seq = 0;
-	std::unique_ptr<btllib::BloomFilter> repeat_bf;
-	std::unique_ptr<btllib::BloomFilter> solid_bf;
-	bool with_repeat = false;
-	bool with_solid = false;
+	int with_id = 0, with_bx = 0, with_pos = 0, with_strand = 0, with_seq = 0;
+	std::unique_ptr<btllib::BloomFilter> repeat_bf, solid_bf;
+	bool with_repeat = false, with_solid = false;
 	std::string outfile("-");
 	bool failed = false;
 	static const struct option longopts[] = {
 		{ "id", no_argument, &with_id, 1 },   { "bx", no_argument, &with_bx, 1 },
-		{ "pos", no_argument, &with_pos, 1 }, { "seq", no_argument, &with_seq, 1 },
-		{ "help", no_argument, &help, 1 },    { nullptr, 0, nullptr, 0 }
+		{ "pos", no_argument, &with_pos, 1 }, { "strand", no_argument, &with_strand, 1 }, { "seq", no_argument, &with_seq, 1 },
+		{ "help", no_argument, &help, 1 }, { "version", no_argument, &help, 1 },   { nullptr, 0, nullptr, 0 }
 	};
 	while ((c = getopt_long(argc, argv, "k:w:o:t:r:s:", longopts, &optindex)) != -1) {
 		switch (c) {
@@ -131,6 +126,9 @@ main(int argc, char* argv[])
 	}
 	if (help != 0) {
 		print_usage();
+		std::exit(EXIT_SUCCESS);
+	} else if (version != 0) {
+		std::cerr << PROGNAME << std::endl;
 		std::exit(EXIT_SUCCESS);
 	}
 	if (!k_set) {
@@ -211,9 +209,12 @@ main(int argc, char* argv[])
 					if (j > 0) {
 						ss << ' ';
 					}
-					ss << min.hash2;
+					ss << min.out_hash;
 					if (with_pos) {
 						ss << ':' << min.pos;
+					}
+					if (with_strand) {
+						ss << ':' << (min.forward ? '+' : '-');
 					}
 					if (with_seq) {
 						ss << ':' << min.seq;

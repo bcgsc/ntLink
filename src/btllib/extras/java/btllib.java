@@ -465,13 +465,4 @@ public class btllib {
     return btllibJNI.get_reverse_complement(seq);
   }
 
-  public static SWIGTYPE_p_unsigned_char getBIT_MASKS() {
-    long cPtr = btllibJNI.BIT_MASKS_get();
-    return (cPtr == 0) ? null : new SWIGTYPE_p_unsigned_char(cPtr, false);
-  }
-
-  public static long pop_cnt_byte(short x) {
-    return btllibJNI.pop_cnt_byte(x);
-  }
-
 }

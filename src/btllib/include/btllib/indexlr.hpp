@@ -14,6 +14,7 @@
 #include <cstring>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <string>
 #include <thread>
 #include <vector>
@@ -72,8 +73,21 @@ public:
 
   struct Minimizer
   {
-    uint64_t hash1, hash2;
+    Minimizer(uint64_t min_hash,
+              uint64_t out_hash,
+              size_t pos,
+              bool forward,
+              std::string seq)
+      : min_hash(min_hash)
+      , out_hash(out_hash)
+      , pos(pos)
+      , forward(forward)
+      , seq(std::move(seq))
+    {}
+
+    uint64_t min_hash, out_hash;
     size_t pos;
+    bool forward;
     std::string seq;
   };
 
@@ -116,7 +130,8 @@ public:
   static const size_t MAX_SIMULTANEOUS_INDEXLRS = 256;
 
 private:
-  static std::string extract_barcode(std::string comment);
+  static std::string extract_barcode(const std::string& id,
+                                     const std::string& comment);
   std::vector<HashedKmer> hash_kmers(const std::string& seq, size_t k) const;
   static std::vector<Minimizer> minimize_hashed_kmers(
     const std::vector<HashedKmer>& hashed_kmers,
@@ -298,19 +313,25 @@ r min = v[i] if (i != prev) { prev = i M <- M + m
 }*/
 
 inline std::string
-Indexlr::extract_barcode(std::string comment)
+Indexlr::extract_barcode(const std::string& id, const std::string& comment)
 {
   const static std::string BARCODE_PREFIX = "BX:Z:";
   if (starts_with(comment, BARCODE_PREFIX)) {
-    auto pos = comment.find(' ');
-    if (pos != std::string::npos) {
-      comment.erase(pos);
+    const auto space_pos = comment.find(' ');
+    if (space_pos != std::string::npos) {
+      return comment.substr(BARCODE_PREFIX.size(),
+                            space_pos - BARCODE_PREFIX.size());
     }
-    comment.erase(0, BARCODE_PREFIX.size());
-  } else {
-    comment = "NA";
+    return comment.substr(BARCODE_PREFIX.size());
   }
-  return comment;
+  const auto pound_pos = id.find('#');
+  if (pound_pos != std::string::npos) {
+    const auto slash_pos = id.find('/');
+    if (slash_pos > pound_pos) {
+      return id.substr(pound_pos + 1, slash_pos - (pound_pos + 1));
+    }
+  }
+  return "NA";
 }
 
 inline std::vector<Indexlr::HashedKmer>
@@ -322,11 +343,11 @@ Indexlr::hash_kmers(const std::string& seq, const size_t k) const
   }
   hashed_kmers.reserve(seq.size() - k + 1);
   for (NtHash nh(seq, k, 2); nh.roll();) {
-    hashed_kmers.push_back(
-      Minimizer({ nh.hashes()[0],
-                  nh.hashes()[1],
-                  nh.get_pos(),
-                  output_seq() ? seq.substr(nh.get_pos(), k) : "" }));
+    hashed_kmers.emplace_back(nh.hashes()[0],
+                              nh.hashes()[1],
+                              nh.get_pos(),
+                              nh.forward(),
+                              output_seq() ? seq.substr(nh.get_pos(), k) : "");
   }
   return hashed_kmers;
 }
@@ -351,13 +372,14 @@ Indexlr::minimize_hashed_kmers(
       // Use of operator '<=' returns the minimum that is furthest from left.
       min_it = std::min_element(
         left_it, right_it, [](const HashedKmer& a, const HashedKmer& b) {
-          return a.hash1 <= b.hash1;
+          return a.min_hash <= b.min_hash;
         });
-    } else if (right_it[-1].hash1 <= min_it->hash1) {
+    } else if (right_it[-1].min_hash <= min_it->min_hash) {
       min_it = right_it - 1;
     }
     candidate_min_pos = min_it - first_it;
-    if (candidate_min_pos > prev_min_pos && min_it->hash1 != UINT64_MAX) {
+    if (candidate_min_pos > prev_min_pos &&
+        min_it->min_hash != std::numeric_limits<uint64_t>::max()) {
       prev_min_pos = candidate_min_pos;
       minimizers.push_back(*min_it);
     }
@@ -446,7 +468,7 @@ Indexlr::MinimizeWorker::work()
       record.id = std::move(read.id);
     }
     if (indexlr.output_bx()) {
-      record.barcode = indexlr.extract_barcode(read.comment);
+      record.barcode = indexlr.extract_barcode(record.id, read.comment);
     }
 
     check_warning(read.seq.size() < indexlr.k,
@@ -470,22 +492,22 @@ Indexlr::MinimizeWorker::work()
         if (indexlr.filter_in() && indexlr.filter_out()) {
           std::vector<uint64_t> tmp;
           for (auto& hk : hashed_kmers) {
-            tmp = { hk.hash1 };
+            tmp = { hk.min_hash };
             if (!indexlr.bf1.get().contains(tmp) ||
                 indexlr.bf2.get().contains(tmp)) {
-              hk.hash1 = UINT64_MAX;
+              hk.min_hash = std::numeric_limits<uint64_t>::max();
             }
           }
         } else if (indexlr.filter_in()) {
           for (auto& hk : hashed_kmers) {
-            if (!indexlr.bf1.get().contains({ hk.hash1 })) {
-              hk.hash1 = UINT64_MAX;
+            if (!indexlr.bf1.get().contains({ hk.min_hash })) {
+              hk.min_hash = std::numeric_limits<uint64_t>::max();
             }
           }
         } else if (indexlr.filter_out()) {
           for (auto& hk : hashed_kmers) {
-            if (indexlr.bf1.get().contains({ hk.hash1 })) {
-              hk.hash1 = UINT64_MAX;
+            if (indexlr.bf1.get().contains({ hk.min_hash })) {
+              hk.min_hash = std::numeric_limits<uint64_t>::max();
             }
           }
         }

@@ -4,8 +4,10 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cstdio>
 #include <fstream>
+#include <random>
 #include <string>
 
 #include <omp.h>
@@ -80,6 +82,11 @@ main()
     }
     assert(i == 2);
 
+    std::default_random_engine generator(
+      std::chrono::system_clock::now().time_since_epoch().count() + 9999999);
+    std::uniform_int_distribution<int> seq_size_distribution(100, 5000);
+    std::uniform_int_distribution<int> comment_spaces_distribution(1, 10);
+
     // Test larger randomly generated file
     std::cerr << "Test random file" << std::endl;
     std::vector<std::string> generated_names;
@@ -89,14 +96,16 @@ main()
     random_filename = get_random_name(64);
     std::ofstream random_seqs(random_filename);
     for (int s = 0; s < 500; s++) {
-      std::string name, comment, seq, qual;
+      std::string name, comment_spaces, comment, seq, qual;
 
       name = get_random_name(10);
+      comment_spaces = std::string(comment_spaces_distribution(generator), ' ');
       comment = get_random_name(20);
-      seq = get_random_sequence(200 + s);
-      qual = get_random_name(200 + s);
+      size_t seq_size = seq_size_distribution(generator);
+      seq = get_random_sequence(seq_size);
+      qual = get_random_name(seq_size);
 
-      random_seqs << '@' << name << ' ' << comment << '\n'
+      random_seqs << '@' << name << comment_spaces << comment << '\n'
                   << seq << "\n+\n"
                   << qual << '\n';
 
