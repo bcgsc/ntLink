@@ -137,3 +137,4 @@ $(prefix).abyss-scaffold.path: $(prefix).scaffold.dot
 
 $(target).k$(k).w$(w).n$(n).z$(z).abyss-scaffold.fa: $(prefix).abyss-scaffold.path
 	$(time) MergeContigs -k2 $(target) $< > $@
+
