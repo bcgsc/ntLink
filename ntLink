@@ -112,10 +112,8 @@ version:
 	@echo "ntLink v0.0.1"
 	@echo "Written by Lauren Coombe (lcoombe@bcgsc.ca)"
 
-clean:
-	rm $(target).k$(k).w$(w).tsv
 
-.PHONY: help scaffold version check_params clean
+.PHONY: help scaffold version check_params
 .DELETE_ON_ERROR:
 .SECONDARY:
 
