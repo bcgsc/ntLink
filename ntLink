@@ -7,7 +7,6 @@
 # Input files
 target=None
 reads=None
-min_reads_targets=$(addsuffix .k$(k).w$(w).tsv, $(reads))
 
 # Path to pairing code
 ntlink_path=$(shell dirname $(realpath $(MAKEFILE_LIST)))
@@ -95,8 +94,7 @@ scaffold: check_params \
 	ntLink_graph \
 	abyss_scaffold
 
-ntLink_graph: $(min_reads_targets) \
-	$(target).k$(k).w$(w).tsv \
+ntLink_graph: $(target).k$(k).w$(w).tsv \
 	$(prefix).scaffold.dot
 
 abyss_scaffold: $(prefix).scaffold.dot \
@@ -114,10 +112,8 @@ version:
 	@echo "ntLink v0.0.1"
 	@echo "Written by Lauren Coombe (lcoombe@bcgsc.ca)"
 
-clean:
-	rm $(target).k$(k).w$(w).tsv $(reads).k$(k).w$(w).tsv
 
-.PHONY: help scaffold version check_params clean
+.PHONY: help scaffold version check_params
 .DELETE_ON_ERROR:
 .SECONDARY:
 
@@ -127,9 +123,11 @@ clean:
 %.fa.gz: %.fa
 	$(time) $(gzip) $<
 
-$(prefix).scaffold.dot: $(target).k$(k).w$(w).tsv $(min_reads_targets)
-	$(time) $(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
-	-k $(k) -a $(a) -z $(z) -f $(f) $(min_reads_targets)
+$(prefix).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
+	$(time) $(gzip) -cd $(reads) | \
+	$(ntlink_path)/src/indexlr --pos --strand -k $(k) -w $(w) -t $(t) - | \
+  	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
+	-k $(k) -a $(a) -z $(z) -f $(f) -
 
 # Run abyss-scaffold scaffolding layout
 $(prefix).abyss-scaffold.path: $(prefix).scaffold.dot
@@ -137,3 +135,4 @@ $(prefix).abyss-scaffold.path: $(prefix).scaffold.dot
 
 $(target).k$(k).w$(w).n$(n).z$(z).abyss-scaffold.fa: $(prefix).abyss-scaffold.path
 	$(time) MergeContigs -k2 $(target) $< > $@
+

@@ -332,7 +332,8 @@ class NtLink():
 
         # Add the long read edges to the graph
         for mx_long_file in self.args.FILES:
-            with open(mx_long_file, 'r') as long_mxs:
+            mx_long_filename = "/dev/stdin" if mx_long_file == "-" else mx_long_file
+            with open(mx_long_filename, 'r') as long_mxs:
                 for line in long_mxs:
                     line = line.strip().split("\t")
                     if len(line) > 1:
