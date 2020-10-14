@@ -234,7 +234,7 @@ main(int argc, char* argv[])
 					while (output_queue.size() == queue_max_size) {
 						queue_full.wait(lock);
 					}
-					output_queue.push(std::move(ss.str()));
+					output_queue.push(ss.str());
 					queue_empty.notify_one();
 					lock.unlock();
 					std::string newstring;
@@ -244,7 +244,7 @@ main(int argc, char* argv[])
 			}
 			{
 				std::unique_lock<std::mutex> lock(output_queue_mutex);
-				output_queue.push(std::move(ss.str()));
+				output_queue.push(ss.str());
 				output_queue.push(std::string());
 				queue_empty.notify_one();
 			}

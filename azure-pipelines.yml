@@ -42,3 +42,12 @@ jobs:
       cd tests
       pytest ntlink_pytest.py
     displayName: Test ntLink
+
+- job: macOS_default_clang
+  pool:
+    vmImage: macOS-10.14
+  steps:
+  - script: make -C src all
+    displayName: Compile C++ executables with clang
+  - script: make -C src check
+    displayName: Test C++ executables
