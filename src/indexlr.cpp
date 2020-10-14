@@ -18,13 +18,17 @@
 #include <string>
 #include <vector>
 
-const static char* PROGNAME = "indexlr v1.0";
+const static std::string PROGNAME = "indexlr";
+const static std::string VERSION = "v1.1";
 const static size_t OUTPUT_PERIOD = 512;
+const static size_t INITIAL_OUTPUT_STREAM_SIZE = 100;
+const static size_t QUEUE_SIZE = 128;
+const static size_t MAX_THREADS = 5;
 
 static void
 print_error_msg(const std::string& msg)
 {
-	std::cerr << PROGNAME << ": " << msg << std::endl;
+	std::cerr << PROGNAME << ' ' << VERSION << ": " << msg << std::endl;
 }
 
 static void
@@ -32,7 +36,7 @@ print_usage()
 {
 	std::cerr
 	    << "Usage: " << PROGNAME
-	    << "  -k K -w W [-r repeat_bf_path] [-s solid_bf_path] [--id] [--bx] [--pos] [--seq] "
+	    << " -k K -w W [-r repeat_bf_path] [-s solid_bf_path] [--id] [--bx] [--pos] [--seq] "
 	       "[-o FILE] FILE...\n\n"
 	       "  -k K        Use K as k-mer size.\n"
 	       "  -w W        Use W as sliding-window size.\n"
@@ -45,11 +49,12 @@ print_usage()
 	       "  --seq       Include minimizer sequences in the output (appended with : after "
 	       "minimizer value).\n"
 	       "              If a combination of --pos, --strand, and --seq options are provided, "
-	       "they're appended in the --pos, --strand, --seq order after the minimizer value."
+	       "they're appended in the --pos, --strand, --seq order after the minimizer value.\n"
 	       "  -r repeat_bf_path  Use a Bloom filter to filter out repetitive minimizers.\n"
 	       "  -s solid_bf_path  Use a Bloom filter to only select solid minimizers.\n"
 	       "  -o FILE     Write output to FILE, default is stdout.\n"
 	       "  -t T        Use T number of threads (default 5, max 5) per input file.\n"
+	       "  -v          Show verbose output.\n"
 	       "  --help      Display this help and exit.\n"
 	       "  --version   Display version and exit.\n"
 	       "  FILE        Space separated list of FASTA/Q files."
@@ -62,6 +67,7 @@ main(int argc, char* argv[])
 	int c;
 	int optindex = 0;
 	int help = 0, version = 0;
+	bool verbose = false;
 	unsigned k = 0, w = 0, t = 5;
 	bool w_set = false;
 	bool k_set = false;
@@ -71,12 +77,12 @@ main(int argc, char* argv[])
 	std::string outfile("-");
 	bool failed = false;
 	static const struct option longopts[] = {
-		{ "id", no_argument, &with_id, 1 },   { "bx", no_argument, &with_bx, 1 },
-		{ "pos", no_argument, &with_pos, 1 }, { "strand", no_argument, &with_strand, 1 },
-		{ "seq", no_argument, &with_seq, 1 }, { "help", no_argument, &help, 1 },
-		{ "version", no_argument, &help, 1 }, { nullptr, 0, nullptr, 0 }
+		{ "id", no_argument, &with_id, 1 },      { "bx", no_argument, &with_bx, 1 },
+		{ "pos", no_argument, &with_pos, 1 },    { "strand", no_argument, &with_strand, 1 },
+		{ "seq", no_argument, &with_seq, 1 },    { "help", no_argument, &help, 1 },
+		{ "version", no_argument, &version, 1 }, { nullptr, 0, nullptr, 0 }
 	};
-	while ((c = getopt_long(argc, argv, "k:w:o:t:r:s:", longopts, &optindex)) != -1) {
+	while ((c = getopt_long(argc, argv, "k:w:o:t:vr:s:", longopts, &optindex)) != -1) {
 		switch (c) {
 		case 0:
 			break;
@@ -94,11 +100,15 @@ main(int argc, char* argv[])
 		case 't':
 			t = std::stoul(optarg);
 			break;
+		case 'v':
+			verbose = true;
+			break;
 		case 'r': {
 			with_repeat = true;
 			std::cerr << "Loading repeat Bloom filter from " << optarg << std::endl;
 			try {
-				repeat_bf = std::unique_ptr<btllib::BloomFilter>(new btllib::BloomFilter(optarg));
+				repeat_bf =
+				    std::unique_ptr<btllib::BloomFilter>(new btllib::KmerBloomFilter(optarg));
 			} catch (const std::exception& e) {
 				std::cerr << e.what() << '\n';
 			}
@@ -109,7 +119,8 @@ main(int argc, char* argv[])
 			with_solid = true;
 			std::cerr << "Loading solid Bloom filter from " << optarg << std::endl;
 			try {
-				solid_bf = std::unique_ptr<btllib::BloomFilter>(new btllib::BloomFilter(optarg));
+				solid_bf =
+				    std::unique_ptr<btllib::BloomFilter>(new btllib::KmerBloomFilter(optarg));
 			} catch (const std::exception& e) {
 				std::cerr << e.what() << '\n';
 			}
@@ -120,10 +131,11 @@ main(int argc, char* argv[])
 			std::exit(EXIT_FAILURE);
 		}
 	}
-	if (t > 5) {
-		t = 5;
-		std::cerr << PROGNAME << ": Using more than 5 threads does not scale, reverting to 5."
-		          << std::endl;
+	if (t > MAX_THREADS) {
+		t = MAX_THREADS;
+		std::cerr << (PROGNAME + ' ' + VERSION + ": Using more than " +
+		              std::to_string(MAX_THREADS) + " threads does not scale, reverting to 5.\n")
+		          << std::flush;
 	}
 	std::vector<std::string> infiles(&argv[optind], &argv[argc]);
 	if (argc < 2) {
@@ -134,7 +146,7 @@ main(int argc, char* argv[])
 		print_usage();
 		std::exit(EXIT_SUCCESS);
 	} else if (version != 0) {
-		std::cerr << PROGNAME << std::endl;
+		std::cerr << PROGNAME << ' ' << VERSION << std::endl;
 		std::exit(EXIT_SUCCESS);
 	}
 	if (!k_set) {
@@ -160,7 +172,7 @@ main(int argc, char* argv[])
 		std::exit(EXIT_FAILURE);
 	}
 
-	int flags = 0;
+	unsigned flags = 0;
 	if (with_id) {
 		flags |= btllib::Indexlr::Flag::ID;
 	}
@@ -184,23 +196,23 @@ main(int argc, char* argv[])
 			flags |= btllib::Indexlr::Flag::FILTER_IN;
 			flags |= btllib::Indexlr::Flag::FILTER_OUT;
 			indexlr = std::unique_ptr<btllib::Indexlr>(
-			    new btllib::Indexlr(infile, k, w, flags, t, *solid_bf, *repeat_bf));
+			    new btllib::Indexlr(infile, k, w, flags, t, verbose, *solid_bf, *repeat_bf));
 		} else if (with_repeat) {
 			flags |= btllib::Indexlr::Flag::FILTER_OUT;
 			indexlr = std::unique_ptr<btllib::Indexlr>(
-			    new btllib::Indexlr(infile, k, w, flags, t, *repeat_bf));
+			    new btllib::Indexlr(infile, k, w, flags, t, verbose, *repeat_bf));
 		} else if (with_solid) {
 			flags |= btllib::Indexlr::Flag::FILTER_IN;
 			indexlr = std::unique_ptr<btllib::Indexlr>(
-			    new btllib::Indexlr(infile, k, w, flags, t, *solid_bf));
+			    new btllib::Indexlr(infile, k, w, flags, t, verbose, *solid_bf));
 		} else {
-			indexlr = std::unique_ptr<btllib::Indexlr>(new btllib::Indexlr(infile, k, w, flags, t));
+			indexlr = std::unique_ptr<btllib::Indexlr>(
+			    new btllib::Indexlr(infile, k, w, flags, t, verbose));
 		}
 		std::queue<std::string> output_queue;
 		std::mutex output_queue_mutex;
 		std::condition_variable queue_empty, queue_full;
-		size_t max_seen_output_size = 100;
-		size_t queue_max_size = 128;
+		size_t max_seen_output_size = INITIAL_OUTPUT_STREAM_SIZE;
 		std::unique_ptr<std::thread> info_compiler(new std::thread([&]() {
 			std::stringstream ss;
 			while ((record = indexlr->get_minimizers())) {
@@ -229,12 +241,13 @@ main(int argc, char* argv[])
 				}
 				ss << '\n';
 				if (record.num % OUTPUT_PERIOD == OUTPUT_PERIOD - 1) {
-					max_seen_output_size = std::max(max_seen_output_size, ss.str().size());
+					auto ss_str = ss.str();
+					max_seen_output_size = std::max(max_seen_output_size, ss_str.size());
 					std::unique_lock<std::mutex> lock(output_queue_mutex);
-					while (output_queue.size() == queue_max_size) {
+					while (output_queue.size() == QUEUE_SIZE) {
 						queue_full.wait(lock);
 					}
-					output_queue.push(ss.str());
+					output_queue.push(std::move(ss_str));
 					queue_empty.notify_one();
 					lock.unlock();
 					std::string newstring;
