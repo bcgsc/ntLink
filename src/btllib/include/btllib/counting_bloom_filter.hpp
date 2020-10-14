@@ -1,5 +1,5 @@
-#ifndef BTLLIB_BLOOM_FILTER_HPP
-#define BTLLIB_BLOOM_FILTER_HPP
+#ifndef BTLLIB_COUNTING_BLOOM_FILTER_HPP
+#define BTLLIB_COUNTING_BLOOM_FILTER_HPP
 
 #include "bloom_filter.hpp"
 #include "nthash.hpp"
@@ -7,6 +7,7 @@
 
 #include "vendor/cpptoml.hpp"
 
+#include <atomic>
 #include <climits>
 #include <cmath>
 #include <cstdint>
@@ -18,6 +19,8 @@ namespace btllib {
 
 static const char* const COUNTING_BLOOM_FILTER_MAGIC_HEADER =
   "BTLCountingBloomFilter_v2";
+static const char* const KMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER =
+  "BTLKmerCountingBloomFilter_v2";
 
 template<typename T>
 class CountingBloomFilter
@@ -27,6 +30,8 @@ public:
   CountingBloomFilter() {}
   CountingBloomFilter(size_t bytes, unsigned hash_num);
   CountingBloomFilter(const std::string& path);
+
+  virtual ~CountingBloomFilter() { delete[] array; }
 
   void insert(const std::vector<uint64_t>& hashes);
   void insert(const uint64_t* hashes);
@@ -45,10 +50,10 @@ public:
    */
   void write(const std::string& path);
 
-private:
-  std::vector<unsigned char> bytearray;
+protected:
+  std::atomic<T>* array = nullptr;
   size_t bytes = 0;
-  size_t counters = 0;
+  size_t array_size = 0;
   unsigned hash_num = 0;
 };
 
@@ -57,7 +62,10 @@ class KmerCountingBloomFilter : public CountingBloomFilter<T>
 {
 
 public:
-  KmerCountingBloomFilter(unsigned k, size_t bytes, unsigned hash_num = 4);
+  KmerCountingBloomFilter(size_t bytes, unsigned hash_num, unsigned k);
+  KmerCountingBloomFilter(const std::string& path);
+
+  ~KmerCountingBloomFilter() override {}
 
   void insert(const std::string& seq);
   void insert(const char* seq, size_t seq_len);
@@ -65,7 +73,9 @@ public:
   uint64_t contains(const std::string& seq) const;
   uint64_t contains(const char* seq, size_t seq_len) const;
 
-private:
+  void write(const std::string& path);
+
+protected:
   unsigned k;
 };
 
@@ -81,64 +91,15 @@ template<typename T>
 inline CountingBloomFilter<T>::CountingBloomFilter(size_t bytes,
                                                    unsigned hash_num)
   : bytes(std::ceil(bytes / sizeof(uint64_t)) * sizeof(uint64_t))
-  , counters(bytes / sizeof(T))
+  , array_size(this->bytes / sizeof(array[0]))
   , hash_num(hash_num)
 {
-  bytearray.resize(bytes);
-}
-
-template<typename T>
-inline CountingBloomFilter<T>::CountingBloomFilter(const std::string& path)
-{
-  std::ifstream file(path);
-
-  std::string magic_with_brackets =
-    std::string("[") + COUNTING_BLOOM_FILTER_MAGIC_HEADER + "]";
-
-  std::string line;
-  std::getline(file, line);
-  if (line != magic_with_brackets) {
-    log_error(
-      std::string("Magic string does not match (likely version mismatch)\n") +
-      "Your magic string:\t" + line + "\n" + "BloomFilter magic string:\t" +
-      magic_with_brackets);
-    std::exit(EXIT_FAILURE);
-  }
-
-  /* Read bloom filter line by line until it sees "[HeaderEnd]"
-  which is used to mark the end of the header section and
-  assigns the header to a char array*/
-  std::string toml_buffer(line + '\n');
-  bool header_end_found = false;
-  while (bool(std::getline(file, line))) {
-    toml_buffer.append(line + '\n');
-    if (line == "[HeaderEnd]") {
-      header_end_found = true;
-      break;
-    }
-  }
-  if (!header_end_found) {
-    log_error("Pre-built bloom filter does not have the correct header end.");
-    std::exit(EXIT_FAILURE);
-  }
-
-  // Send the char array to a stringstream for the cpptoml parser to parse
-  std::istringstream toml_stream(toml_buffer);
-  cpptoml::parser toml_parser(toml_stream);
-  auto header_config = toml_parser.parse();
-
-  // Obtain header values from toml parser and assign them to class members
-  auto table = header_config->get_table(COUNTING_BLOOM_FILTER_MAGIC_HEADER);
-  bytes = *table->get_as<size_t>("bytes");
-  hash_num = *table->get_as<unsigned>("hash_num");
-  counters = bytes / sizeof(T);
-  check_error(sizeof(T) * CHAR_BIT != *table->get_as<size_t>("counter_bits"),
-              "CountingBloomFilter" + std::to_string(sizeof(T) * CHAR_BIT) +
-                " tried to load a file of CountingBloomFilter" +
-                std::to_string(*table->get_as<size_t>("counter_bits")));
-
-  bytearray.resize(bytes);
-  file.read((char*)bytearray.data(), bytes);
+  check_warning(sizeof(uint8_t) != sizeof(std::atomic<uint8_t>),
+                "Atomic primitives take extra memory. CountingBloomFilter will "
+                "have less than " +
+                  std::to_string(bytes) + " for bit array.");
+  array = new std::atomic<T>[array_size];
+  std::memset((void*)array, 0, array_size * sizeof(array[0]));
 }
 
 template<typename T>
@@ -163,10 +124,9 @@ CountingBloomFilter<T>::insert(const uint64_t* hashes)
       return;
     }
     for (size_t i = 0; i < hash_num; ++i) {
-      if (__sync_bool_compare_and_swap( // NOLINT
-            &(((T*)(bytearray.data()))[hashes[i] % counters]),
-            min_val,
-            new_val)) { // NOLINT
+      decltype(min_val) temp_min_val = min_val;
+      if (array[hashes[i] % array_size].compare_exchange_strong(temp_min_val,
+                                                                new_val)) {
         update_done = true;
       }
     }
@@ -189,11 +149,11 @@ template<typename T>
 inline T
 CountingBloomFilter<T>::contains(const uint64_t* hashes) const
 {
-  T min = ((T*)(bytearray.data()))[hashes[0] % counters];
+  T min = array[hashes[0] % array_size];
   for (size_t i = 1; i < hash_num; ++i) {
-    size_t idx = hashes[i] % counters;
-    if (((T*)(bytearray.data()))[idx] < min) {
-      min = ((T*)(bytearray.data()))[idx];
+    const size_t idx = hashes[i] % array_size;
+    if (array[idx] < min) {
+      min = array[idx];
     }
   }
   return min;
@@ -205,8 +165,8 @@ CountingBloomFilter<T>::get_pop_cnt() const
 {
   uint64_t pop_cnt = 0;
 #pragma omp parallel for reduction(+ : pop_cnt)
-  for (size_t i = 0; i < counters; ++i) {
-    if (((T*)(bytearray.data()))[i]) {
+  for (size_t i = 0; i < array_size; ++i) {
+    if (array[i]) {
       ++pop_cnt;
     }
   }
@@ -217,7 +177,31 @@ template<typename T>
 inline double
 CountingBloomFilter<T>::get_fpr() const
 {
-  return std::pow(double(get_pop_cnt()) / double(bytes), double(hash_num));
+  return std::pow(double(get_pop_cnt()) / double(array_size), double(hash_num));
+}
+
+template<typename T>
+inline CountingBloomFilter<T>::CountingBloomFilter(const std::string& path)
+{
+  std::ifstream file(path);
+
+  auto table =
+    BloomFilter::parse_header(file, COUNTING_BLOOM_FILTER_MAGIC_HEADER);
+  bytes = *table->get_as<decltype(bytes)>("bytes");
+  check_warning(sizeof(uint8_t) != sizeof(std::atomic<uint8_t>),
+                "Atomic primitives take extra memory. CountingBloomFilter will "
+                "have less than " +
+                  std::to_string(bytes) + " for bit array.");
+  array_size = bytes / sizeof(array[0]);
+  hash_num = *table->get_as<decltype(hash_num)>("hash_num");
+  check_error(
+    sizeof(array[0]) * CHAR_BIT != *table->get_as<size_t>("counter_bits"),
+    "CountingBloomFilter" + std::to_string(sizeof(array[0]) * CHAR_BIT) +
+      " tried to load a file of CountingBloomFilter" +
+      std::to_string(*table->get_as<size_t>("counter_bits")));
+
+  array = new std::atomic<T>[array_size];
+  file.read((char*)array, array_size * sizeof(array[0]));
 }
 
 template<typename T>
@@ -237,17 +221,17 @@ CountingBloomFilter<T>::write(const std::string& path)
   auto header = cpptoml::make_table();
   header->insert("bytes", bytes);
   header->insert("hash_num", hash_num);
-  header->insert("counter_bits", size_t(sizeof(T) * CHAR_BIT));
+  header->insert("counter_bits", size_t(sizeof(array[0]) * CHAR_BIT));
   root->insert(COUNTING_BLOOM_FILTER_MAGIC_HEADER, header);
   file << *root << "[HeaderEnd]\n";
 
-  file.write((char*)bytearray.data(), bytes);
+  file.write((char*)array, array_size * sizeof(array[0]));
 }
 
 template<typename T>
-inline KmerCountingBloomFilter<T>::KmerCountingBloomFilter(unsigned k,
-                                                           size_t bytes,
-                                                           unsigned hash_num)
+inline KmerCountingBloomFilter<T>::KmerCountingBloomFilter(size_t bytes,
+                                                           unsigned hash_num,
+                                                           unsigned k)
   : CountingBloomFilter<T>(bytes, hash_num)
   , k(k)
 {}
@@ -286,6 +270,66 @@ KmerCountingBloomFilter<T>::contains(const char* seq, size_t seq_len) const
     count += CountingBloomFilter<T>::contains(nthash.hashes());
   }
   return count;
+}
+
+template<typename T>
+inline KmerCountingBloomFilter<T>::KmerCountingBloomFilter(
+  const std::string& path)
+{
+  std::ifstream file(path);
+
+  auto table =
+    BloomFilter::parse_header(file, KMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER);
+  CountingBloomFilter<T>::bytes =
+    *table->get_as<decltype(CountingBloomFilter<T>::bytes)>("bytes");
+  check_warning(sizeof(uint8_t) != sizeof(std::atomic<uint8_t>),
+                "Atomic primitives take extra memory. CountingBloomFilter will "
+                "have less than " +
+                  std::to_string(CountingBloomFilter<T>::bytes) +
+                  " for bit array.");
+  CountingBloomFilter<T>::array_size =
+    CountingBloomFilter<T>::bytes / sizeof(CountingBloomFilter<T>::array[0]);
+  CountingBloomFilter<T>::hash_num =
+    *table->get_as<decltype(CountingBloomFilter<T>::hash_num)>("hash_num");
+  k = *table->get_as<decltype(k)>("k");
+  check_error(sizeof(T) * CHAR_BIT != *table->get_as<size_t>("counter_bits"),
+              "CountingBloomFilter" + std::to_string(sizeof(T) * CHAR_BIT) +
+                " tried to load a file of CountingBloomFilter" +
+                std::to_string(*table->get_as<size_t>("counter_bits")));
+
+  CountingBloomFilter<T>::array =
+    new std::atomic<T>[CountingBloomFilter<T>::array_size];
+  file.read((char*)CountingBloomFilter<T>::array,
+            CountingBloomFilter<T>::array_size *
+              sizeof(CountingBloomFilter<T>::array[0]));
+}
+
+template<typename T>
+inline void
+KmerCountingBloomFilter<T>::write(const std::string& path)
+{
+  std::ofstream file(path.c_str(), std::ios::out | std::ios::binary);
+
+  /* Initialize cpptoml root table
+    Note: Tables and fields are unordered
+    Ordering of table is maintained by directing the table
+    to the output stream immediately after completion  */
+  auto root = cpptoml::make_table();
+
+  /* Initialize bloom filter section and insert fields
+      and output to ostream */
+  auto header = cpptoml::make_table();
+  header->insert("bytes", CountingBloomFilter<T>::bytes);
+  header->insert("hash_num", CountingBloomFilter<T>::hash_num);
+  header->insert("counter_bits",
+                 size_t(sizeof(CountingBloomFilter<T>::array[0]) * CHAR_BIT));
+  header->insert("k", k);
+  root->insert(KMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER, header);
+  file << *root << "[HeaderEnd]\n";
+
+  file.write((char*)CountingBloomFilter<T>::array,
+             CountingBloomFilter<T>::array_size *
+               sizeof(CountingBloomFilter<T>::array[0]));
 }
 
 } // namespace btllib

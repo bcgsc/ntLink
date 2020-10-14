@@ -8,18 +8,18 @@
 
 package btllib;
 
-public class SWIGTYPE_p_btllib__BloomFilter {
+public class SWIGTYPE_p_unsigned_char {
   private transient long swigCPtr;
 
-  protected SWIGTYPE_p_btllib__BloomFilter(long cPtr, @SuppressWarnings("unused") boolean futureUse) {
+  protected SWIGTYPE_p_unsigned_char(long cPtr, @SuppressWarnings("unused") boolean futureUse) {
     swigCPtr = cPtr;
   }
 
-  protected SWIGTYPE_p_btllib__BloomFilter() {
+  protected SWIGTYPE_p_unsigned_char() {
     swigCPtr = 0;
   }
 
-  protected static long getCPtr(SWIGTYPE_p_btllib__BloomFilter obj) {
+  protected static long getCPtr(SWIGTYPE_p_unsigned_char obj) {
     return (obj == null) ? 0 : obj.swigCPtr;
   }
 }

@@ -82,11 +82,6 @@ main()
     }
     assert(i == 2);
 
-    std::default_random_engine generator(
-      std::chrono::system_clock::now().time_since_epoch().count() + 9999999);
-    std::uniform_int_distribution<int> seq_size_distribution(100, 5000);
-    std::uniform_int_distribution<int> comment_spaces_distribution(1, 10);
-
     // Test larger randomly generated file
     std::cerr << "Test random file" << std::endl;
     std::vector<std::string> generated_names;
@@ -99,10 +94,10 @@ main()
       std::string name, comment_spaces, comment, seq, qual;
 
       name = get_random_name(10);
-      comment_spaces = std::string(comment_spaces_distribution(generator), ' ');
+      comment_spaces = std::string(get_random(1, 10), ' ');
       comment = get_random_name(20);
-      size_t seq_size = seq_size_distribution(generator);
-      seq = get_random_sequence(seq_size);
+      size_t seq_size = get_random(100, 2000);
+      seq = get_random_seq(seq_size);
       qual = get_random_name(seq_size);
 
       random_seqs << '@' << name << comment_spaces << comment << '\n'

@@ -122,6 +122,7 @@ public:
           size_t w,
           unsigned flags = 0,
           unsigned threads = 5,
+          bool verbose = false,
           const btllib::BloomFilter& bf1 = Indexlr::dummy_bf(),
           const btllib::BloomFilter& bf2 = Indexlr::dummy_bf());
 
@@ -141,6 +142,7 @@ private:
   const size_t k, w;
   const unsigned flags;
   const unsigned threads;
+  const bool verbose;
   const unsigned id;
 
   static const BloomFilter& dummy_bf()
@@ -253,6 +255,7 @@ inline Indexlr::Indexlr(std::string seqfile,
                         const size_t w,
                         const unsigned flags,
                         const unsigned threads,
+                        const bool verbose,
                         const BloomFilter& bf1,
                         const BloomFilter& bf2)
   : seqfile(std::move(seqfile))
@@ -260,6 +263,7 @@ inline Indexlr::Indexlr(std::string seqfile,
   , w(w)
   , flags(flags)
   , threads(threads)
+  , verbose(verbose)
   , id(last_id()++)
   , bf1(bf1)
   , bf2(bf2)
@@ -471,23 +475,23 @@ Indexlr::MinimizeWorker::work()
       record.barcode = indexlr.extract_barcode(record.id, read.comment);
     }
 
-    check_warning(read.seq.size() < indexlr.k,
-                  "Indexlr: skipped seq " + std::to_string(read.num) +
-                    " on line " +
-                    std::to_string(read.num * (indexlr.fasta ? 2 : 4) + 2) +
-                    "; k (" + std::to_string(indexlr.k) + ") > seq length (" +
-                    std::to_string(read.seq.size()) + ")");
+    check_info(indexlr.verbose && read.seq.size() < indexlr.k,
+               "Indexlr: skipped seq " + std::to_string(read.num) +
+                 " on line " +
+                 std::to_string(read.num * (indexlr.fasta ? 2 : 4) + 2) +
+                 "; k (" + std::to_string(indexlr.k) + ") > seq length (" +
+                 std::to_string(read.seq.size()) + ")");
 
     decltype(indexlr.hash_kmers(read.seq, indexlr.k)) hashed_kmers;
     if (read.seq.size() >= indexlr.k) {
       hashed_kmers = indexlr.hash_kmers(read.seq, indexlr.k);
 
-      check_warning(
-        indexlr.w > hashed_kmers.size(),
-        "Indexlr: skipped seq " + std::to_string(read.num) + " on line " +
-          std::to_string(read.num * (indexlr.fasta ? 2 : 4) + 2) + "; w (" +
-          std::to_string(indexlr.w) + ") > # of hashes (" +
-          std::to_string(hashed_kmers.size()) + ")");
+      check_info(indexlr.verbose && indexlr.w > hashed_kmers.size(),
+                 "Indexlr: skipped seq " + std::to_string(read.num) +
+                   " on line " +
+                   std::to_string(read.num * (indexlr.fasta ? 2 : 4) + 2) +
+                   "; w (" + std::to_string(indexlr.w) + ") > # of hashes (" +
+                   std::to_string(hashed_kmers.size()) + ")");
       if (indexlr.w <= hashed_kmers.size()) {
         if (indexlr.filter_in() && indexlr.filter_out()) {
           std::vector<uint64_t> tmp;

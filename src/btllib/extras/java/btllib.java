@@ -437,16 +437,24 @@ public class btllib {
     btllibJNI.log_error(msg);
   }
 
-  public static void check_error(boolean condition, String msg) {
-    btllibJNI.check_error(condition, msg);
+  public static void check_info(boolean condition, String msg) {
+    btllibJNI.check_info(condition, msg);
   }
 
   public static void check_warning(boolean condition, String msg) {
     btllibJNI.check_warning(condition, msg);
   }
 
+  public static void check_error(boolean condition, String msg) {
+    btllibJNI.check_error(condition, msg);
+  }
+
   public static void check_stream(SWIGTYPE_p_std__ios stream, String name) {
     btllibJNI.check_stream(SWIGTYPE_p_std__ios.getCPtr(stream), name);
+  }
+
+  public static String getKMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER() {
+    return btllibJNI.KMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER_get();
   }
 
   public static String getCOMPLEMENTS() {
@@ -463,6 +471,19 @@ public class btllib {
 
   public static String get_reverse_complement(String seq) {
     return btllibJNI.get_reverse_complement(seq);
+  }
+
+  public static SWIGTYPE_p_unsigned_char getBIT_MASKS() {
+    long cPtr = btllibJNI.BIT_MASKS_get();
+    return (cPtr == 0) ? null : new SWIGTYPE_p_unsigned_char(cPtr, false);
+  }
+
+  public static String getKMER_BLOOM_FILTER_MAGIC_HEADER() {
+    return btllibJNI.KMER_BLOOM_FILTER_MAGIC_HEADER_get();
+  }
+
+  public static long pop_cnt_byte(SWIGTYPE_p_uint8_t x) {
+    return btllibJNI.pop_cnt_byte(SWIGTYPE_p_uint8_t.getCPtr(x));
   }
 
 }

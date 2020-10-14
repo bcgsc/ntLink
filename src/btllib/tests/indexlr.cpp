@@ -87,8 +87,8 @@ main()
   }
   assert(ss2.str() == correct_output2);
 
-  btllib::BloomFilter filter_in_bf(1024 * 1024 * 256, 1);
-  btllib::BloomFilter filter_out_bf(1024 * 1024 * 256, 1);
+  btllib::BloomFilter filter_in_bf(1024 * 1024 * 32, 1);
+  btllib::BloomFilter filter_out_bf(1024 * 1024 * 32, 1);
 
   std::vector<uint64_t> filter_in_hashes = { 430447521414431149ULL,
                                              3146270839399521840ULL,
@@ -109,6 +109,7 @@ main()
                            5,
                            btllib::Indexlr::Flag::FILTER_IN,
                            3,
+                           true,
                            filter_in_bf);
   size_t mins_found = 0;
   while ((record = indexlr3.get_minimizers())) {
@@ -131,6 +132,7 @@ main()
                            5,
                            btllib::Indexlr::Flag::FILTER_OUT,
                            3,
+                           true,
                            filter_out_bf);
   mins_found = 0;
   while ((record = indexlr4.get_minimizers())) {
@@ -149,6 +151,7 @@ main()
                            btllib::Indexlr::Flag::FILTER_IN |
                              btllib::Indexlr::Flag::FILTER_OUT,
                            3,
+                           true,
                            filter_in_bf,
                            filter_out_bf);
   mins_found = 0;
