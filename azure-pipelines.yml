@@ -49,3 +49,5 @@ jobs:
   steps:
   - script: make -C src all
     displayName: Compile C++ executables with clang
+  - script: make -C src check
+    displayName: Test C++ executables
