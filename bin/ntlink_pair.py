@@ -380,7 +380,8 @@ class NtLink():
                             contig_runs_filter = [ctg for ctg in contig_runs
                                                   if accepted_anchor_contigs[ctg].hit_count > 1]
                             for ctg_i, ctg_j in zip(contig_runs_filter, contig_runs_filter[1:]):
-                                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_long_read, check_added=added_pairs)
+                                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_long_read,
+                                              check_added=added_pairs)
 
         return pairs
 
