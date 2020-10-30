@@ -278,13 +278,25 @@ class NtLink():
 
         return graph
 
-    def get_accepted_anchor_contigs(self, mx_list):
+    def get_accepted_anchor_contigs(self, mx_list, read_length):
         "Returns dictionary of contigs of appropriate length, mx hits, whether subsumed"
         contig_list = []
-        for mx, _, _ in mx_list:
+        contig_positions = {} #contig -> [mx positions]
+        for mx, pos, _ in mx_list:
             contig = NtLink.list_mx_info[mx].contig
             if NtLink.scaffolds[contig].length >= self.args.z:
                 contig_list.append(contig)
+                if contig not in contig_positions:
+                    contig_positions[contig] = []
+                contig_positions[contig].append(int(pos))
+
+        # Filter out hits where mapped length is greater than read length
+        noisy_contigs = set()
+        for contig in contig_positions:
+            start, end = min(contig_positions[contig]), max(contig_positions[contig])
+            if end - start > read_length:
+                noisy_contigs.add(contig)
+        contig_list = [contig for contig in contig_list if contig not in noisy_contigs]
 
         contig_runs = [(ctg, len(list(hits))) for ctg, hits in itertools.groupby(contig_list)]
         contigs_hits = {}
@@ -347,7 +359,8 @@ class NtLink():
                             if mx in target_mxs:
                                 mx_pos_split.append((mx, pos, strand))
                         length_long_read = int(mx_pos_split_tups[-1].split(":")[1])
-                        accepted_anchor_contigs, contig_runs = self.get_accepted_anchor_contigs(mx_pos_split)
+                        accepted_anchor_contigs, contig_runs = self.get_accepted_anchor_contigs(mx_pos_split,
+                                                                                                length_long_read)
                         if self.args.verbose and accepted_anchor_contigs and len(accepted_anchor_contigs) > 1:
                             print(line[0], [str(accepted_anchor_contigs[ctg_run])
                                             for ctg_run in accepted_anchor_contigs])
