@@ -304,12 +304,15 @@ class NtLink():
 
         return return_contigs_hits, return_contig_runs
 
-    def add_pair(self, accepted_anchor_contigs, ctg_i, ctg_j, pairs, check_added=None):
+    def add_pair(self, accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_ont, check_added=None):
         "Add pair to dictionary of pairs"
         mx_i = accepted_anchor_contigs[ctg_i].terminal_mx
         mx_j = accepted_anchor_contigs[ctg_j].first_mx
         pair, gap_est = self.calculate_pair_info(MinimizerEdge(mx_i.mx_hash, mx_i.position, mx_i.strand,
                                                                mx_j.mx_hash, mx_j.position, mx_j.strand))
+
+        if abs(gap_est) > length_ont:
+            return None
         if check_added is not None and pair in check_added:
             return None
 
@@ -343,6 +346,7 @@ class NtLink():
                             mx, pos, strand = mx_pos.split(":")
                             if mx in target_mxs:
                                 mx_pos_split.append((mx, pos, strand))
+                        length_long_read = int(mx_pos_split_tups[-1].split(":")[1])
                         accepted_anchor_contigs, contig_runs = self.get_accepted_anchor_contigs(mx_pos_split)
                         if self.args.verbose and accepted_anchor_contigs and len(accepted_anchor_contigs) > 1:
                             print(line[0], [str(accepted_anchor_contigs[ctg_run])
@@ -364,19 +368,19 @@ class NtLink():
                             # Add all transitive edges for pairs
                             for ctg_pair in itertools.combinations(contig_runs, 2):
                                 ctg_i, ctg_j = ctg_pair
-                                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs)
+                                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_long_read)
                         else:
                             added_pairs = set()
                             # Add adjacent pairs
                             for ctg_i, ctg_j in zip(contig_runs, contig_runs[1:]):
-                                new_pair = self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs)
+                                new_pair = self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_long_read)
                                 added_pairs.add(new_pair)
 
                             # Add transitive edges over weakly supported contigs
                             contig_runs_filter = [ctg for ctg in contig_runs
                                                   if accepted_anchor_contigs[ctg].hit_count > 1]
                             for ctg_i, ctg_j in zip(contig_runs_filter, contig_runs_filter[1:]):
-                                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, check_added=added_pairs)
+                                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_long_read, check_added=added_pairs)
 
         return pairs
 
