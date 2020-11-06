@@ -278,23 +278,26 @@ class NtLink():
 
         return graph
 
-    def get_accepted_anchor_contigs(self, mx_list, read_length):
+    def get_accepted_anchor_contigs(self, mx_list):
         "Returns dictionary of contigs of appropriate length, mx hits, whether subsumed"
         contig_list = []
         contig_positions = {} #contig -> [mx positions]
-        for mx, _, _ in mx_list:
+        for mx, pos, _ in mx_list:
             contig = NtLink.list_mx_info[mx].contig
             if NtLink.scaffolds[contig].length >= self.args.z:
                 contig_list.append(contig)
                 if contig not in contig_positions:
                     contig_positions[contig] = []
-                contig_positions[contig].append(NtLink.list_mx_info[mx].position)
+                contig_positions[contig].append((NtLink.list_mx_info[mx].position, int(pos)))
 
         # Filter out hits where mapped length on contig is greater than read length
         noisy_contigs = set()
         for contig in contig_positions:
-            start, end = min(contig_positions[contig]), max(contig_positions[contig])
-            if end - start > read_length:
+            positions = contig_positions[contig]
+            start_idx, end_idx = np.argmin([i[0] for i in positions]), np.argmax([i[0] for i in positions])
+            ctg_start, ont_start = positions[start_idx]
+            ctg_end, ont_end = positions[end_idx]
+            if abs(ctg_end - ctg_start) > 2*abs(ont_end - ont_start):
                 noisy_contigs.add(contig)
         contig_list = [contig for contig in contig_list if contig not in noisy_contigs]
 
@@ -359,8 +362,7 @@ class NtLink():
                             if mx in target_mxs:
                                 mx_pos_split.append((mx, pos, strand))
                         length_long_read = int(mx_pos_split_tups[-1].split(":")[1])
-                        accepted_anchor_contigs, contig_runs = self.get_accepted_anchor_contigs(mx_pos_split,
-                                                                                                length_long_read)
+                        accepted_anchor_contigs, contig_runs = self.get_accepted_anchor_contigs(mx_pos_split)
                         if self.args.verbose and accepted_anchor_contigs and len(accepted_anchor_contigs) > 1:
                             print(line[0], [str(accepted_anchor_contigs[ctg_run])
                                             for ctg_run in accepted_anchor_contigs])
