@@ -294,6 +294,8 @@ class NtLink():
         noisy_contigs = set()
         for contig in contig_positions:
             positions = contig_positions[contig]
+            if len(positions) < 2:
+                continue
             start_idx, end_idx = np.argmin([i[0] for i in positions]), np.argmax([i[0] for i in positions])
             ctg_start, ont_start = positions[start_idx]
             ctg_end, ont_end = positions[end_idx]
