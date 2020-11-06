@@ -282,7 +282,7 @@ class NtLink():
         "Returns dictionary of contigs of appropriate length, mx hits, whether subsumed"
         contig_list = []
         contig_positions = {} #contig -> [mx positions]
-        for mx, pos, _ in mx_list:
+        for mx, _, _ in mx_list:
             contig = NtLink.list_mx_info[mx].contig
             if NtLink.scaffolds[contig].length >= self.args.z:
                 contig_list.append(contig)
