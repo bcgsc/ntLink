@@ -288,7 +288,7 @@ class NtLink():
                 contig_list.append(contig)
                 if contig not in contig_positions:
                     contig_positions[contig] = []
-                contig_positions[contig].append(NtLink.list_mx_info[mx].contig)
+                contig_positions[contig].append(NtLink.list_mx_info[mx].position)
 
         # Filter out hits where mapped length on contig is greater than read length
         noisy_contigs = set()
