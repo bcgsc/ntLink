@@ -299,7 +299,7 @@ class NtLink():
             start_idx, end_idx = np.argmin([i[0] for i in positions]), np.argmax([i[0] for i in positions])
             ctg_start, ont_start = positions[start_idx]
             ctg_end, ont_end = positions[end_idx]
-            if abs(ctg_end - ctg_start) > 2*abs(ont_end - ont_start):
+            if abs(ctg_end - ctg_start) > 2*abs(ont_end - ont_start) + self.args.k:
                 noisy_contigs.add(contig)
         contig_list = [contig for contig in contig_list if contig not in noisy_contigs]
 
