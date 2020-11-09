@@ -278,7 +278,7 @@ class NtLink():
 
         return graph
 
-    def get_accepted_anchor_contigs(self, mx_list):
+    def get_accepted_anchor_contigs(self, mx_list, read_length):
         "Returns dictionary of contigs of appropriate length, mx hits, whether subsumed"
         contig_list = []
         contig_positions = {} #contig -> [mx positions]
@@ -299,8 +299,13 @@ class NtLink():
             start_idx, end_idx = np.argmin([i[0] for i in positions]), np.argmax([i[0] for i in positions])
             ctg_start, ont_start = positions[start_idx]
             ctg_end, ont_end = positions[end_idx]
-            if abs(ctg_end - ctg_start) > 2*abs(ont_end - ont_start) + self.args.k:
-                noisy_contigs.add(contig)
+            if self.args.x == 0:
+                if abs(ctg_end - ctg_start) > read_length:
+                    noisy_contigs.add(contig)
+            else:
+                threshold = min(read_length, (self.args.x * abs(ont_end - ont_start)) + self.args.k)
+                if abs(ctg_end - ctg_start) > threshold:
+                    noisy_contigs.add(contig)
         contig_list = [contig for contig in contig_list if contig not in noisy_contigs]
 
         contig_runs = [(ctg, len(list(hits))) for ctg, hits in itertools.groupby(contig_list)]
@@ -364,7 +369,8 @@ class NtLink():
                             if mx in target_mxs:
                                 mx_pos_split.append((mx, pos, strand))
                         length_long_read = int(mx_pos_split_tups[-1].split(":")[1])
-                        accepted_anchor_contigs, contig_runs = self.get_accepted_anchor_contigs(mx_pos_split)
+                        accepted_anchor_contigs, contig_runs = self.get_accepted_anchor_contigs(mx_pos_split,
+                                                                                                length_long_read)
                         if self.args.verbose and accepted_anchor_contigs and len(accepted_anchor_contigs) > 1:
                             print(line[0], [str(accepted_anchor_contigs[ctg_run])
                                             for ctg_run in accepted_anchor_contigs])
@@ -439,6 +445,9 @@ class NtLink():
         parser.add_argument("-f", help="Maximum number of contigs in a run for full transitive edge addition",
                             required=False, default=10, type=int)
         parser.add_argument("-z", help="Minimum size of contig to scaffold", required=False, default=500, type=int)
+        parser.add_argument("-x", help="Fudge factor allowed between mapping block lengths on read and assembly. "
+                                       "Set to 0 to allow mapping block to be up to read length",
+                            type=int, default=0)
         parser.add_argument("-v", "--version", action='version', version='ntLink v0.0.1')
         parser.add_argument("--verbose", help="Verbose output logging", action='store_true')
 
@@ -456,6 +465,7 @@ class NtLink():
         print("\t-a ", self.args.a)
         print("\t-z ", self.args.z)
         print("\t-f ", self.args.f)
+        print("\t-x ", self.args.x)
 
     def main(self):
         "Run ntLink graph stage"
