@@ -35,6 +35,9 @@ a=1
 # Maximum number of contigs in a run for full transitive edge addition
 f=10
 
+# Fudge factor for filtering by mapping block length
+x=0
+
 # Prefix for output files
 prefix=out.k$(k).w$(w).n$(n).z$(z)
 
@@ -124,10 +127,10 @@ version:
 	$(time) $(gzip) $<
 
 $(prefix).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
-	$(time) $(gzip) -cd $(reads) | \
+	$(time)  sh -c '$(gzip) -cd $(reads) | \
 	$(ntlink_path)/src/indexlr --pos --strand -k $(k) -w $(w) -t $(t) - | \
   	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
-	-k $(k) -a $(a) -z $(z) -f $(f) -
+	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) -'
 
 # Run abyss-scaffold scaffolding layout
 $(prefix).abyss-scaffold.path: $(prefix).scaffold.dot

@@ -278,13 +278,35 @@ class NtLink():
 
         return graph
 
-    def get_accepted_anchor_contigs(self, mx_list):
+    def get_accepted_anchor_contigs(self, mx_list, read_length):
         "Returns dictionary of contigs of appropriate length, mx hits, whether subsumed"
         contig_list = []
-        for mx, _, _ in mx_list:
+        contig_positions = {} #contig -> [mx positions]
+        for mx, pos, _ in mx_list:
             contig = NtLink.list_mx_info[mx].contig
             if NtLink.scaffolds[contig].length >= self.args.z:
                 contig_list.append(contig)
+                if contig not in contig_positions:
+                    contig_positions[contig] = []
+                contig_positions[contig].append((NtLink.list_mx_info[mx].position, int(pos)))
+
+        # Filter out hits where mapped length on contig is greater than read length
+        noisy_contigs = set()
+        for contig in contig_positions:
+            positions = contig_positions[contig]
+            if len(positions) < 2:
+                continue
+            start_idx, end_idx = np.argmin([i[0] for i in positions]), np.argmax([i[0] for i in positions])
+            ctg_start, ont_start = positions[start_idx]
+            ctg_end, ont_end = positions[end_idx]
+            if self.args.x == 0:
+                if abs(ctg_end - ctg_start) > read_length:
+                    noisy_contigs.add(contig)
+            else:
+                threshold = min(read_length, (self.args.x * abs(ont_end - ont_start)) + self.args.k)
+                if abs(ctg_end - ctg_start) > threshold:
+                    noisy_contigs.add(contig)
+        contig_list = [contig for contig in contig_list if contig not in noisy_contigs]
 
         contig_runs = [(ctg, len(list(hits))) for ctg, hits in itertools.groupby(contig_list)]
         contigs_hits = {}
@@ -304,12 +326,15 @@ class NtLink():
 
         return return_contigs_hits, return_contig_runs
 
-    def add_pair(self, accepted_anchor_contigs, ctg_i, ctg_j, pairs, check_added=None):
+    def add_pair(self, accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_ont, check_added=None):
         "Add pair to dictionary of pairs"
         mx_i = accepted_anchor_contigs[ctg_i].terminal_mx
         mx_j = accepted_anchor_contigs[ctg_j].first_mx
         pair, gap_est = self.calculate_pair_info(MinimizerEdge(mx_i.mx_hash, mx_i.position, mx_i.strand,
                                                                mx_j.mx_hash, mx_j.position, mx_j.strand))
+
+        if abs(gap_est) > length_ont:
+            return None
         if check_added is not None and pair in check_added:
             return None
 
@@ -343,7 +368,9 @@ class NtLink():
                             mx, pos, strand = mx_pos.split(":")
                             if mx in target_mxs:
                                 mx_pos_split.append((mx, pos, strand))
-                        accepted_anchor_contigs, contig_runs = self.get_accepted_anchor_contigs(mx_pos_split)
+                        length_long_read = int(mx_pos_split_tups[-1].split(":")[1])
+                        accepted_anchor_contigs, contig_runs = self.get_accepted_anchor_contigs(mx_pos_split,
+                                                                                                length_long_read)
                         if self.args.verbose and accepted_anchor_contigs and len(accepted_anchor_contigs) > 1:
                             print(line[0], [str(accepted_anchor_contigs[ctg_run])
                                             for ctg_run in accepted_anchor_contigs])
@@ -364,19 +391,20 @@ class NtLink():
                             # Add all transitive edges for pairs
                             for ctg_pair in itertools.combinations(contig_runs, 2):
                                 ctg_i, ctg_j = ctg_pair
-                                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs)
+                                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_long_read)
                         else:
                             added_pairs = set()
                             # Add adjacent pairs
                             for ctg_i, ctg_j in zip(contig_runs, contig_runs[1:]):
-                                new_pair = self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs)
+                                new_pair = self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_long_read)
                                 added_pairs.add(new_pair)
 
                             # Add transitive edges over weakly supported contigs
                             contig_runs_filter = [ctg for ctg in contig_runs
                                                   if accepted_anchor_contigs[ctg].hit_count > 1]
                             for ctg_i, ctg_j in zip(contig_runs_filter, contig_runs_filter[1:]):
-                                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, check_added=added_pairs)
+                                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_long_read,
+                                              check_added=added_pairs)
 
         return pairs
 
@@ -417,6 +445,9 @@ class NtLink():
         parser.add_argument("-f", help="Maximum number of contigs in a run for full transitive edge addition",
                             required=False, default=10, type=int)
         parser.add_argument("-z", help="Minimum size of contig to scaffold", required=False, default=500, type=int)
+        parser.add_argument("-x", help="Fudge factor allowed between mapping block lengths on read and assembly. "
+                                       "Set to 0 to allow mapping block to be up to read length",
+                            type=int, default=0)
         parser.add_argument("-v", "--version", action='version', version='ntLink v0.0.1')
         parser.add_argument("--verbose", help="Verbose output logging", action='store_true')
 
@@ -434,6 +465,7 @@ class NtLink():
         print("\t-a ", self.args.a)
         print("\t-z ", self.args.z)
         print("\t-f ", self.args.f)
+        print("\t-x ", self.args.x)
 
     def main(self):
         "Run ntLink graph stage"
