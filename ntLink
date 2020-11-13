@@ -134,8 +134,10 @@ $(prefix).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
 
 # Run abyss-scaffold scaffolding layout
 $(prefix).abyss-scaffold.path: $(prefix).scaffold.dot
-	$(time) abyss-scaffold -k2 -n$(n)-20 -s$(z) --min-gap $(g) -g $(prefix).scaffold.abyss-scaffold.dot $(target) $< > $@
-
+	$(time) sh -c 'cat $(target) | \
+	cut -d " " -f1  | \
+	abyss-scaffold -k2 -n$(n)-20 -s$(z) --min-gap $(g) -g $(prefix).scaffold.abyss-scaffold.dot - $< > $@'
+	
 $(target).k$(k).w$(w).n$(n).z$(z).abyss-scaffold.fa: $(prefix).abyss-scaffold.path
 	$(time) MergeContigs -k2 $(target) $< > $@
 
