@@ -447,7 +447,7 @@ class NtLink():
         parser.add_argument("-z", help="Minimum size of contig to scaffold", required=False, default=500, type=int)
         parser.add_argument("-x", help="Fudge factor allowed between mapping block lengths on read and assembly. "
                                        "Set to 0 to allow mapping block to be up to read length",
-                            type=int, default=0)
+                            type=float, default=0)
         parser.add_argument("-v", "--version", action='version', version='ntLink v0.0.1')
         parser.add_argument("--verbose", help="Verbose output logging", action='store_true')
 
