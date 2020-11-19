@@ -134,7 +134,7 @@ version:
 %.fa.gz: %.fa
 	$(time) $(gzip) $<
 
-$(prefix).n$n.scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
+$(graph_targets): $(target).k$(k).w$(w).tsv $(reads)
 	$(time)  sh -c '$(gzip) -cd $(reads) | \
 	$(ntlink_path)/src/indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) - | \
   	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n)-$(max_n) -m $< -s $(target)  \
