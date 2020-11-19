@@ -33,13 +33,13 @@ def read_fasta_file(filename):
 
 def filter_graph(graph, min_weight):
     "Filter the graph by edge weights on edges incident to branch nodes"
-    in_branch_nodes = [node.index for node in graph.vs() if node.indegree() > 2]
+    in_branch_nodes = [node.index for node in graph.vs() if node.indegree() > 1]
     to_remove_in_edges = [edge for node in in_branch_nodes for edge in graph.incident(node, mode=ig.IN) # pylint: disable=no-member
                           if graph.es()[edge]['n'] < min_weight]
     new_graph = graph.copy()
     new_graph.delete_edges(to_remove_in_edges)
 
-    out_branch_nodes = [node.index for node in new_graph.vs() if node.outdegree() > 2]
+    out_branch_nodes = [node.index for node in new_graph.vs() if node.outdegree() > 1]
     to_remove_out_edges = [edge for node in out_branch_nodes for edge in new_graph.incident(node, mode=ig.OUT) # pylint: disable=no-member
                            if new_graph.es()[edge]['n'] < min_weight]
 
