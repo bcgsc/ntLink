@@ -39,9 +39,9 @@ def filter_graph(graph, min_weight):
     new_graph = graph.copy()
     new_graph.delete_edges(to_remove_in_edges)
 
-    out_branch_nodes = [node.index for node in graph.vs() if node.outdegree() > 2]
-    to_remove_out_edges = [edge for node in out_branch_nodes for edge in graph.incident(node, mode=ig.OUT) # pylint: disable=no-member
-                           if graph.es()[edge]['n'] < min_weight]
+    out_branch_nodes = [node.index for node in new_graph.vs() if node.outdegree() > 2]
+    to_remove_out_edges = [edge for node in out_branch_nodes for edge in new_graph.incident(node, mode=ig.OUT) # pylint: disable=no-member
+                           if new_graph.es()[edge]['n'] < min_weight]
 
     return_graph = new_graph.copy()
     return_graph.delete_edges(to_remove_out_edges)
