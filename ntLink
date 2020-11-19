@@ -147,7 +147,7 @@ $(graph_targets): $(prefix).pairs.tsv
 %.abyss-scaffold.path: %.scaffold.dot
 	$(time) sh -c 'cat $(target) | \
 	cut -d " " -f1  | \
-	abyss-scaffold -k2 -n$(n)-20 -s$(z) --min-gap $(g) -g $*.scaffold.abyss-scaffold.dot - $< > $@'
+	abyss-scaffold -k2 -n2 -s$(z) --min-gap $(g) -g $*.scaffold.abyss-scaffold.dot - $< > $@'
 	
 $(target).k$(k).w$(w)%.z$(z).abyss-scaffold.fa: $(prefix)%.abyss-scaffold.path
 	$(time) MergeContigs -k2 $(target) $< > $@
