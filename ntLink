@@ -26,6 +26,9 @@ z=500
 # Minimum edge weight
 n=2
 
+# Higher Minimum edge weight (for pairing)
+max_n=2
+
 # Minimum gap size between scaffolds
 g=20
 
@@ -39,7 +42,7 @@ f=10
 x=0
 
 # Prefix for output files
-prefix=out.k$(k).w$(w).n$(n).z$(z)
+prefix=out.k$(k).w$(w).z$(z)
 
 SHELL=bash -e -o pipefail
 ifeq ($(shell zsh -e -o pipefail -c 'true' 2>/dev/null; echo $$?), 0)
@@ -78,7 +81,7 @@ help:
 	@echo "Options:"
 	@echo "target			Target assembly to be scaffolded in fasta format"
 	@echo "reads			List of long read files (separated by a space)"
-	@echo "prefix			Prefix of intermediate output files [out.k<k>.w<w>.n<n>]"
+	@echo "prefix			Prefix of intermediate output files [out.k<k>.w<w>.z<z>]"
 	@echo "t			Number of threads [4]"
 	@echo "k			K-mer size for minimizers [32]"
 	@echo "w			Window size for minimizers (bp) [250]"
@@ -97,11 +100,16 @@ scaffold: check_params \
 	ntLink_graph \
 	abyss_scaffold
 
+LIST = $(shell seq $(n) $(max_n))
+LIST_n = $(addprefix .n, $(LIST))
+graph_targets = $(addsuffix .scaffold.dot, $(addprefix $(prefix), $(LIST_n)))
 ntLink_graph: $(target).k$(k).w$(w).tsv \
-	$(prefix).scaffold.dot
+	$(graph_targets)
 
-abyss_scaffold: $(prefix).scaffold.dot \
-	$(target).k$(k).w$(w).n$(n).z$(z).abyss-scaffold.fa
+scaffold_targets_prefix = $(addprefix $(target).k$(k).w$(w), $(LIST_n))
+scaffold_targets = $(addsuffix .z$(z).abyss-scaffold.fa, $(scaffold_targets_prefix))
+abyss_scaffold: ntLink_graph \
+	$(scaffold_targets)
 
 check_params:
 ifeq ($(reads), None)
@@ -126,18 +134,18 @@ version:
 %.fa.gz: %.fa
 	$(time) $(gzip) $<
 
-$(prefix).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
+$(prefix).n$n.scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
 	$(time)  sh -c '$(gzip) -cd $(reads) | \
 	$(ntlink_path)/src/indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) - | \
-  	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
+  	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n)-$(max_n) -m $< -s $(target)  \
 	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) -'
 
 # Run abyss-scaffold scaffolding layout
-$(prefix).abyss-scaffold.path: $(prefix).scaffold.dot
+%.abyss-scaffold.path: %.scaffold.dot
 	$(time) sh -c 'cat $(target) | \
 	cut -d " " -f1  | \
-	abyss-scaffold -k2 -n$(n)-20 -s$(z) --min-gap $(g) -g $(prefix).scaffold.abyss-scaffold.dot - $< > $@'
+	abyss-scaffold -k2 -n$(n)-20 -s$(z) --min-gap $(g) -g $*.scaffold.abyss-scaffold.dot - $< > $@'
 	
-$(target).k$(k).w$(w).n$(n).z$(z).abyss-scaffold.fa: $(prefix).abyss-scaffold.path
+$(target).k$(k).w$(w)%.z$(z).abyss-scaffold.fa: $(prefix)%.abyss-scaffold.path
 	$(time) MergeContigs -k2 $(target) $< > $@
 

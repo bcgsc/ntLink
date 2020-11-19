@@ -9,6 +9,7 @@ import datetime
 from collections import defaultdict
 from collections import namedtuple
 import itertools
+import re
 import sys
 import numpy as np
 import igraph as ig
@@ -416,11 +417,12 @@ class NtLink():
                                       pair.target_contig + pair.target_ori, str(pairs[pair])]) + "\n")
         pair_out.close()
 
-    def filter_graph_global(self, graph):
+    @staticmethod
+    def filter_graph_global(graph, min_weight):
         "Filter the graph globally based on minimum edge weight"
         print(datetime.datetime.today(), ": Filtering the graph", file=sys.stdout)
         to_remove_edges = [edge.index for edge in graph.es()
-                           if edge['n'] < self.args.n]
+                           if edge['n'] < min_weight]
         new_graph = graph.copy()
         new_graph.delete_edges(to_remove_edges)
         return new_graph
@@ -440,7 +442,8 @@ class NtLink():
         parser.add_argument("-m", help="Target scaffolds minimizer TSV file")
         parser.add_argument("-p", help="Output prefix [out]", default="out",
                             type=str, required=False)
-        parser.add_argument("-n", help="Minimum edge weight [1]", default=1, type=int)
+        parser.add_argument("-n", help="Minimum edge weight [1], or range of minimum edge weights (ex. 1-10)",
+                            default=1, type=str)
         parser.add_argument("-k", help="Kmer size used for minimizer step", required=True, type=int)
         parser.add_argument("-f", help="Maximum number of contigs in a run for full transitive edge addition",
                             required=False, default=10, type=int)
@@ -472,6 +475,14 @@ class NtLink():
         print("Running pairing stage of ntLink ...\n")
         self.print_parameters()
 
+        # Check n argument
+        n_range_match = re.search(r'^(\d+)-(\d+)$', self.args.n)
+        n_int_match = re.search(r'^(\d+)$', self.args.n)
+        if not n_range_match and not n_int_match:
+            print("Error! -n parameter must be an integer or in a range of the"
+                  " form int-int")
+            sys.exit()
+
         # Read in the minimizers for target assembly
         mxs_info, mxs = self.read_minimizers(self.args.m)
         NtLink.list_mx_info = mxs_info
@@ -491,10 +502,20 @@ class NtLink():
 
         # Build directed graph
         graph = self.build_scaffold_graph(pairs)
-        graph = self.filter_graph_global(graph)
 
-        # Print out the directed graph
-        self.print_directed_graph(graph, self.args.p)
+        # Filter graph
+        if n_int_match:
+            graph = self.filter_graph_global(graph, int(self.args.n))
+            # Print out the directed graph
+            self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n))
+        if n_range_match:
+            min_n, max_n = int(n_range_match.group(1)), int(n_range_match.group(2))
+            graph = self.filter_graph_global(graph, min_n)
+            self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, min_n))
+
+            for i in range(min_n + 1, max_n + 1):
+                graph = ntlink_utils.filter_graph(graph, i)
+                self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, i))
 
         print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
 
