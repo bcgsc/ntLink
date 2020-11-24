@@ -149,7 +149,7 @@ class NtLink_path:
 
     def read_alternate_pathfile(self, i, path_graph, scaffold_pair_graph):
         "Read through alt abyss-scaffold output file, adding potential new edges"
-        filename = "{}n{}.scaffold.dot".format(self.args.p, i)
+        filename = "{}.n{}.scaffold.dot".format(self.args.p, i)
         gap_re = re.compile(r'^(\d+)N$')
 
         if not os.path.exists(filename):
@@ -276,11 +276,8 @@ class NtLink_path:
         components = graph.components(mode="weak")
         print("\nTotal number of components in graph:", len(components), "\n", sep=" ", file=sys.stdout)
 
-        if self.args.t == 1:
-            paths = [self.find_paths_process(component) for component in components]
-        else:
-            with multiprocessing.Pool(self.args.t) as pool:
-                paths = pool.map(self.find_paths_process, components)
+        paths = [self.find_paths_process(component) for component in components]
+
         paths_return = [path for path_list in paths for path in path_list]
         paths_return = self.remove_duplicate_paths(paths_return)
         return paths_return
