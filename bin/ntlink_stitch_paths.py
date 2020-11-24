@@ -172,21 +172,6 @@ class NtLink_path:
                     if path_graph.are_connected(source, target):
                         continue # continue if the source/target are already connected
                     if self.are_end_vertices(source, target, path_graph):
-                        # try:
-                        #     source_best_hit_idx = self.find_best_partner(scaffold_pair_graph, source, type="source")
-                        #     target_best_hit_idx = self.find_best_partner(scaffold_pair_graph, target, type="source")
-                        # except:
-                        #     continue
-                        # if source_best_hit_idx is None or target_best_hit_idx is None:
-                        #     continue
-                        # print(ntlink_utils.vertex_name(scaffold_pair_graph, source_best_hit_idx),
-                        #       ntlink_utils.vertex_name(scaffold_pair_graph, target_best_hit_idx))
-                        # print("source: ", source)
-                        # print("target: ", target)
-                        # if ntlink_utils.vertex_name(scaffold_pair_graph, target_best_hit_idx) == i and \
-                        #     ntlink_utils.vertex_name(scaffold_pair_graph, source_best_hit_idx) == k and \
-                        #         not path_graph.are_connected(i, k):
-                            # This is a new valid potential connection
                         path_graph.add_edge(i, k, d=gap_match.group(1), path_id="new")
 
 
