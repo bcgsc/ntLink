@@ -60,4 +60,5 @@ def reverse_orientation(orientation):
     return "+"
 
 def reverse_scaf_ori(scaffold):
+    "Reverse orientation of scaffold"
     return scaffold[:-1] + reverse_orientation(scaffold[-1])

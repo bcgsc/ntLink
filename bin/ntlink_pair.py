@@ -181,19 +181,12 @@ class NtLink():
         return mx_info, mxs_filt
 
     @staticmethod
-    def reverse_orientation(orientation):
-        "Flip the given orientation"
-        assert orientation in ("+", "-")
-        if orientation == "+":
-            return "-"
-        return "+"
-
-    def normalize_pair(self, source_ctg, source_ori, target_ctg, target_ori):
+    def normalize_pair(source_ctg, source_ori, target_ctg, target_ori):
         "Normalize pairs. Lexicographically smallest contig first in pair"
         if source_ctg < target_ctg:
             return ScaffoldPair(source_ctg, source_ori, target_ctg, target_ori)
-        return ScaffoldPair(target_ctg, self.reverse_orientation(target_ori),
-                            source_ctg, self.reverse_orientation(source_ori))
+        return ScaffoldPair(target_ctg, ntlink_utils.reverse_orientation(target_ori),
+                            source_ctg, ntlink_utils.reverse_orientation(source_ori))
 
 
     def calculate_pair_info(self, mx_edge):
@@ -229,11 +222,11 @@ class NtLink():
             new_pairs[pair] = pairs[pair]
         return new_pairs
 
-
-    def reverse_complement_pair(self, pair):
+    @staticmethod
+    def reverse_complement_pair(pair):
         "Reverse complemented a directed pair of scaffolds"
-        return ScaffoldPair(pair.target_contig, self.reverse_orientation(pair.target_ori),
-                            pair.source_contig, self.reverse_orientation(pair.source_ori))
+        return ScaffoldPair(pair.target_contig, ntlink_utils.reverse_orientation(pair.target_ori),
+                            pair.source_contig, ntlink_utils.reverse_orientation(pair.source_ori))
 
     def build_scaffold_graph(self, pairs):
         "Builds a scaffold graph given the pairs info"
