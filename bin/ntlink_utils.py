@@ -47,3 +47,17 @@ def filter_graph(graph, min_weight):
     return_graph.delete_edges(to_remove_out_edges)
 
     return return_graph
+
+def convert_path_index_to_name(graph, path):
+    "Convert path of vertex indices to path of vertex names"
+    return [vertex_name(graph, vs) for vs in path]
+
+def reverse_orientation(orientation):
+    "Flip the given orientation"
+    assert orientation in ("+", "-")
+    if orientation == "+":
+        return "-"
+    return "+"
+
+def reverse_scaf_ori(scaffold):
+    return scaffold[:-1] + reverse_orientation(scaffold[-1])
