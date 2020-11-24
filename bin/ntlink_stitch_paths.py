@@ -149,7 +149,7 @@ class NtLink_path:
 
     def read_alternate_pathfile(self, i, path_graph, scaffold_pair_graph):
         "Read through alt abyss-scaffold output file, adding potential new edges"
-        filename = "{}n{}.scaffold.dot".format(self.args.prefix, i)
+        filename = "{}n{}.scaffold.dot".format(self.args.p, i)
         gap_re = re.compile(r'^(\d+)N$')
 
         if not os.path.exists(filename):
