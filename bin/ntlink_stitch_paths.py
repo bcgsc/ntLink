@@ -54,8 +54,8 @@ class NtLink_path:
         graph.add_vertices(list(vertices))
         graph.add_edges(formatted_edges)
 
-        edge_attributes = {ntlink_utils.edge_index(graph, s, t): {'d': edges[s][t].gap_estimate,
-                                                                  "n": edges[s][t].num_links}
+        edge_attributes = {ntlink_utils.edge_index(graph, s, t): {'d': edges[s][t][0],
+                                                                  "n": edges[s][t][1]}
                            for s in edges for t in edges[s]}
         graph.es()["d"] = [edge_attributes[e]['d'] for e in sorted(edge_attributes.keys())]
         graph.es()["n"] = [edge_attributes[e]['n'] for e in sorted(edge_attributes.keys())]
@@ -290,7 +290,6 @@ class NtLink_path:
         "Run ntLink stitch paths stage"
         print("Running ntLink stitch paths stage...\n")
 
-        print(self.args)
         path_graph = self.read_paths(self.args.PATH)
         scaffold_pair_graph = self.read_scaffold_graph(self.args.g)
 
