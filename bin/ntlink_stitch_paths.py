@@ -290,6 +290,7 @@ class NtLink_path:
         "Run ntLink stitch paths stage"
         print("Running ntLink stitch paths stage...\n")
 
+        print(self.args)
         path_graph = self.read_paths(self.args.PATH)
         scaffold_pair_graph = self.read_scaffold_graph(self.args.g)
 
@@ -326,6 +327,8 @@ class NtLink_path:
         parser.add_argument("-a", help="Ratio of best to second best edge to create potential connection",
                             required=False, default=0.3, type=float)
         parser.add_argument("-p", help="Output file prefix", required=False, default="out", type=str)
+
+        return parser.parse_args()
 
     def __init__(self):
         "Create new ntLink_path instance"
