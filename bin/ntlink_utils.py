@@ -15,7 +15,11 @@ Scaffold = namedtuple("Scaffold", ["id", "length", "sequence"])
 
 def vertex_name(graph, index):
     "Returns vertex name based on vertex id"
-    return graph.vs[index]['name']
+    return graph.vs()[index]['name']
+
+def vertex_index(graph, name):
+    "Returns vertex index based on vertex name"
+    return graph.vs.find(name).index
 
 def edge_index(graph, source_name, target_name):
     "Returns graph edge index based on source/target names"

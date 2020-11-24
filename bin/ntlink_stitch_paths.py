@@ -65,7 +65,7 @@ class NtLink_path:
     def read_paths(self, path_filename):
         "Read paths into graph data structure"
         #191361	188729-5+ 21N 40000+
-        print(datetime.datetime.today(), ": Building path graph", file=sys.stdout)
+        print(datetime.datetime.today(), ": Building path graph", file=sys.stderr)
 
         graph = ig.Graph(directed=True)
 
@@ -111,8 +111,8 @@ class NtLink_path:
 
     def are_end_vertices(self, source, target, path_graph):
         "Checks if both the source and target are end vertices"
-        return path_graph.vs()[source].outdegree() == 0 and \
-               path_graph.vs()[target].indegree() == 0
+        return path_graph.vs()[ntlink_utils.vertex_index(path_graph, source)].outdegree() == 0 and \
+               path_graph.vs()[ntlink_utils.vertex_index(path_graph, target)].indegree() == 0
 
     def find_best_partner(self, graph, node, type):
         "Find the best partner for the given node in the overall graph"
@@ -124,36 +124,36 @@ class NtLink_path:
                 edge = graph.es()[ntlink_utils.edge_index(graph, node, neighbour_idx)]
                 edge_index = edge.index
                 edge_weight = int(edge["n"])
-                neighbour_scores.append((edge_index, edge_weight))
+                neighbour_scores.append((edge_index, edge_weight, edge.target))
         elif type == "target":
             neighbours = graph.neighbors(node, mode=ig.IN)
             for neighbour_idx in neighbours:
                 edge = graph.es()[ntlink_utils.edge_index(graph, neighbour_idx, node)]
                 edge_index = edge.index
                 edge_weight = int(edge["n"])
-                neighbour_scores.append((edge_index, edge_weight))
+                neighbour_scores.append((edge_index, edge_weight, edge.source))
         else:
             print("ERROR: Valid arguments for 'type' are source or target")
             sys.exit(1)
 
         if len(neighbour_scores) == 1:
-            return neighbour_scores[0][0]
+            return neighbour_scores[0][2]
         elif len(neighbour_scores) == 0:
             return None
         neighbour_scores = sorted(neighbour_scores, key=lambda x:x[0], reverse=True)
         top_ratio = neighbour_scores[1][1]/neighbour_scores[0][1]
         if top_ratio <= self.args.a:
-            return neighbour_scores[0][0]
+            return neighbour_scores[0][2]
         return None
 
 
     def read_alternate_pathfile(self, i, path_graph, scaffold_pair_graph):
         "Read through alt abyss-scaffold output file, adding potential new edges"
-        filename = "{}.n{}.scaffold.dot".format(self.args.p, i)
+        filename = "{}.n{}.abyss-scaffold.path".format(self.args.p, i)
         gap_re = re.compile(r'^(\d+)N$')
 
         if not os.path.exists(filename):
-            print("{} does not exist, skipping.".format(filename))
+            print("{} does not exist, skipping.".format(filename), file=sys.stderr)
             return
         with open(filename, 'r') as fin:
             for path in fin:
@@ -163,26 +163,31 @@ class NtLink_path:
                     gap_match = re.search(gap_re, j)
                     if not gap_match:
                         continue
+                    source, target = i, k
                     try:
-                        source = path_graph.vs().find(i).index
-                        target = path_graph.vs().find(k).index
+                        source_idx = path_graph.vs().find(i)
+                        target_idx = path_graph.vs().find(k)
                     except ValueError:
                         continue
                     if path_graph.are_connected(source, target):
                         continue # continue if the source/target are already connected
                     if self.are_end_vertices(source, target, path_graph):
-                        try:
-                            source_best_hit_idx = self.find_best_partner(scaffold_pair_graph, source, type="source")
-                            target_best_hit_idx = self.find_best_partner(scaffold_pair_graph, target, type="source")
-                        except:
-                            continue
-                        if source_best_hit_idx is None or target_best_hit_idx is None:
-                            continue
-                        if ntlink_utils.vertex_name(scaffold_pair_graph, target_best_hit_idx) == i and \
-                            ntlink_utils.vertex_name(scaffold_pair_graph, source_best_hit_idx) == k and \
-                                not path_graph.are_connected(i, k):
+                        # try:
+                        #     source_best_hit_idx = self.find_best_partner(scaffold_pair_graph, source, type="source")
+                        #     target_best_hit_idx = self.find_best_partner(scaffold_pair_graph, target, type="source")
+                        # except:
+                        #     continue
+                        # if source_best_hit_idx is None or target_best_hit_idx is None:
+                        #     continue
+                        # print(ntlink_utils.vertex_name(scaffold_pair_graph, source_best_hit_idx),
+                        #       ntlink_utils.vertex_name(scaffold_pair_graph, target_best_hit_idx))
+                        # print("source: ", source)
+                        # print("target: ", target)
+                        # if ntlink_utils.vertex_name(scaffold_pair_graph, target_best_hit_idx) == i and \
+                        #     ntlink_utils.vertex_name(scaffold_pair_graph, source_best_hit_idx) == k and \
+                        #         not path_graph.are_connected(i, k):
                             # This is a new valid potential connection
-                            path_graph.add_edge(i, k, d=gap_match.group(1), path_id="new")
+                        path_graph.add_edge(i, k, d=gap_match.group(1), path_id="new")
 
 
 
@@ -229,8 +234,7 @@ class NtLink_path:
             return_path.append(PathNode(contig=ctga_name, ori=ctga_ori,
                                         gap_size=gap_estimate))
         last_ctg_name, last_ctg_ori = path[-1][:-1], path[-1][-1]
-        return_path.append(PathNode(contig=last_ctg_name, ori=last_ctg_ori,
-                                    gap_size=component_graph.es()[edge_index]['d']))
+        return_path.append(PathNode(contig=last_ctg_name, ori=last_ctg_ori))
         return return_path
 
     def find_paths_process(self, component):
@@ -271,10 +275,10 @@ class NtLink_path:
 
     def find_paths(self, graph):
         "Finds paths through input scaffold graph"
-        print(datetime.datetime.today(), ": Finding paths", file=sys.stdout)
+        print(datetime.datetime.today(), ": Finding paths", file=sys.stderr)
         NtLink_path.gin = graph
         components = graph.components(mode="weak")
-        print("\nTotal number of components in graph:", len(components), "\n", sep=" ", file=sys.stdout)
+        print("\nTotal number of components in graph:", len(components), "\n", sep=" ", file=sys.stderr)
 
         paths = [self.find_paths_process(component) for component in components]
 
@@ -285,7 +289,7 @@ class NtLink_path:
 
     def main(self):
         "Run ntLink stitch paths stage"
-        print("Running ntLink stitch paths stage...\n")
+        print("Running ntLink stitch paths stage...\n", file=sys.stderr)
 
         path_graph = self.read_paths(self.args.PATH)
         scaffold_pair_graph = self.read_scaffold_graph(self.args.g)
@@ -296,7 +300,6 @@ class NtLink_path:
         assert self.is_graph_linear(path_graph)
 
         NtLink_path.gin = path_graph
-
         paths = self.find_paths(path_graph)
 
         path_id = 0

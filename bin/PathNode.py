@@ -14,7 +14,9 @@ class PathNode:
         return "{}{}".format(self.contig, self.ori)
 
     def get_gap(self):
-        return "{}N".format(self.gap_size)
+        if self.gap_size is not None:
+            return "{}N".format(self.gap_size)
+        return None
 
     def __str__(self):
         return "{}{}".format(self.contig, self.ori)
