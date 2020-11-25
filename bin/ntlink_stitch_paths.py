@@ -6,18 +6,20 @@ __author__ = "laurencoombe"
 
 import argparse
 import datetime
-import igraph as ig
 import re
 import sys
 import os
 from collections import defaultdict
-import ntlink_utils
+import igraph as ig
 import numpy as np
+import ntlink_utils
 from PathNode import PathNode
 
-class NtLink_path:
+class NtLinkPath:
+    "Instance of ntLink stitch path phase"
 
-    def read_scaffold_graph(self, in_graph_file):
+    @staticmethod
+    def read_scaffold_graph(in_graph_file):
         "Reads in a scaffold graph in dot format"
 
         graph = ig.Graph(directed=True)
@@ -62,7 +64,8 @@ class NtLink_path:
 
         return graph
 
-    def read_paths(self, path_filename):
+    @staticmethod
+    def read_paths(path_filename):
         "Read paths into graph data structure"
         #191361	188729-5+ 21N 40000+
         print(datetime.datetime.today(), ": Building path graph", file=sys.stderr)
@@ -108,25 +111,25 @@ class NtLink_path:
 
         return graph
 
-
-    def are_end_vertices(self, source, target, path_graph):
+    @staticmethod
+    def are_end_vertices(source, target, path_graph):
         "Checks if both the source and target are end vertices"
         return path_graph.vs()[ntlink_utils.vertex_index(path_graph, source)].outdegree() == 0 and \
                path_graph.vs()[ntlink_utils.vertex_index(path_graph, target)].indegree() == 0
 
-    def find_best_partner(self, graph, node, type):
+    def find_best_partner_node(self, graph, node, type_node):
         "Find the best partner for the given node in the overall graph"
         neighbour_scores = []
 
-        if type == "source":
-            neighbours = graph.neighbors(node, mode=ig.OUT)
+        if type_node == "source":
+            neighbours = graph.neighbors(node, mode=ig.OUT)  # pylint: disable=no-member
             for neighbour_idx in neighbours:
                 edge = graph.es()[ntlink_utils.edge_index(graph, node, neighbour_idx)]
                 edge_index = edge.index
                 edge_weight = int(edge["n"])
                 neighbour_scores.append((edge_index, edge_weight, edge.target))
-        elif type == "target":
-            neighbours = graph.neighbors(node, mode=ig.IN)
+        elif type_node == "target":
+            neighbours = graph.neighbors(node, mode=ig.IN) # pylint: disable=no-member
             for neighbour_idx in neighbours:
                 edge = graph.es()[ntlink_utils.edge_index(graph, neighbour_idx, node)]
                 edge_index = edge.index
@@ -136,7 +139,7 @@ class NtLink_path:
             print("ERROR: Valid arguments for 'type' are source or target")
             sys.exit(1)
 
-        if len(neighbour_scores) == 1:
+        if len(neighbour_scores) == 1: # pylint: disable=no-else-return
             return neighbour_scores[0][2]
         elif len(neighbour_scores) == 0:
             return None
@@ -147,9 +150,9 @@ class NtLink_path:
         return None
 
 
-    def read_alternate_pathfile(self, i, path_graph, scaffold_pair_graph):
+    def read_alternate_pathfile(self, n, path_graph):
         "Read through alt abyss-scaffold output file, adding potential new edges"
-        filename = "{}.n{}.abyss-scaffold.path".format(self.args.p, i)
+        filename = "{}.n{}.abyss-scaffold.path".format(self.args.p, n)
         gap_re = re.compile(r'^(\d+)N$')
 
         if not os.path.exists(filename):
@@ -158,7 +161,7 @@ class NtLink_path:
         new_edges = defaultdict(dict)
         with open(filename, 'r') as fin:
             for path in fin:
-                path_id, path_sequence = path.strip().split("\t")
+                _, path_sequence = path.strip().split("\t")
                 path_sequence = path_sequence.split(" ")
                 for i, j, k in zip(path_sequence, path_sequence[1:], path_sequence[2:]):
                     gap_match = re.search(gap_re, j)
@@ -166,8 +169,8 @@ class NtLink_path:
                         continue
                     source, target = i, k
                     try:
-                        source_idx = path_graph.vs().find(i)
-                        target_idx = path_graph.vs().find(k)
+                        path_graph.vs().find(i)
+                        path_graph.vs().find(k)
                     except ValueError:
                         continue
                     if path_graph.are_connected(source, target):
@@ -183,25 +186,25 @@ class NtLink_path:
                             new_edges[rev_k][rev_i] = [int(gap_match.group(1))]
                         else:
                             new_edges[rev_k][rev_i].append(int(gap_match.group(1)))
-                        #path_graph.add_edge(i, k, d=gap_match.group(1), path_id="new")
         for new_source in new_edges:
             for new_target in new_edges[new_source]:
                 d = new_edges[new_source][new_target]
                 path_graph.add_edge(new_source, new_target, d=int(np.median(d)), path_id="new", n=len(d))
 
 
-    def read_alternate_pathfiles(self, path_graph, scaffold_pair_graph):
+    def read_alternate_pathfiles(self, path_graph):
         "Read through alt abyss-scaffold output files, adding potential new edges for paths"
         for i in range(self.args.min_n, self.args.max_n + 1):
-            self.read_alternate_pathfile(i, path_graph, scaffold_pair_graph)
+            self.read_alternate_pathfile(i, path_graph)
 
-    def linearize_graph(self, graph):
+    @staticmethod
+    def linearize_graph(graph):
         "Filter the graph to linearize it"
         in_branch_nodes = [node.index for node in graph.vs() if node.indegree() > 1]
         to_remove_in_edges = []
         for node in in_branch_nodes:
             max_weight_edge = None
-            incident_edges = graph.incident(node, mode=ig.IN)
+            incident_edges = graph.incident(node, mode=ig.IN) # pylint: disable=no-member
             if all([graph.es()[edge]['path_id'] == "new" for edge in incident_edges]):
                 max_weight = max([graph.es()[edge]['n'] for edge in incident_edges])
                 max_weight_edges = [edge for edge in incident_edges if graph.es()[edge]['n'] == max_weight]
@@ -218,7 +221,7 @@ class NtLink_path:
         to_remove_out_edges = []
         for node in out_branch_nodes:
             max_weight_edge = None
-            incident_edges = graph.incident(node, mode=ig.OUT)
+            incident_edges = graph.incident(node, mode=ig.OUT) # pylint: disable=no-member
             if all([graph.es()[edge]['path_id'] == "new" for edge in incident_edges]):
                 max_weight = max([graph.es()[edge]['n'] for edge in incident_edges])
                 max_weight_edges = [edge for edge in incident_edges if graph.es()[edge]['n'] == max_weight]
@@ -244,7 +247,8 @@ class NtLink_path:
                 return False
         return True
 
-    def format_path_contigs(self, path, component_graph):
+    @staticmethod
+    def format_path_contigs(path, component_graph):
         "Given a path (sequence of oriented contigs), format to a path of PathNode"
         return_path = []
         for ctga, ctgb in zip(path, path[1:]):
@@ -260,7 +264,7 @@ class NtLink_path:
     def find_paths_process(self, component):
         "Find paths given a component of the graph"
         return_paths = []
-        component_graph = NtLink_path.gin.subgraph(component)
+        component_graph = NtLinkPath.gin.subgraph(component)
         visited = set()
 
         source_nodes = [node.index for node in component_graph.vs() if node.indegree() == 0]
@@ -296,7 +300,7 @@ class NtLink_path:
     def find_paths(self, graph):
         "Finds paths through input scaffold graph"
         print(datetime.datetime.today(), ": Finding paths", file=sys.stderr)
-        NtLink_path.gin = graph
+        NtLinkPath.gin = graph
         components = graph.components(mode="weak")
         print("\nTotal number of components in graph:", len(components), "\n", sep=" ", file=sys.stderr)
 
@@ -312,14 +316,13 @@ class NtLink_path:
         print("Running ntLink stitch paths stage...\n", file=sys.stderr)
 
         path_graph = self.read_paths(self.args.PATH)
-        scaffold_pair_graph = self.read_scaffold_graph(self.args.g)
 
-        self.read_alternate_pathfiles(path_graph, scaffold_pair_graph)
+        self.read_alternate_pathfiles(path_graph)
 
         path_graph = self.linearize_graph(path_graph)
         assert self.is_graph_linear(path_graph)
 
-        NtLink_path.gin = path_graph
+        NtLinkPath.gin = path_graph
         paths = self.find_paths(path_graph)
 
         path_id = 0
@@ -355,7 +358,7 @@ class NtLink_path:
 
 def main():
     "Run ntLink stitch paths stage"
-    NtLink_path().main()
+    NtLinkPath().main()
 
 
 if __name__ == "__main__":
