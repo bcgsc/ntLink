@@ -12,7 +12,7 @@ import sys
 import os
 from collections import defaultdict
 import ntlink_utils
-import multiprocessing
+import numpy as np
 from PathNode import PathNode
 
 class NtLink_path:
@@ -155,6 +155,7 @@ class NtLink_path:
         if not os.path.exists(filename):
             print("{} does not exist, skipping.".format(filename), file=sys.stderr)
             return
+        new_edges = defaultdict(dict)
         with open(filename, 'r') as fin:
             for path in fin:
                 path_id, path_sequence = path.strip().split("\t")
@@ -172,8 +173,21 @@ class NtLink_path:
                     if path_graph.are_connected(source, target):
                         continue # continue if the source/target are already connected
                     if self.are_end_vertices(source, target, path_graph):
-                        path_graph.add_edge(i, k, d=gap_match.group(1), path_id="new")
+                        if i not in new_edges and k not in new_edges[i]:
+                            new_edges[i][k] = [int(gap_match.group(1))]
+                        else:
+                            new_edges[i][k].append(int(gap_match.group(1)))
 
+                        rev_i, rev_k = ntlink_utils.reverse_scaf_ori(i), ntlink_utils.reverse_scaf_ori(k)
+                        if rev_k not in new_edges and rev_i not in new_edges[rev_i]:
+                            new_edges[rev_k][rev_i] = [int(gap_match.group(1))]
+                        else:
+                            new_edges[rev_k][rev_i].append(int(gap_match.group(1)))
+                        #path_graph.add_edge(i, k, d=gap_match.group(1), path_id="new")
+        for new_source in new_edges:
+            for new_target in new_edges[new_source]:
+                d = new_edges[new_source][new_target]
+                path_graph.add_edge(new_source, new_target, d=int(np.median(d)), path_id="new", n=len(d))
 
 
     def read_alternate_pathfiles(self, path_graph, scaffold_pair_graph):
@@ -184,14 +198,39 @@ class NtLink_path:
     def linearize_graph(self, graph):
         "Filter the graph to linearize it"
         in_branch_nodes = [node.index for node in graph.vs() if node.indegree() > 1]
-        to_remove_in_edges = [edge for node in in_branch_nodes for edge in graph.incident(node, mode=ig.IN) # pylint: disable=no-member
-                              if graph.es()[edge]['path_id'] == "new"]
+        #to_remove_in_edges = [edge for node in in_branch_nodes for edge in graph.incident(node, mode=ig.IN) # pylint: disable=no-member
+        #                      if graph.es()[edge]['path_id'] == "new"]
+        to_remove_in_edges = []
+        for node in in_branch_nodes:
+            max_weight_edge = None
+            incident_edges = graph.incident(node, mode=ig.IN)
+            if all([graph.es()[edge]['path_id'] == "new" for edge in incident_edges]):
+                max_weight = max([graph.es()[edge]['n'] for edge in incident_edges])
+                max_weight_edges = [edge for edge in incident_edges if graph.es()[edge]['n'] == max_weight]
+                if len(max_weight_edges) == 1:
+                    max_weight_edge = max_weight_edges[0]
+            for edge in incident_edges:
+                if edge != max_weight_edge and graph.es()[edge]['path_id'] == "new":
+                    to_remove_in_edges.append(edge)
+
         new_graph = graph.copy()
         new_graph.delete_edges(to_remove_in_edges)
 
         out_branch_nodes = [node.index for node in new_graph.vs() if node.outdegree() > 1]
-        to_remove_out_edges = [edge for node in out_branch_nodes for edge in new_graph.incident(node, mode=ig.OUT) # pylint: disable=no-member
-                               if new_graph.es()[edge]['path_id'] == "new"]
+        # to_remove_out_edges = [edge for node in out_branch_nodes for edge in new_graph.incident(node, mode=ig.OUT) # pylint: disable=no-member
+        #                        if new_graph.es()[edge]['path_id'] == "new"]
+        to_remove_out_edges = []
+        for node in out_branch_nodes:
+            max_weight_edge = None
+            incident_edges = graph.incident(node, mode=ig.OUT)
+            if all([graph.es()[edge]['path_id'] == "new" for edge in incident_edges]):
+                max_weight = max([graph.es()[edge]['n'] for edge in incident_edges])
+                max_weight_edges = [edge for edge in incident_edges if graph.es()[edge]['n'] == max_weight]
+                if len(max_weight_edges) == 1:
+                    max_weight_edge = max_weight_edges[0]
+            for edge in incident_edges:
+                if edge != max_weight_edge and graph.es()[edge]['path_id'] == "new":
+                    to_remove_out_edges.append(edge)
 
         return_graph = new_graph.copy()
         return_graph.delete_edges(to_remove_out_edges)
