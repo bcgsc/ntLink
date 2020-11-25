@@ -123,6 +123,9 @@ class NtLinkPath:
         assert mode in ["out", "in"]
         if mode == "out":
             return graph.vs()[ntlink_utils.vertex_index(graph, node)].outdegree() == 0
+        x = graph.vs()[ntlink_utils.vertex_index(graph, node)]
+        y = x.neighbors(mode=ig.IN)
+        z = graph.vs()[ntlink_utils.vertex_index(graph, node)].indegree()
         return graph.vs()[ntlink_utils.vertex_index(graph, node)].indegree() == 0
 
     def find_best_partner_node(self, graph, node, type_node):
@@ -158,7 +161,7 @@ class NtLinkPath:
         return None
 
 
-    def read_alternate_pathfile(self, n, path_graph):
+    def read_alternate_pathfile(self, n, path_graph, new_vertices, new_edges):
         "Read through alt abyss-scaffold output file, adding potential new edges"
         filename = "{}.n{}.abyss-scaffold.path".format(self.args.p, n)
         gap_re = re.compile(r'^(\d+)N$')
@@ -166,8 +169,6 @@ class NtLinkPath:
         if not os.path.exists(filename):
             print("{} does not exist, skipping.".format(filename), file=sys.stderr)
             return
-        new_edges = defaultdict(dict)
-        new_vertices = set()
         with open(filename, 'r') as fin:
             for path in fin:
                 _, path_sequence = path.strip().split("\t")
@@ -195,6 +196,10 @@ class NtLinkPath:
                         new_vertices.add(source)
                         new_vertices.add(ntlink_utils.reverse_scaf_ori(source))
                         self.add_path_edges(gap_est, source, target, new_edges)
+                    x = ntlink_utils.has_vertex(path_graph, target)
+                    y = ntlink_utils.has_vertex(path_graph, source)
+                    if x and not y:
+                        z = self.is_end_vertex(path_graph, target, mode="in")
                     if not ntlink_utils.has_vertex(path_graph, source) and \
                             not ntlink_utils.has_vertex(path_graph, target) and \
                             (source in new_vertices or target in new_vertices):
@@ -206,30 +211,36 @@ class NtLinkPath:
 
                         self.add_path_edges(gap_est, source, target, new_edges)
 
-        path_graph.add_vertices(list(new_vertices))
-
-        for new_source in new_edges:
-            for new_target in new_edges[new_source]:
-                d = new_edges[new_source][new_target]
-                path_graph.add_edge(new_source, new_target, d=int(np.median(d)), path_id="new", n=len(d))
-
     @staticmethod
     def add_path_edges(gap_dist, source, target, new_edges):
         "Add the new path edges in both orientations to given graph"
-        if source not in new_edges and target not in new_edges[source]:
+        if (source not in new_edges and target not in new_edges[source]) or \
+                (source in new_edges and target not in new_edges[source]):
             new_edges[source][target] = [gap_dist]
         else:
             new_edges[source][target].append(gap_dist)
+
         rev_i, rev_k = ntlink_utils.reverse_scaf_ori(source), ntlink_utils.reverse_scaf_ori(target)
-        if rev_k not in new_edges and rev_i not in new_edges[rev_i]:
+        if (rev_k not in new_edges and rev_i not in new_edges[rev_k]) or \
+                (rev_k in new_edges and rev_i not in new_edges[rev_k]):
             new_edges[rev_k][rev_i] = [gap_dist]
         else:
             new_edges[rev_k][rev_i].append(gap_dist)
 
     def read_alternate_pathfiles(self, path_graph):
         "Read through alt abyss-scaffold output files, adding potential new edges for paths"
+        new_edges = defaultdict(dict)
+        new_vertices = set()
+
         for i in range(self.args.min_n, self.args.max_n + 1):
-            self.read_alternate_pathfile(i, path_graph)
+            self.read_alternate_pathfile(i, path_graph, new_vertices, new_edges)
+
+        path_graph.add_vertices(list(new_vertices))
+
+        for new_source in new_edges:
+            for new_target in new_edges[new_source]:
+                d = new_edges[new_source][new_target]
+                path_graph.add_edge(new_source, new_target, d=int(np.median(d)), path_id="new", n=len(d))
 
     @staticmethod
     def linearize_graph(graph):
@@ -255,14 +266,14 @@ class NtLinkPath:
         to_remove_out_edges = []
         for node in out_branch_nodes:
             max_weight_edge = None
-            incident_edges = graph.incident(node, mode=ig.OUT) # pylint: disable=no-member
-            if all([graph.es()[edge]['path_id'] == "new" for edge in incident_edges]):
-                max_weight = max([graph.es()[edge]['n'] for edge in incident_edges])
-                max_weight_edges = [edge for edge in incident_edges if graph.es()[edge]['n'] == max_weight]
+            incident_edges = new_graph.incident(node, mode=ig.OUT) # pylint: disable=no-member
+            if all([new_graph.es()[edge]['path_id'] == "new" for edge in incident_edges]):
+                max_weight = max([new_graph.es()[edge]['n'] for edge in incident_edges])
+                max_weight_edges = [edge for edge in incident_edges if new_graph.es()[edge]['n'] == max_weight]
                 if len(max_weight_edges) == 1:
                     max_weight_edge = max_weight_edges[0]
             for edge in incident_edges:
-                if edge != max_weight_edge and graph.es()[edge]['path_id'] == "new":
+                if edge != max_weight_edge and new_graph.es()[edge]['path_id'] == "new":
                     to_remove_out_edges.append(edge)
 
         return_graph = new_graph.copy()
