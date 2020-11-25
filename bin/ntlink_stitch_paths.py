@@ -344,6 +344,35 @@ class NtLinkPath:
         paths_return = self.remove_duplicate_paths(paths_return)
         return paths_return
 
+    @staticmethod
+    def print_directed_graph(graph, out_prefix):
+        "Prints the directed scaffold graph in dot format"
+        out_graph = out_prefix + ".scaffold.dot"
+        outfile = open(out_graph, 'w')
+        print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
+
+        outfile.write("digraph G {\n")
+
+        for node in graph.vs():
+            node_label = "\"{scaffold}\"\n".\
+                format(scaffold=node['name'])
+            outfile.write(node_label)
+
+        for edge in graph.es():
+            if 'n' in edge.attributes():
+                edge_str = "\"{source}\" -> \"{target}\" [d={d} n={n} path={id}]\n".\
+                    format(source=ntlink_utils.vertex_name(graph, edge.source),
+                           target=ntlink_utils.vertex_name(graph, edge.target),
+                           d=int(edge['d']), n=edge['n'], id=edge['path_id'])
+            else:
+                edge_str = "\"{source}\" -> \"{target}\" [d={d} path={id}]\n".\
+                    format(source=ntlink_utils.vertex_name(graph, edge.source),
+                           target=ntlink_utils.vertex_name(graph, edge.target),
+                           d=int(edge['d']), id=edge['path_id'])
+            outfile.write(edge_str)
+
+        outfile.write("}\n")
+
 
     def main(self):
         "Run ntLink stitch paths stage"
@@ -353,10 +382,15 @@ class NtLinkPath:
 
         self.read_alternate_pathfiles(path_graph)
 
+        self.print_directed_graph(path_graph, self.args.p + ".out")
+
         path_graph = self.linearize_graph(path_graph)
         assert self.is_graph_linear(path_graph)
 
         NtLinkPath.gin = path_graph
+
+        self.print_directed_graph(path_graph, self.args.p + ".out2")
+
         paths = self.find_paths(path_graph)
 
         path_id = 0
@@ -369,6 +403,8 @@ class NtLinkPath:
             path_str = " ".join(path_list)
             print(path_id, path_str, sep="\t")
             path_id += 1
+
+
 
 
     @staticmethod
