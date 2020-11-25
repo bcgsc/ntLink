@@ -117,6 +117,14 @@ class NtLinkPath:
         return path_graph.vs()[ntlink_utils.vertex_index(path_graph, source)].outdegree() == 0 and \
                path_graph.vs()[ntlink_utils.vertex_index(path_graph, target)].indegree() == 0
 
+    @staticmethod
+    def is_end_vertex(graph, node, mode="out"):
+        "Returns true if the given node is an end vertex in mode specified"
+        assert mode in ["out", "in"]
+        if mode == "out":
+            return graph.vs()[ntlink_utils.vertex_index(graph, node)].outdegree() == 0
+        return graph.vs()[ntlink_utils.vertex_index(graph, node)].indegree() == 0
+
     def find_best_partner_node(self, graph, node, type_node):
         "Find the best partner for the given node in the overall graph"
         neighbour_scores = []
@@ -159,6 +167,7 @@ class NtLinkPath:
             print("{} does not exist, skipping.".format(filename), file=sys.stderr)
             return
         new_edges = defaultdict(dict)
+        new_vertices = set()
         with open(filename, 'r') as fin:
             for path in fin:
                 _, path_sequence = path.strip().split("\t")
@@ -167,30 +176,55 @@ class NtLinkPath:
                     gap_match = re.search(gap_re, j)
                     if not gap_match:
                         continue
-                    source, target = i, k
-                    try:
-                        path_graph.vs().find(i)
-                        path_graph.vs().find(k)
-                    except ValueError:
-                        continue
-                    if path_graph.are_connected(source, target):
-                        continue # continue if the source/target are already connected
-                    if self.are_end_vertices(source, target, path_graph):
-                        if i not in new_edges and k not in new_edges[i]:
-                            new_edges[i][k] = [int(gap_match.group(1))]
-                        else:
-                            new_edges[i][k].append(int(gap_match.group(1)))
+                    source, target, gap_est = i, k, int(gap_match.group(1))
+                    if ntlink_utils.has_vertex(path_graph, source) and \
+                            ntlink_utils.has_vertex(path_graph, target):
+                        if path_graph.are_connected(source, target):
+                            continue # continue if the source/target are already connected
+                        if self.are_end_vertices(source, target, path_graph):
+                            self.add_path_edges(gap_est, i, k, new_edges)
+                    if ntlink_utils.has_vertex(path_graph, source) and \
+                            not ntlink_utils.has_vertex(path_graph, target) and \
+                        self.is_end_vertex(path_graph, source, mode="out"):
+                        new_vertices.add(target)
+                        new_vertices.add(ntlink_utils.reverse_scaf_ori(target))
+                        self.add_path_edges(gap_est, source, target, new_edges)
+                    if ntlink_utils.has_vertex(path_graph, target) and \
+                            not ntlink_utils.has_vertex(path_graph, source) and \
+                        self.is_end_vertex(path_graph, target, mode="in"):
+                        new_vertices.add(source)
+                        new_vertices.add(ntlink_utils.reverse_scaf_ori(source))
+                        self.add_path_edges(gap_est, source, target, new_edges)
+                    if not ntlink_utils.has_vertex(path_graph, source) and \
+                            not ntlink_utils.has_vertex(path_graph, target) and \
+                            (source in new_vertices or target in new_vertices):
+                        new_vertices.add(source)
+                        new_vertices.add(ntlink_utils.reverse_scaf_ori(source))
 
-                        rev_i, rev_k = ntlink_utils.reverse_scaf_ori(i), ntlink_utils.reverse_scaf_ori(k)
-                        if rev_k not in new_edges and rev_i not in new_edges[rev_i]:
-                            new_edges[rev_k][rev_i] = [int(gap_match.group(1))]
-                        else:
-                            new_edges[rev_k][rev_i].append(int(gap_match.group(1)))
+                        new_vertices.add(target)
+                        new_vertices.add(ntlink_utils.reverse_scaf_ori(target))
+
+                        self.add_path_edges(gap_est, source, target, new_edges)
+
+        path_graph.add_vertices(list(new_vertices))
+
         for new_source in new_edges:
             for new_target in new_edges[new_source]:
                 d = new_edges[new_source][new_target]
                 path_graph.add_edge(new_source, new_target, d=int(np.median(d)), path_id="new", n=len(d))
 
+    @staticmethod
+    def add_path_edges(gap_dist, source, target, new_edges):
+        "Add the new path edges in both orientations to given graph"
+        if source not in new_edges and target not in new_edges[source]:
+            new_edges[source][target] = [gap_dist]
+        else:
+            new_edges[source][target].append(gap_dist)
+        rev_i, rev_k = ntlink_utils.reverse_scaf_ori(source), ntlink_utils.reverse_scaf_ori(target)
+        if rev_k not in new_edges and rev_i not in new_edges[rev_i]:
+            new_edges[rev_k][rev_i] = [gap_dist]
+        else:
+            new_edges[rev_k][rev_i].append(gap_dist)
 
     def read_alternate_pathfiles(self, path_graph):
         "Read through alt abyss-scaffold output files, adding potential new edges for paths"
