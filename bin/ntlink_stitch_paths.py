@@ -198,8 +198,6 @@ class NtLink_path:
     def linearize_graph(self, graph):
         "Filter the graph to linearize it"
         in_branch_nodes = [node.index for node in graph.vs() if node.indegree() > 1]
-        #to_remove_in_edges = [edge for node in in_branch_nodes for edge in graph.incident(node, mode=ig.IN) # pylint: disable=no-member
-        #                      if graph.es()[edge]['path_id'] == "new"]
         to_remove_in_edges = []
         for node in in_branch_nodes:
             max_weight_edge = None
@@ -217,8 +215,6 @@ class NtLink_path:
         new_graph.delete_edges(to_remove_in_edges)
 
         out_branch_nodes = [node.index for node in new_graph.vs() if node.outdegree() > 1]
-        # to_remove_out_edges = [edge for node in out_branch_nodes for edge in new_graph.incident(node, mode=ig.OUT) # pylint: disable=no-member
-        #                        if new_graph.es()[edge]['path_id'] == "new"]
         to_remove_out_edges = []
         for node in out_branch_nodes:
             max_weight_edge = None
