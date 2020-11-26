@@ -123,9 +123,6 @@ class NtLinkPath:
         assert mode in ["out", "in"]
         if mode == "out":
             return graph.vs()[ntlink_utils.vertex_index(graph, node)].outdegree() == 0
-        x = graph.vs()[ntlink_utils.vertex_index(graph, node)]
-        y = x.neighbors(mode=ig.IN)
-        z = graph.vs()[ntlink_utils.vertex_index(graph, node)].indegree()
         return graph.vs()[ntlink_utils.vertex_index(graph, node)].indegree() == 0
 
     def find_best_partner_node(self, graph, node, type_node):
@@ -164,6 +161,8 @@ class NtLinkPath:
     def read_alternate_pathfile(self, n, path_graph, new_vertices, new_edges):
         "Read through alt abyss-scaffold output file, adding potential new edges"
         filename = "{}.n{}.abyss-scaffold.path".format(self.args.p, n)
+
+        print("Reading {}".format(filename), file=sys.stderr)
         gap_re = re.compile(r'^(\d+)N$')
 
         if not os.path.exists(filename):
@@ -196,13 +195,9 @@ class NtLinkPath:
                         new_vertices.add(source)
                         new_vertices.add(ntlink_utils.reverse_scaf_ori(source))
                         self.add_path_edges(gap_est, source, target, new_edges)
-                    x = ntlink_utils.has_vertex(path_graph, target)
-                    y = ntlink_utils.has_vertex(path_graph, source)
-                    if x and not y:
-                        z = self.is_end_vertex(path_graph, target, mode="in")
                     if not ntlink_utils.has_vertex(path_graph, source) and \
-                            not ntlink_utils.has_vertex(path_graph, target) and \
-                            (source in new_vertices or target in new_vertices):
+                            not ntlink_utils.has_vertex(path_graph, target):
+                          #  (source in new_vertices or target in new_vertices):
                         new_vertices.add(source)
                         new_vertices.add(ntlink_utils.reverse_scaf_ori(source))
 
@@ -246,9 +241,9 @@ class NtLinkPath:
     def linearize_graph(graph):
         "Filter the graph to linearize it"
         in_branch_nodes = [node.index for node in graph.vs() if node.indegree() > 1]
-        to_remove_in_edges = []
+        to_remove_edges = set()
         for node in in_branch_nodes:
-            max_weight_edge = None
+            max_weight_edge, max_weight = None, None
             incident_edges = graph.incident(node, mode=ig.IN) # pylint: disable=no-member
             if all([graph.es()[edge]['path_id'] == "new" for edge in incident_edges]):
                 max_weight = max([graph.es()[edge]['n'] for edge in incident_edges])
@@ -257,27 +252,23 @@ class NtLinkPath:
                     max_weight_edge = max_weight_edges[0]
             for edge in incident_edges:
                 if edge != max_weight_edge and graph.es()[edge]['path_id'] == "new":
-                    to_remove_in_edges.append(edge)
+                    to_remove_edges.add(edge)
 
-        new_graph = graph.copy()
-        new_graph.delete_edges(to_remove_in_edges)
-
-        out_branch_nodes = [node.index for node in new_graph.vs() if node.outdegree() > 1]
-        to_remove_out_edges = []
+        out_branch_nodes = [node.index for node in graph.vs() if node.outdegree() > 1]
         for node in out_branch_nodes:
-            max_weight_edge = None
-            incident_edges = new_graph.incident(node, mode=ig.OUT) # pylint: disable=no-member
-            if all([new_graph.es()[edge]['path_id'] == "new" for edge in incident_edges]):
-                max_weight = max([new_graph.es()[edge]['n'] for edge in incident_edges])
-                max_weight_edges = [edge for edge in incident_edges if new_graph.es()[edge]['n'] == max_weight]
+            max_weight_edge, max_weight = None, None
+            incident_edges = graph.incident(node, mode=ig.OUT) # pylint: disable=no-member
+            if all([graph.es()[edge]['path_id'] == "new" for edge in incident_edges]):
+                max_weight = max([graph.es()[edge]['n'] for edge in incident_edges])
+                max_weight_edges = [edge for edge in incident_edges if graph.es()[edge]['n'] == max_weight]
                 if len(max_weight_edges) == 1:
                     max_weight_edge = max_weight_edges[0]
             for edge in incident_edges:
-                if edge != max_weight_edge and new_graph.es()[edge]['path_id'] == "new":
-                    to_remove_out_edges.append(edge)
+                if edge != max_weight_edge and graph.es()[edge]['path_id'] == "new":
+                    to_remove_edges.add(edge)
 
-        return_graph = new_graph.copy()
-        return_graph.delete_edges(to_remove_out_edges)
+        return_graph = graph.copy()
+        return_graph.delete_edges(list(to_remove_edges))
 
         return return_graph
 
@@ -310,8 +301,6 @@ class NtLinkPath:
         "Find paths given a component of the graph"
         return_paths = []
         component_graph = NtLinkPath.gin.subgraph(component)
-        visited = set()
-
         source_nodes = [node.index for node in component_graph.vs() if node.indegree() == 0]
         if len(source_nodes) == 1:
             target_nodes = [node.index for node in component_graph.vs() if node.outdegree() == 0]
@@ -324,8 +313,6 @@ class NtLinkPath:
                 # All the nodes/edges from the graph are in the simple path, no repeated nodes
                 path = ntlink_utils.convert_path_index_to_name(component_graph, path)
                 ctg_path = self.format_path_contigs(path, component_graph)
-                for ctg in ctg_path:
-                    visited.add(ctg.contig)
                 return_paths.append(ctg_path)
 
         return return_paths
@@ -360,7 +347,7 @@ class NtLinkPath:
         "Prints the directed scaffold graph in dot format"
         out_graph = out_prefix + ".scaffold.dot"
         outfile = open(out_graph, 'w')
-        print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
+        print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stderr)
 
         outfile.write("digraph G {\n")
 
@@ -400,8 +387,6 @@ class NtLinkPath:
 
         NtLinkPath.gin = path_graph
 
-        self.print_directed_graph(path_graph, self.args.p + ".out2")
-
         paths = self.find_paths(path_graph)
 
         path_id = 0
@@ -411,6 +396,8 @@ class NtLinkPath:
                 path_list.append(node.get_ori_contig())
                 if node.get_gap() is not None:
                     path_list.append(node.get_gap())
+            if len(path_list) < 2:
+                continue
             path_str = " ".join(path_list)
             print(path_id, path_str, sep="\t")
             path_id += 1
