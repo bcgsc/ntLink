@@ -157,8 +157,54 @@ class NtLinkPath:
             return neighbour_scores[0][2]
         return None
 
+    def has_transitive_support(self, source, target, path_graph, new_path, scaffold_graph, mode):
+        "Given an edge, check if it has any transitive support"
+        if mode not in ["end-end", "end-new", "new-end", "new-new"]:
+            print("Error: mode must be one of:", "end-end", "end-new", "new-end", sys.stderr)
+            print("mode provided:", mode, sys.stderr)
+            sys.exit(1)
 
-    def read_alternate_pathfile(self, n, path_graph, new_vertices, new_edges):
+        incident_source, incident_target = None, None
+
+        if mode == "end-end":
+            incident_sources = path_graph.neighbors(source, mode=ig.IN)
+            assert len(incident_sources) <= 1
+            if incident_sources:
+                incident_source = ntlink_utils.vertex_name(path_graph, incident_sources.pop())
+
+            incident_targets = path_graph.neighbors(target, mode=ig.OUT)
+            assert len(incident_targets) <= 1
+            if incident_targets:
+                incident_target = ntlink_utils.vertex_name(path_graph, incident_targets.pop())
+
+            if incident_source in new_path or incident_target in new_path:
+                return True
+        elif mode == "end-new":
+            incident_sources = path_graph.neighbors(source, mode=ig.IN)
+            assert len(incident_sources) <= 1
+            if incident_sources:
+                incident_source = ntlink_utils.vertex_name(path_graph, incident_sources.pop())
+
+            if incident_source in new_path:
+                return True
+        elif mode == "new-end":
+            incident_targets = path_graph.neighbors(target, mode=ig.OUT)
+            assert len(incident_targets) <= 1
+            if incident_targets:
+                incident_target = ntlink_utils.vertex_name(path_graph, incident_targets.pop())
+
+            if incident_target in new_path:
+                return True
+
+        if scaffold_graph.are_connected(source, incident_target) or \
+            scaffold_graph.are_connected(incident_source, target) or \
+            scaffold_graph.are_connected(incident_source, incident_target):
+            return True
+
+        return False
+
+
+    def read_alternate_pathfile(self, n, path_graph, new_vertices, new_edges, scaffold_graph):
         "Read through alt abyss-scaffold output file, adding potential new edges"
         filename = "{}.n{}.abyss-scaffold.path".format(self.args.p, n)
 
@@ -181,20 +227,29 @@ class NtLinkPath:
                             ntlink_utils.has_vertex(path_graph, target):
                         if path_graph.are_connected(source, target):
                             continue # continue if the source/target are already connected
-                        if self.are_end_vertices(source, target, path_graph):
-                            self.add_path_edges(gap_est, i, k, new_edges)
+                        if self.are_end_vertices(source, target, path_graph) and \
+                            self.has_transitive_support(source, target, path_graph, path_sequence,
+                                                        scaffold_graph, "end-end"):
+                            self.add_path_edges(gap_est, i, k, new_edges, path_graph, scaffold_graph)
+
                     if ntlink_utils.has_vertex(path_graph, source) and \
                             not ntlink_utils.has_vertex(path_graph, target) and \
-                        self.is_end_vertex(path_graph, source, mode="out"):
+                            self.is_end_vertex(path_graph, source, mode="out") and \
+                            self.has_transitive_support(source, target, path_graph, path_sequence,
+                                                       scaffold_graph, "end-new"):
                         new_vertices.add(target)
                         new_vertices.add(ntlink_utils.reverse_scaf_ori(target))
-                        self.add_path_edges(gap_est, source, target, new_edges)
+                        self.add_path_edges(gap_est, source, target, new_edges, path_graph, scaffold_graph)
+
                     if ntlink_utils.has_vertex(path_graph, target) and \
                             not ntlink_utils.has_vertex(path_graph, source) and \
-                        self.is_end_vertex(path_graph, target, mode="in"):
+                            self.is_end_vertex(path_graph, target, mode="in") and \
+                            self.has_transitive_support(source, target, path_graph, path_sequence,
+                                                       scaffold_graph, "new-end"):
                         new_vertices.add(source)
                         new_vertices.add(ntlink_utils.reverse_scaf_ori(source))
-                        self.add_path_edges(gap_est, source, target, new_edges)
+                        self.add_path_edges(gap_est, source, target, new_edges, path_graph, scaffold_graph)
+
                     if not ntlink_utils.has_vertex(path_graph, source) and \
                             not ntlink_utils.has_vertex(path_graph, target):
                           #  (source in new_vertices or target in new_vertices):
@@ -204,10 +259,10 @@ class NtLinkPath:
                         new_vertices.add(target)
                         new_vertices.add(ntlink_utils.reverse_scaf_ori(target))
 
-                        self.add_path_edges(gap_est, source, target, new_edges)
+                        self.add_path_edges(gap_est, source, target, new_edges, path_graph, scaffold_graph)
 
     @staticmethod
-    def add_path_edges(gap_dist, source, target, new_edges):
+    def add_path_edges(gap_dist, source, target, new_edges, path_graph, scaffold_graph):
         "Add the new path edges in both orientations to given graph"
         if (source not in new_edges and target not in new_edges[source]) or \
                 (source in new_edges and target not in new_edges[source]):
@@ -222,13 +277,13 @@ class NtLinkPath:
         else:
             new_edges[rev_k][rev_i].append(gap_dist)
 
-    def read_alternate_pathfiles(self, path_graph):
+    def read_alternate_pathfiles(self, path_graph, scaffold_graph):
         "Read through alt abyss-scaffold output files, adding potential new edges for paths"
         new_edges = defaultdict(dict)
         new_vertices = set()
 
         for i in range(self.args.min_n, self.args.max_n + 1):
-            self.read_alternate_pathfile(i, path_graph, new_vertices, new_edges)
+            self.read_alternate_pathfile(i, path_graph, new_vertices, new_edges, scaffold_graph)
 
         path_graph.add_vertices(list(new_vertices))
 
@@ -378,7 +433,9 @@ class NtLinkPath:
 
         path_graph = self.read_paths(self.args.PATH)
 
-        self.read_alternate_pathfiles(path_graph)
+        scaffold_graph = self.read_scaffold_graph(self.args.g)
+
+        self.read_alternate_pathfiles(path_graph, scaffold_graph)
 
         self.print_directed_graph(path_graph, self.args.p + ".out")
 

@@ -26,7 +26,7 @@ def edge_index(graph, source_name, target_name):
     return graph.get_eid(source_name, target_name)
 
 def has_vertex(graph, name):
-    "Returns True if graph has vertext, else False"
+    "Returns True if graph has vertex, else False"
     try:
         graph.vs().find(name)
     except ValueError:
