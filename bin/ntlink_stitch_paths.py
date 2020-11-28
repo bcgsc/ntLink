@@ -14,6 +14,7 @@ import igraph as ig
 import numpy as np
 import ntlink_utils
 from PathNode import PathNode
+import itertools
 
 class NtLinkPath:
     "Instance of ntLink stitch path phase"
@@ -157,6 +158,19 @@ class NtLinkPath:
             return neighbour_scores[0][2]
         return None
 
+    def add_transitive_support(self, scaffold_graph, path_sequence):
+        "Given a path sequence and a graph, add all transitive edges"
+        edges = set()
+        path_sequence = [node for node in path_sequence if "N" not in node] # !! TODO - Generalize
+        for s, t in itertools.combinations(path_sequence, 2):
+            rev_s, rev_t = ntlink_utils.reverse_scaf_ori(s), ntlink_utils.reverse_scaf_ori(t)
+            if scaffold_graph.are_connected(s, t):
+                continue
+            edges.add((s, t))
+            edges.add((rev_t, rev_s))
+        return edges
+
+
     def has_transitive_support(self, source, target, path_graph, new_path, scaffold_graph, mode):
         "Given an edge, check if it has any transitive support"
         if mode not in ["end-end", "end-new", "new-end", "new-new"]:
@@ -218,6 +232,7 @@ class NtLinkPath:
             for path in fin:
                 _, path_sequence = path.strip().split("\t")
                 path_sequence = path_sequence.split(" ")
+                trans_edges = self.add_transitive_support(scaffold_graph, path_sequence)
                 for i, j, k in zip(path_sequence, path_sequence[1:], path_sequence[2:]):
                     gap_match = re.search(gap_re, j)
                     if not gap_match:
@@ -227,25 +242,19 @@ class NtLinkPath:
                             ntlink_utils.has_vertex(path_graph, target):
                         if path_graph.are_connected(source, target):
                             continue # continue if the source/target are already connected
-                        if self.are_end_vertices(source, target, path_graph) and \
-                            self.has_transitive_support(source, target, path_graph, path_sequence,
-                                                        scaffold_graph, "end-end"):
+                        if self.are_end_vertices(source, target, path_graph):
                             self.add_path_edges(gap_est, i, k, new_edges, path_graph, scaffold_graph)
 
                     if ntlink_utils.has_vertex(path_graph, source) and \
                             not ntlink_utils.has_vertex(path_graph, target) and \
-                            self.is_end_vertex(path_graph, source, mode="out") and \
-                            self.has_transitive_support(source, target, path_graph, path_sequence,
-                                                       scaffold_graph, "end-new"):
+                            self.is_end_vertex(path_graph, source, mode="out"):
                         new_vertices.add(target)
                         new_vertices.add(ntlink_utils.reverse_scaf_ori(target))
                         self.add_path_edges(gap_est, source, target, new_edges, path_graph, scaffold_graph)
 
                     if ntlink_utils.has_vertex(path_graph, target) and \
                             not ntlink_utils.has_vertex(path_graph, source) and \
-                            self.is_end_vertex(path_graph, target, mode="in") and \
-                            self.has_transitive_support(source, target, path_graph, path_sequence,
-                                                       scaffold_graph, "new-end"):
+                            self.is_end_vertex(path_graph, target, mode="in"):
                         new_vertices.add(source)
                         new_vertices.add(ntlink_utils.reverse_scaf_ori(source))
                         self.add_path_edges(gap_est, source, target, new_edges, path_graph, scaffold_graph)
@@ -260,6 +269,7 @@ class NtLinkPath:
                         new_vertices.add(ntlink_utils.reverse_scaf_ori(target))
 
                         self.add_path_edges(gap_est, source, target, new_edges, path_graph, scaffold_graph)
+        return trans_edges
 
     @staticmethod
     def add_path_edges(gap_dist, source, target, new_edges, path_graph, scaffold_graph):
@@ -281,9 +291,11 @@ class NtLinkPath:
         "Read through alt abyss-scaffold output files, adding potential new edges for paths"
         new_edges = defaultdict(dict)
         new_vertices = set()
+        new_scaffold_edges = set()
 
         for i in range(self.args.min_n, self.args.max_n + 1):
-            self.read_alternate_pathfile(i, path_graph, new_vertices, new_edges, scaffold_graph)
+            new_trans_edges = self.read_alternate_pathfile(i, path_graph, new_vertices, new_edges, scaffold_graph)
+            set.union(new_scaffold_edges, new_trans_edges)
 
         path_graph.add_vertices(list(new_vertices))
 
@@ -291,6 +303,8 @@ class NtLinkPath:
             for new_target in new_edges[new_source]:
                 d = new_edges[new_source][new_target]
                 path_graph.add_edge(new_source, new_target, d=int(np.median(d)), path_id="new", n=len(d))
+
+        scaffold_graph.add_edges(list(new_scaffold_edges))
 
     @staticmethod
     def linearize_graph(graph):
@@ -397,6 +411,42 @@ class NtLinkPath:
         paths_return = self.remove_duplicate_paths(paths_return)
         return paths_return
 
+    def has_transitive_support_new(self, edge, path_graph, scaffold_graph):
+        "Returns True if edge has transitive support"
+        source, target = ntlink_utils.vertex_name(path_graph, edge.source), \
+                         ntlink_utils.vertex_name(path_graph, edge.target)
+        incident_source, incident_target = None, None
+
+        incident_sources = path_graph.neighbors(source, mode=ig.IN)
+        assert len(incident_sources) <= 1
+        if incident_sources:
+            incident_source = ntlink_utils.vertex_name(path_graph, incident_sources.pop())
+
+        incident_targets = path_graph.neighbors(target, mode=ig.OUT)
+        assert len(incident_targets) <= 1
+        if incident_targets:
+            incident_target = ntlink_utils.vertex_name(path_graph, incident_targets.pop())
+
+        if scaffold_graph.are_connected(source, incident_target) or \
+            scaffold_graph.are_connected(incident_source, target) or \
+            scaffold_graph.are_connected(incident_source, incident_target):
+            return True
+
+        return False
+
+    def transitive_filter(self, path_graph, scaffold_graph):
+        edges_to_remove = set()
+        for edge in path_graph.es():
+            if edge["path_id"] != "new":
+                continue
+            if not self.has_transitive_support_new(edge, path_graph, scaffold_graph):
+                edges_to_remove.add(edge.index)
+
+        new_graph = path_graph.copy()
+        new_graph.delete_edges(list(edges_to_remove))
+        return new_graph
+
+
     @staticmethod
     def print_directed_graph(graph, out_prefix):
         "Prints the directed scaffold graph in dot format"
@@ -439,8 +489,10 @@ class NtLinkPath:
 
         self.print_directed_graph(path_graph, self.args.p + ".out")
 
+
         path_graph = self.linearize_graph(path_graph)
         assert self.is_graph_linear(path_graph)
+        path_graph = self.transitive_filter(path_graph, scaffold_graph)
 
         NtLinkPath.gin = path_graph
 
