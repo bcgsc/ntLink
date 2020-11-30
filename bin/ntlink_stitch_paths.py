@@ -492,7 +492,10 @@ class NtLinkPath:
 
         path_graph = self.linearize_graph(path_graph)
         assert self.is_graph_linear(path_graph)
-        path_graph = self.transitive_filter(path_graph, scaffold_graph)
+
+        if self.args.transitive:
+            print("Checking for transitive support...\n", file=sys.stderr)
+            path_graph = self.transitive_filter(path_graph, scaffold_graph)
 
         NtLinkPath.gin = path_graph
 
@@ -526,6 +529,7 @@ class NtLinkPath:
         parser.add_argument("-a", help="Ratio of best to second best edge to create potential connection",
                             required=False, default=0.3, type=float)
         parser.add_argument("-p", help="Output file prefix", required=False, default="out", type=str)
+        parser.add_argument("--transitive", help="Require transitive support for edges?", action="store_true")
 
         return parser.parse_args()
 
