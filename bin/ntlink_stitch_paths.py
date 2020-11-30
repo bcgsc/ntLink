@@ -10,11 +10,11 @@ import re
 import sys
 import os
 from collections import defaultdict
+import itertools
 import igraph as ig
 import numpy as np
 import ntlink_utils
 from PathNode import PathNode
-import itertools
 
 class NtLinkPath:
     "Instance of ntLink stitch path phase"
@@ -126,39 +126,8 @@ class NtLinkPath:
             return graph.vs()[ntlink_utils.vertex_index(graph, node)].outdegree() == 0
         return graph.vs()[ntlink_utils.vertex_index(graph, node)].indegree() == 0
 
-    def find_best_partner_node(self, graph, node, type_node):
-        "Find the best partner for the given node in the overall graph"
-        neighbour_scores = []
-
-        if type_node == "source":
-            neighbours = graph.neighbors(node, mode=ig.OUT)  # pylint: disable=no-member
-            for neighbour_idx in neighbours:
-                edge = graph.es()[ntlink_utils.edge_index(graph, node, neighbour_idx)]
-                edge_index = edge.index
-                edge_weight = int(edge["n"])
-                neighbour_scores.append((edge_index, edge_weight, edge.target))
-        elif type_node == "target":
-            neighbours = graph.neighbors(node, mode=ig.IN) # pylint: disable=no-member
-            for neighbour_idx in neighbours:
-                edge = graph.es()[ntlink_utils.edge_index(graph, neighbour_idx, node)]
-                edge_index = edge.index
-                edge_weight = int(edge["n"])
-                neighbour_scores.append((edge_index, edge_weight, edge.source))
-        else:
-            print("ERROR: Valid arguments for 'type' are source or target")
-            sys.exit(1)
-
-        if len(neighbour_scores) == 1: # pylint: disable=no-else-return
-            return neighbour_scores[0][2]
-        elif len(neighbour_scores) == 0:
-            return None
-        neighbour_scores = sorted(neighbour_scores, key=lambda x:x[0], reverse=True)
-        top_ratio = neighbour_scores[1][1]/neighbour_scores[0][1]
-        if top_ratio <= self.args.a:
-            return neighbour_scores[0][2]
-        return None
-
-    def add_transitive_support(self, scaffold_graph, path_sequence):
+    @staticmethod
+    def add_transitive_support(scaffold_graph, path_sequence):
         "Given a path sequence and a graph, add all transitive edges"
         edges = set()
         path_sequence = [node for node in path_sequence if "N" not in node] # !! TODO - Generalize
@@ -170,8 +139,8 @@ class NtLinkPath:
             edges.add((rev_t, rev_s))
         return edges
 
-
-    def has_transitive_support(self, source, target, path_graph, new_path, scaffold_graph, mode):
+    @staticmethod
+    def has_transitive_support(source, target, path_graph, new_path, scaffold_graph, mode):
         "Given an edge, check if it has any transitive support"
         if mode not in ["end-end", "end-new", "new-end", "new-new"]:
             print("Error: mode must be one of:", "end-end", "end-new", "new-end", sys.stderr)
@@ -181,12 +150,12 @@ class NtLinkPath:
         incident_source, incident_target = None, None
 
         if mode == "end-end":
-            incident_sources = path_graph.neighbors(source, mode=ig.IN)
+            incident_sources = path_graph.neighbors(source, mode=ig.IN)  # pylint: disable=no-member
             assert len(incident_sources) <= 1
             if incident_sources:
                 incident_source = ntlink_utils.vertex_name(path_graph, incident_sources.pop())
 
-            incident_targets = path_graph.neighbors(target, mode=ig.OUT)
+            incident_targets = path_graph.neighbors(target, mode=ig.OUT)  # pylint: disable=no-member
             assert len(incident_targets) <= 1
             if incident_targets:
                 incident_target = ntlink_utils.vertex_name(path_graph, incident_targets.pop())
@@ -194,7 +163,7 @@ class NtLinkPath:
             if incident_source in new_path or incident_target in new_path:
                 return True
         elif mode == "end-new":
-            incident_sources = path_graph.neighbors(source, mode=ig.IN)
+            incident_sources = path_graph.neighbors(source, mode=ig.IN)  # pylint: disable=no-member
             assert len(incident_sources) <= 1
             if incident_sources:
                 incident_source = ntlink_utils.vertex_name(path_graph, incident_sources.pop())
@@ -202,7 +171,7 @@ class NtLinkPath:
             if incident_source in new_path:
                 return True
         elif mode == "new-end":
-            incident_targets = path_graph.neighbors(target, mode=ig.OUT)
+            incident_targets = path_graph.neighbors(target, mode=ig.OUT)  # pylint: disable=no-member
             assert len(incident_targets) <= 1
             if incident_targets:
                 incident_target = ntlink_utils.vertex_name(path_graph, incident_targets.pop())
@@ -227,7 +196,7 @@ class NtLinkPath:
 
         if not os.path.exists(filename):
             print("{} does not exist, skipping.".format(filename), file=sys.stderr)
-            return
+            return set()
         with open(filename, 'r') as fin:
             for path in fin:
                 _, path_sequence = path.strip().split("\t")
@@ -243,21 +212,21 @@ class NtLinkPath:
                         if path_graph.are_connected(source, target):
                             continue # continue if the source/target are already connected
                         if self.are_end_vertices(source, target, path_graph):
-                            self.add_path_edges(gap_est, i, k, new_edges, path_graph, scaffold_graph)
+                            self.add_path_edges(gap_est, i, k, new_edges)
 
                     if ntlink_utils.has_vertex(path_graph, source) and \
                             not ntlink_utils.has_vertex(path_graph, target) and \
                             self.is_end_vertex(path_graph, source, mode="out"):
                         new_vertices.add(target)
                         new_vertices.add(ntlink_utils.reverse_scaf_ori(target))
-                        self.add_path_edges(gap_est, source, target, new_edges, path_graph, scaffold_graph)
+                        self.add_path_edges(gap_est, source, target, new_edges)
 
                     if ntlink_utils.has_vertex(path_graph, target) and \
                             not ntlink_utils.has_vertex(path_graph, source) and \
                             self.is_end_vertex(path_graph, target, mode="in"):
                         new_vertices.add(source)
                         new_vertices.add(ntlink_utils.reverse_scaf_ori(source))
-                        self.add_path_edges(gap_est, source, target, new_edges, path_graph, scaffold_graph)
+                        self.add_path_edges(gap_est, source, target, new_edges)
 
                     if not ntlink_utils.has_vertex(path_graph, source) and \
                             not ntlink_utils.has_vertex(path_graph, target):
@@ -268,11 +237,11 @@ class NtLinkPath:
                         new_vertices.add(target)
                         new_vertices.add(ntlink_utils.reverse_scaf_ori(target))
 
-                        self.add_path_edges(gap_est, source, target, new_edges, path_graph, scaffold_graph)
+                        self.add_path_edges(gap_est, source, target, new_edges)
         return trans_edges
 
     @staticmethod
-    def add_path_edges(gap_dist, source, target, new_edges, path_graph, scaffold_graph):
+    def add_path_edges(gap_dist, source, target, new_edges):
         "Add the new path edges in both orientations to given graph"
         if (source not in new_edges and target not in new_edges[source]) or \
                 (source in new_edges and target not in new_edges[source]):
@@ -411,18 +380,19 @@ class NtLinkPath:
         paths_return = self.remove_duplicate_paths(paths_return)
         return paths_return
 
-    def has_transitive_support_new(self, edge, path_graph, scaffold_graph):
+    @staticmethod
+    def has_transitive_support_new(edge, path_graph, scaffold_graph):
         "Returns True if edge has transitive support"
         source, target = ntlink_utils.vertex_name(path_graph, edge.source), \
                          ntlink_utils.vertex_name(path_graph, edge.target)
         incident_source, incident_target = None, None
 
-        incident_sources = path_graph.neighbors(source, mode=ig.IN)
+        incident_sources = path_graph.neighbors(source, mode=ig.IN)  # pylint: disable=no-member
         assert len(incident_sources) <= 1
         if incident_sources:
             incident_source = ntlink_utils.vertex_name(path_graph, incident_sources.pop())
 
-        incident_targets = path_graph.neighbors(target, mode=ig.OUT)
+        incident_targets = path_graph.neighbors(target, mode=ig.OUT)  # pylint: disable=no-member
         assert len(incident_targets) <= 1
         if incident_targets:
             incident_target = ntlink_utils.vertex_name(path_graph, incident_targets.pop())
@@ -435,6 +405,7 @@ class NtLinkPath:
         return False
 
     def transitive_filter(self, path_graph, scaffold_graph):
+        "Filter out edges without any transitive support"
         edges_to_remove = set()
         for edge in path_graph.es():
             if edge["path_id"] != "new":

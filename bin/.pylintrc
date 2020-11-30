@@ -1,5 +1,5 @@
 [basic]
-good-names = i, mx, j, a, b, k, n, d 
+good-names = i, mx, j, a, b, k, n, d, s, t 
 max-line-length = 120
 max-args = 10
 max-locals = 50
