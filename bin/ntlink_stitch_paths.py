@@ -421,7 +421,7 @@ class NtLinkPath:
     @staticmethod
     def print_directed_graph(graph, out_prefix):
         "Prints the directed scaffold graph in dot format"
-        out_graph = out_prefix + ".scaffold.dot"
+        out_graph = out_prefix + ".scaffold-paths.dot"
         outfile = open(out_graph, 'w')
         print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stderr)
 
