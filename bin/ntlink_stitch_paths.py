@@ -447,6 +447,28 @@ class NtLinkPath:
 
         outfile.write("}\n")
 
+    @staticmethod
+    def print_directed_graph_scaffold(graph, out_prefix):
+        "Prints the directed scaffold graph in dot format"
+        out_graph = out_prefix + ".scaffold-post-trans-add.dot"
+        outfile = open(out_graph, 'w')
+        print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
+
+        outfile.write("digraph G {\n")
+
+        for node in graph.vs():
+            node_label = "\"{scaffold}\"\n".\
+                format(scaffold=node['name'])
+            outfile.write(node_label)
+
+        for edge in graph.es():
+            edge_str = "\"{source}\" -> \"{target}\" [d={d} n={n}]\n".\
+                format(source=ntlink_utils.vertex_name(graph, edge.source),
+                       target=ntlink_utils.vertex_name(graph, edge.target),
+                       d=int(edge['d']), n=edge['n'])
+            outfile.write(edge_str)
+
+        outfile.write("}\n")
 
     def main(self):
         "Run ntLink stitch paths stage"
@@ -464,12 +486,15 @@ class NtLinkPath:
         path_graph = self.linearize_graph(path_graph)
         assert self.is_graph_linear(path_graph)
 
+        self.print_directed_graph(path_graph, self.args.p + ".out-pre-trans")
+        self.print_directed_graph_scaffold(scaffold_graph, self.args.p + ".out-scaffold_graph")
         if self.args.transitive:
             print("Checking for transitive support...\n", file=sys.stderr)
             path_graph = self.transitive_filter(path_graph, scaffold_graph)
 
         NtLinkPath.gin = path_graph
 
+        self.print_directed_graph(path_graph, self.args.p + ".out-post-trans")
         paths = self.find_paths(path_graph)
 
         path_id = 0
@@ -482,7 +507,7 @@ class NtLinkPath:
             if len(path_list) < 2:
                 continue
             path_str = " ".join(path_list)
-            print(path_id, path_str, sep="\t")
+            print("ntLink_{path_id}".format(path_id=path_id), path_str, sep="\t")
             path_id += 1
 
 
