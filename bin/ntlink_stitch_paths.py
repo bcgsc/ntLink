@@ -139,54 +139,6 @@ class NtLinkPath:
             edges.add((rev_t, rev_s))
         return edges
 
-    @staticmethod
-    def has_transitive_support(source, target, path_graph, new_path, scaffold_graph, mode):
-        "Given an edge, check if it has any transitive support"
-        if mode not in ["end-end", "end-new", "new-end", "new-new"]:
-            print("Error: mode must be one of:", "end-end", "end-new", "new-end", sys.stderr)
-            print("mode provided:", mode, sys.stderr)
-            sys.exit(1)
-
-        incident_source, incident_target = None, None
-
-        if mode == "end-end":
-            incident_sources = path_graph.neighbors(source, mode=ig.IN)  # pylint: disable=no-member
-            assert len(incident_sources) <= 1
-            if incident_sources:
-                incident_source = ntlink_utils.vertex_name(path_graph, incident_sources.pop())
-
-            incident_targets = path_graph.neighbors(target, mode=ig.OUT)  # pylint: disable=no-member
-            assert len(incident_targets) <= 1
-            if incident_targets:
-                incident_target = ntlink_utils.vertex_name(path_graph, incident_targets.pop())
-
-            if incident_source in new_path or incident_target in new_path:
-                return True
-        elif mode == "end-new":
-            incident_sources = path_graph.neighbors(source, mode=ig.IN)  # pylint: disable=no-member
-            assert len(incident_sources) <= 1
-            if incident_sources:
-                incident_source = ntlink_utils.vertex_name(path_graph, incident_sources.pop())
-
-            if incident_source in new_path:
-                return True
-        elif mode == "new-end":
-            incident_targets = path_graph.neighbors(target, mode=ig.OUT)  # pylint: disable=no-member
-            assert len(incident_targets) <= 1
-            if incident_targets:
-                incident_target = ntlink_utils.vertex_name(path_graph, incident_targets.pop())
-
-            if incident_target in new_path:
-                return True
-
-        if scaffold_graph.are_connected(source, incident_target) or \
-            scaffold_graph.are_connected(incident_source, target) or \
-            scaffold_graph.are_connected(incident_source, incident_target):
-            return True
-
-        return False
-
-
     def read_alternate_pathfile(self, n, path_graph, new_vertices, new_edges, scaffold_graph):
         "Read through alt abyss-scaffold output file, adding potential new edges"
         filename = "{}.n{}.abyss-scaffold.path".format(self.args.p, n)
@@ -382,7 +334,7 @@ class NtLinkPath:
         return paths_return
 
     @staticmethod
-    def has_transitive_support_new(edge, path_graph, scaffold_graph):
+    def has_transitive_support(edge, path_graph, scaffold_graph):
         "Returns True if edge has transitive support"
         source, target = ntlink_utils.vertex_name(path_graph, edge.source), \
                          ntlink_utils.vertex_name(path_graph, edge.target)
@@ -411,7 +363,7 @@ class NtLinkPath:
         for edge in path_graph.es():
             if edge["path_id"] != "new":
                 continue
-            if not self.has_transitive_support_new(edge, path_graph, scaffold_graph):
+            if not self.has_transitive_support(edge, path_graph, scaffold_graph):
                 edges_to_remove.add(edge.index)
 
         new_graph = path_graph.copy()
