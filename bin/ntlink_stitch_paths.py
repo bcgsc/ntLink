@@ -453,7 +453,7 @@ class NtLinkPath:
         "Prints the directed scaffold graph in dot format"
         out_graph = out_prefix + ".scaffold-post-trans-add.dot"
         outfile = open(out_graph, 'w')
-        print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
+        print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stderr)
 
         outfile.write("digraph G {\n")
 
@@ -463,10 +463,9 @@ class NtLinkPath:
             outfile.write(node_label)
 
         for edge in graph.es():
-            edge_str = "\"{source}\" -> \"{target}\" [d={d} n={n}]\n".\
+            edge_str = "\"{source}\" -> \"{target}\"\n".\
                 format(source=ntlink_utils.vertex_name(graph, edge.source),
-                       target=ntlink_utils.vertex_name(graph, edge.target),
-                       d=int(edge['d']), n=edge['n'])
+                       target=ntlink_utils.vertex_name(graph, edge.target))
             outfile.write(edge_str)
 
         outfile.write("}\n")
