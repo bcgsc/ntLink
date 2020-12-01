@@ -193,6 +193,7 @@ class NtLinkPath:
 
         print("Reading {}".format(filename), file=sys.stderr)
         gap_re = re.compile(r'^(\d+)N$')
+        trans_edges = set()
 
         if not os.path.exists(filename):
             print("{} does not exist, skipping.".format(filename), file=sys.stderr)
@@ -201,7 +202,7 @@ class NtLinkPath:
             for path in fin:
                 _, path_sequence = path.strip().split("\t")
                 path_sequence = path_sequence.split(" ")
-                trans_edges = self.add_transitive_support(scaffold_graph, path_sequence)
+                trans_edges = set.union(trans_edges, self.add_transitive_support(scaffold_graph, path_sequence))
                 for i, j, k in zip(path_sequence, path_sequence[1:], path_sequence[2:]):
                     gap_match = re.search(gap_re, j)
                     if not gap_match:
@@ -264,7 +265,7 @@ class NtLinkPath:
 
         for i in range(self.args.min_n, self.args.max_n + 1):
             new_trans_edges = self.read_alternate_pathfile(i, path_graph, new_vertices, new_edges, scaffold_graph)
-            set.union(new_scaffold_edges, new_trans_edges)
+            new_scaffold_edges = set.union(new_scaffold_edges, new_trans_edges)
 
         path_graph.add_vertices(list(new_vertices))
 
