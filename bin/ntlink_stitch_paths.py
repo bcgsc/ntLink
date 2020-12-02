@@ -338,23 +338,18 @@ class NtLinkPath:
         "Returns True if edge has transitive support"
         source, target = ntlink_utils.vertex_name(path_graph, edge.source), \
                          ntlink_utils.vertex_name(path_graph, edge.target)
-        incident_source, incident_target = None, None
 
-        incident_sources = path_graph.neighbors(source, mode=ig.IN)  # pylint: disable=no-member
-        assert len(incident_sources) <= 1
-        if incident_sources:
-            incident_source = ntlink_utils.vertex_name(path_graph, incident_sources.pop())
-
-        incident_targets = path_graph.neighbors(target, mode=ig.OUT)  # pylint: disable=no-member
-        assert len(incident_targets) <= 1
-        if incident_targets:
-            incident_target = ntlink_utils.vertex_name(path_graph, incident_targets.pop())
-
-        if scaffold_graph.are_connected(source, incident_target) or \
-            scaffold_graph.are_connected(incident_source, target) or \
-            scaffold_graph.are_connected(incident_source, incident_target):
-            return True
-
+        path_size = len(path_graph.vs())
+        source_in_neighbourhood = [ntlink_utils.vertex_name(path_graph, idx)
+                                   for idx in path_graph.neighborhood(source, order=path_size, mode="in")]
+        target_out_neighbourhood = [ntlink_utils.vertex_name(path_graph, idx)
+                                    for idx in path_graph.neighborhood(target, order=path_size, mode="out")]
+        for test_source in source_in_neighbourhood:
+            for test_target in target_out_neighbourhood:
+                if test_source == source and test_target == target:
+                    continue
+                if scaffold_graph.are_connected(test_source, test_target):
+                    return True
         return False
 
     def transitive_filter(self, path_graph, scaffold_graph):
