@@ -131,12 +131,16 @@ class NtLinkPath:
         "Given a path sequence and a graph, add all transitive edges"
         edges = set()
         path_sequence = [node for node in path_sequence if "N" not in node] # !! TODO - Generalize
-        for s, t in itertools.combinations(path_sequence, 2):
-            rev_s, rev_t = ntlink_utils.reverse_scaf_ori(s), ntlink_utils.reverse_scaf_ori(t)
-            if scaffold_graph.are_connected(s, t):
-                continue
-            edges.add((s, t))
-            edges.add((rev_t, rev_s))
+        for idx_s, s in enumerate(path_sequence):
+            for idx_t, t in enumerate(path_sequence):
+                if s == t or abs(idx_t - idx_s) > 10 or idx_t < idx_s:
+                    continue
+                rev_s, rev_t = ntlink_utils.reverse_scaf_ori(s), ntlink_utils.reverse_scaf_ori(t)
+                if scaffold_graph.are_connected(s, t):
+                    continue
+                edges.add((s, t))
+                edges.add((rev_t, rev_s))
+                            
         return edges
 
     def read_alternate_pathfile(self, n, path_graph, new_vertices, new_edges, scaffold_graph):
