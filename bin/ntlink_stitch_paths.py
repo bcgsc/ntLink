@@ -149,7 +149,8 @@ class NtLinkPath:
         for idx, s_t in enumerate(zip(path_sequence, path_sequence[1:])):
             s, t = s_t
             if not path_graph.are_connected(s, t):
-                path_neighbourhood = path_sequence[idx - neighbourhood:idx + neighbourhood + 2] # 1 target, 1 past
+                start, end = max(0, idx - neighbourhood), min(len(path_sequence), idx + neighbourhood + 2)
+                path_neighbourhood = path_sequence[start:end] # 1 target, 1 past
                 self.find_new_transitive_edges(edges, path_neighbourhood, scaffold_graph, s, t)
 
         return edges
