@@ -132,8 +132,11 @@ class NtLinkPath:
         edges = set()
         path_sequence = [node for node in path_sequence if "N" not in node] # !! TODO - Generalize
         for idx_s, s in enumerate(path_sequence):
-            for idx_t, t in enumerate(path_sequence):
-                if s == t or abs(idx_t - idx_s) > 10 or idx_t < idx_s:
+            for idx_t in range(idx_s+1, idx_s+6):
+                if idx_t >= len(path_sequence):
+                    continue
+                t = path_sequence[idx_t]
+                if s == t or abs(idx_t - idx_s) > 5 or idx_t < idx_s:
                     continue
                 rev_s, rev_t = ntlink_utils.reverse_scaf_ori(s), ntlink_utils.reverse_scaf_ori(t)
                 if scaffold_graph.are_connected(s, t):
@@ -158,7 +161,7 @@ class NtLinkPath:
             for path in fin:
                 _, path_sequence = path.strip().split("\t")
                 path_sequence = path_sequence.split(" ")
-                trans_edges = set.union(trans_edges, self.add_transitive_support(scaffold_graph, path_sequence))
+                #trans_edges = set.union(trans_edges, self.add_transitive_support(scaffold_graph, path_sequence))
                 for i, j, k in zip(path_sequence, path_sequence[1:], path_sequence[2:]):
                     gap_match = re.search(gap_re, j)
                     if not gap_match:
@@ -225,10 +228,22 @@ class NtLinkPath:
 
         path_graph.add_vertices(list(new_vertices))
 
+        formatted_edges = []
+        formatted_attributes = []
+        before_edge = path_graph.ecount()
+
         for new_source in new_edges:
             for new_target in new_edges[new_source]:
+                formatted_edges.append((new_source, new_target))
                 d = new_edges[new_source][new_target]
-                path_graph.add_edge(new_source, new_target, d=int(np.median(d)), path_id="new", n=len(d))
+                formatted_attributes.append(d)
+#                path_graph.add_edge(new_source, new_target, d=int(np.median(d)), path_id="new", n=len(d))
+        path_graph.add_edges(formatted_edges)
+        for i in range(before_edge, path_graph.ecount()):
+            d = formatted_attributes[i - before_edge]
+            path_graph.es()[i]["d"] = int(np.median(d))
+            path_graph.es()[i]["n"] = len(d)
+            path_graph.es()[i]["path_id"] = "new"
 
         scaffold_graph.add_edges(list(new_scaffold_edges))
 
