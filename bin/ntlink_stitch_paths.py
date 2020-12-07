@@ -127,23 +127,31 @@ class NtLinkPath:
         return graph.vs()[ntlink_utils.vertex_index(graph, node)].indegree() == 0
 
     @staticmethod
-    def add_transitive_support(scaffold_graph, path_sequence):
+    def find_new_transitive_edges(edges, path, scaffold_graph, s, t):
+        "Given a path, tally transitive edges"
+        source_idx = path.index(s)
+        source_vertices = path[:source_idx+1]
+        target_vertices = path[source_idx+1:]
+        for source, target in itertools.product(source_vertices, target_vertices):
+            if source == s and target == t:
+                continue
+            rev_s, rev_t = ntlink_utils.reverse_scaf_ori(source), ntlink_utils.reverse_scaf_ori(target)
+            if scaffold_graph.are_connected(source, target):
+                continue
+            edges.add((source, target))
+            edges.add((rev_t, rev_s))
+
+
+    def add_transitive_support(self, scaffold_graph, path_sequence, path_graph, neighbourhood=5):
         "Given a path sequence and a graph, add all transitive edges"
         edges = set()
         path_sequence = [node for node in path_sequence if "N" not in node] # !! TODO - Generalize
-        for idx_s, s in enumerate(path_sequence):
-            for idx_t in range(idx_s+1, idx_s+6):
-                if idx_t >= len(path_sequence):
-                    continue
-                t = path_sequence[idx_t]
-                if s == t or abs(idx_t - idx_s) > 5 or idx_t < idx_s:
-                    continue
-                rev_s, rev_t = ntlink_utils.reverse_scaf_ori(s), ntlink_utils.reverse_scaf_ori(t)
-                if scaffold_graph.are_connected(s, t):
-                    continue
-                edges.add((s, t))
-                edges.add((rev_t, rev_s))
-                            
+        for idx, s_t in enumerate(zip(path_sequence, path_sequence[1:])):
+            s, t = s_t
+            if not path_graph.are_connected(s, t):
+                path_neighbourhood = path_sequence[idx - neighbourhood:idx + neighbourhood + 2] # 1 target, 1 past
+                self.find_new_transitive_edges(edges, path_neighbourhood, scaffold_graph, s, t)
+
         return edges
 
     def read_alternate_pathfile(self, n, path_graph, new_vertices, new_edges, scaffold_graph):
@@ -161,7 +169,8 @@ class NtLinkPath:
             for path in fin:
                 _, path_sequence = path.strip().split("\t")
                 path_sequence = path_sequence.split(" ")
-                #trans_edges = set.union(trans_edges, self.add_transitive_support(scaffold_graph, path_sequence))
+                trans_edges = set.union(trans_edges, self.add_transitive_support(scaffold_graph,
+                                                                                 path_sequence, path_graph))
                 for i, j, k in zip(path_sequence, path_sequence[1:], path_sequence[2:]):
                     gap_match = re.search(gap_re, j)
                     if not gap_match:
