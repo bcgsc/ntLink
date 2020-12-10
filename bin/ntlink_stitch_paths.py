@@ -10,7 +10,6 @@ import re
 import sys
 import os
 from collections import defaultdict
-import itertools
 import igraph as ig
 import numpy as np
 import ntlink_utils
@@ -132,17 +131,18 @@ class NtLinkPath:
         source_idx = path.index(s)
         source_vertices = path[:source_idx+1]
         target_vertices = path[source_idx+1:]
-        for source, target in itertools.product(source_vertices, target_vertices):
-            if source == s and target == t:
-                continue
-            rev_s, rev_t = ntlink_utils.reverse_scaf_ori(source), ntlink_utils.reverse_scaf_ori(target)
-            if scaffold_graph.are_connected(source, target):
-                continue
-            edges.add((source, target))
-            edges.add((rev_t, rev_s))
+        for source in source_vertices:
+            for target in target_vertices:
+                if source == s and target == t:
+                    continue
+                rev_s, rev_t = ntlink_utils.reverse_scaf_ori(source), ntlink_utils.reverse_scaf_ori(target)
+                if scaffold_graph.are_connected(source, target):
+                    continue
+                edges.add((source, target))
+                edges.add((rev_t, rev_s))
 
 
-    def add_transitive_support(self, scaffold_graph, path_sequence, path_graph, neighbourhood=5):
+    def add_transitive_support(self, scaffold_graph, path_sequence, path_graph, neighbourhood=4):
         "Given a path sequence and a graph, add all transitive edges"
         edges = set()
         path_sequence = [node for node in path_sequence if "N" not in node] # !! TODO - Generalize
