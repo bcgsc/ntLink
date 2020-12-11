@@ -100,16 +100,15 @@ scaffold: check_params \
 	ntLink_graph \
 	abyss_scaffold
 
+#out.k32.w100.z1000.n2.abyss-scaffold.path
 LIST = $(shell seq $(n) $(max_n))
 LIST_n = $(addprefix .n, $(LIST))
-graph_targets = $(addsuffix .scaffold.dot, $(addprefix $(prefix), $(LIST_n)))
+path_targets = $(addsuffix .abyss-scaffold.path, $(addprefix $(prefix), $(LIST_n)))
 ntLink_graph: $(target).k$(k).w$(w).tsv \
-	$(graph_targets)
+	$(path_targets)
 
-scaffold_targets_prefix = $(addprefix $(target).k$(k).w$(w), $(LIST_n))
-scaffold_targets = $(addsuffix .z$(z).abyss-scaffold.fa, $(scaffold_targets_prefix))
 abyss_scaffold: ntLink_graph \
-	$(scaffold_targets)
+	$(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa
 
 check_params:
 ifeq ($(reads), None)
@@ -124,7 +123,7 @@ version:
 	@echo "Written by Lauren Coombe (lcoombe@bcgsc.ca)"
 
 
-.PHONY: help scaffold version check_params
+.PHONY: help scaffold version check_params clean
 .DELETE_ON_ERROR:
 .SECONDARY:
 
@@ -134,21 +133,21 @@ version:
 %.fa.gz: %.fa
 	$(time) $(gzip) $<
 
-$(prefix).pairs.tsv: $(target).k$(k).w$(w).tsv $(reads)
+$(prefix).n$(n).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
 	$(time)  sh -c '$(gzip) -cd $(reads) | \
 	$(ntlink_path)/src/indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) - | \
   	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n)-$(max_n) -m $< -s $(target)  \
 	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) -'
 
-$(graph_targets): $(prefix).pairs.tsv
-	touch $@
-
 # Run abyss-scaffold scaffolding layout
-%.abyss-scaffold.path: %.scaffold.dot
+$(prefix).n%.abyss-scaffold.path: $(prefix).n$(n).scaffold.dot
 	$(time) sh -c 'cat $(target) | \
 	cut -d " " -f1  | \
-	abyss-scaffold -k2 -n1-20 -s$(z) --min-gap $(g) -g $*.scaffold.abyss-scaffold.dot - $< > $@'
-	
-$(target).k$(k).w$(w)%.z$(z).abyss-scaffold.fa: $(prefix)%.abyss-scaffold.path
-	$(time) MergeContigs -k2 $(target) $< > $@
+	abyss-scaffold -k2 -n $* -s$(z) --min-gap $(g) - $< 1> $@ 2>$@.sterr'
 
+$(prefix).stitch.path: $(path_targets)
+	$(time) $(ntlink_path)/bin/ntlink_stitch_paths.py --min_n $(n) --max_n $(max_n)  -p out \
+	-g $(prefix).n$(n).scaffold.dot  $^ 1> $@
+	
+$(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa: $(prefix).stitch.path
+	$(time) MergeContigs -k2 $(target) $< > $@

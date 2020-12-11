@@ -156,10 +156,8 @@ class NtLinkPath:
 
         return edges
 
-    def read_alternate_pathfile(self, n, path_graph, new_vertices, new_edges, scaffold_graph):
+    def read_alternate_pathfile(self, filename, path_graph, new_vertices, new_edges, scaffold_graph):
         "Read through alt abyss-scaffold output file, adding potential new edges"
-        filename = "{}.n{}.abyss-scaffold.path".format(self.args.p, n)
-
         print("Reading {}".format(filename), file=sys.stderr)
         gap_re = re.compile(r'^(\d+)N$')
         trans_edges = set()
@@ -227,14 +225,17 @@ class NtLinkPath:
         else:
             new_edges[rev_k][rev_i].append(gap_dist)
 
-    def read_alternate_pathfiles(self, path_graph, scaffold_graph):
+    def read_alternate_pathfiles(self, path_graph, scaffold_graph, best_filename):
         "Read through alt abyss-scaffold output files, adding potential new edges for paths"
         new_edges = defaultdict(dict)
         new_vertices = set()
         new_scaffold_edges = set()
 
-        for i in range(self.args.min_n, self.args.max_n + 1):
-            new_trans_edges = self.read_alternate_pathfile(i, path_graph, new_vertices, new_edges, scaffold_graph)
+        for path_file in self.args.PATH:
+            if path_file == best_filename:
+                continue
+            new_trans_edges = self.read_alternate_pathfile(path_file, path_graph, new_vertices,
+                                                           new_edges, scaffold_graph)
             new_scaffold_edges = set.union(new_scaffold_edges, new_trans_edges)
 
         path_graph.add_vertices(list(new_vertices))
@@ -248,7 +249,6 @@ class NtLinkPath:
                 formatted_edges.append((new_source, new_target))
                 d = new_edges[new_source][new_target]
                 formatted_attributes.append(d)
-#                path_graph.add_edge(new_source, new_target, d=int(np.median(d)), path_id="new", n=len(d))
         path_graph.add_edges(formatted_edges)
         for i in range(before_edge, path_graph.ecount()):
             d = formatted_attributes[i - before_edge]
@@ -455,31 +455,55 @@ class NtLinkPath:
 
         outfile.write("}\n")
 
+    @staticmethod
+    def find_optimal_n(path_filenames):
+        "Given a set of path files with correponding err logs, find the optimal abyss-scaffold n"
+        print(datetime.datetime.today(), " : Finding optimal n...", file=sys.stderr)
+        best_n50, best_n, best_file = 0, 0, None
+        n_match = re.compile(r'n=(\d+)\s+s=')
+
+        for path_filename in path_filenames:
+            with open("{}.sterr".format(path_filename), 'r') as path_file:
+                for line in path_file:
+                    line = line.strip().split("\t")
+                    if len(line) != 11:
+                        continue
+                    n50, name = line[5], line[10]
+                    if n50 == "N50":
+                        continue
+                    if int(n50) >= best_n50:
+                        name_match = re.search(n_match, name)
+                        best_n50 = int(n50)
+                        best_n = int(name_match.group(1))
+                        best_file = path_filename
+
+        print(datetime.datetime.today(), " : Optimal n =", best_n,
+              "at N50 =", best_n50, file=sys.stderr)
+
+        return best_file
+
+
     def main(self):
         "Run ntLink stitch paths stage"
         print("Running ntLink stitch paths stage...\n", file=sys.stderr)
 
-        path_graph = self.read_paths(self.args.PATH)
+        best_file = self.find_optimal_n(self.args.PATH)
+
+        path_graph = self.read_paths(best_file)
 
         scaffold_graph = self.read_scaffold_graph(self.args.g)
 
-        self.read_alternate_pathfiles(path_graph, scaffold_graph)
-
-        self.print_directed_graph(path_graph, self.args.p + ".out")
-
+        self.read_alternate_pathfiles(path_graph, scaffold_graph, best_file)
 
         path_graph = self.linearize_graph(path_graph)
         assert self.is_graph_linear(path_graph)
 
-        self.print_directed_graph(path_graph, self.args.p + ".out-pre-trans")
-        self.print_directed_graph_scaffold(scaffold_graph, self.args.p + ".out-scaffold_graph")
         if self.args.transitive:
             print("Checking for transitive support...\n", file=sys.stderr)
             path_graph = self.transitive_filter(path_graph, scaffold_graph)
 
         NtLinkPath.gin = path_graph
 
-        self.print_directed_graph(path_graph, self.args.p + ".out-post-trans")
         paths = self.find_paths(path_graph)
 
         path_id = 0
@@ -503,7 +527,7 @@ class NtLinkPath:
         "Parse ntLink arguments"
         parser = argparse.ArgumentParser(description="ntLink: Scaffolding genome assemblies using long reads. "
                                                      "This step further stitches together paths.")
-        parser.add_argument("PATH", help="abyss-scaffold best n path file")
+        parser.add_argument("PATH", help="abyss-scaffold path files", nargs="+")
         parser.add_argument("--min_n", help="Minimum 'n' specified to abyss-scaffold", required=True, type=int)
         parser.add_argument("--max_n", help="Maximum 'n' specified to abyss-scaffold", required=True, type=int)
         parser.add_argument("-g", help="Unfiltered scaffold graph dot file", required=True, type=str)
