@@ -482,6 +482,22 @@ class NtLinkPath:
 
         return best_file
 
+    @staticmethod
+    def print_paths(paths):
+        "Print the contig paths"
+        path_id = 0
+        for path in paths:
+            path_list = []
+            for node in path:
+                path_list.append(node.get_ori_contig())
+                if node.get_gap() is not None:
+                    path_list.append(node.get_gap())
+            if len(path_list) < 2:
+                continue
+            path_str = " ".join(path_list)
+            print("ntLink_{path_id}".format(path_id=path_id), path_str, sep="\t")
+            path_id += 1
+
 
     def main(self):
         "Run ntLink stitch paths stage"
@@ -490,6 +506,12 @@ class NtLinkPath:
         best_file = self.find_optimal_n(self.args.PATH)
 
         path_graph = self.read_paths(best_file)
+
+        if self.args.conservative:
+            print("Printing paths for optimal N50, no stitching...\n", file=sys.stderr)
+            paths = self.find_paths(path_graph)
+            self.print_paths(paths)
+            sys.exit(0)
 
         scaffold_graph = self.read_scaffold_graph(self.args.g)
 
@@ -506,19 +528,7 @@ class NtLinkPath:
 
         paths = self.find_paths(path_graph)
 
-        path_id = 0
-        for path in paths:
-            path_list = []
-            for node in path:
-                path_list.append(node.get_ori_contig())
-                if node.get_gap() is not None:
-                    path_list.append(node.get_gap())
-            if len(path_list) < 2:
-                continue
-            path_str = " ".join(path_list)
-            print("ntLink_{path_id}".format(path_id=path_id), path_str, sep="\t")
-            path_id += 1
-
+        self.print_paths(paths)
 
 
 
@@ -535,6 +545,8 @@ class NtLinkPath:
                             required=False, default=0.3, type=float)
         parser.add_argument("-p", help="Output file prefix", required=False, default="out", type=str)
         parser.add_argument("--transitive", help="Require transitive support for edges?", action="store_true")
+        parser.add_argument("--conservative", help="Conservative mode - take optimal N50 paths, no stitching",
+                            action="store_true")
 
         return parser.parse_args()
 

@@ -41,6 +41,9 @@ f=10
 # Fudge factor for filtering by mapping block length
 x=0
 
+# Run ntLink in conservative mode?
+conservative=False
+
 # Prefix for output files
 prefix=out.k$(k).w$(w).z$(z)
 
@@ -146,8 +149,13 @@ $(prefix).n%.abyss-scaffold.path: $(prefix).n$(n).scaffold.dot
 	abyss-scaffold -k2 -n $* -s$(z) --min-gap $(g) - $< 1> $@ 2>$@.sterr'
 
 $(prefix).stitch.path: $(path_targets)
+ifeq ($(conservative), True)
 	$(time) $(ntlink_path)/bin/ntlink_stitch_paths.py --min_n $(n) --max_n $(max_n)  -p out \
-	-g $(prefix).n$(n).scaffold.dot  $^ 1> $@
+	-g $(prefix).n$(n).scaffold.dot --conservative $^ 1> $@
+else
+	$(time) $(ntlink_path)/bin/ntlink_stitch_paths.py --min_n $(n) --max_n $(max_n)  -p out \
+	-g $(prefix).n$(n).scaffold.dot $^ 1> $@
+endif
 	
 $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa: $(prefix).stitch.path
 	$(time) MergeContigs -k2 $(target) $< > $@
