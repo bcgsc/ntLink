@@ -471,9 +471,9 @@ class NtLinkPath:
                     n50, name = line[5], line[10]
                     if n50 == "N50":
                         continue
-                    if int(n50) >= best_n50:
+                    if float(n50) >= best_n50:
                         name_match = re.search(n_match, name)
-                        best_n50 = int(n50)
+                        best_n50 = float(n50)
                         best_n = int(name_match.group(1))
                         best_file = path_filename
 
