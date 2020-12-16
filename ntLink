@@ -27,7 +27,7 @@ z=500
 n=2
 
 # Higher Minimum edge weight (for pairing)
-max_n=2
+max_n=10
 
 # Minimum gap size between scaffolds
 g=20
