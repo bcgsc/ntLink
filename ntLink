@@ -12,7 +12,7 @@ reads=None
 ntlink_path=$(shell dirname $(realpath $(MAKEFILE_LIST)))
 
 # Window size
-w=250
+w=100
 
 # Kmer size
 k=32
@@ -24,7 +24,7 @@ t=4
 z=500
 
 # Minimum edge weight
-n=2
+n=1
 
 # Higher Minimum edge weight (for pairing)
 max_n=10
@@ -87,13 +87,14 @@ help:
 	@echo "prefix			Prefix of intermediate output files [out.k<k>.w<w>.z<z>]"
 	@echo "t			Number of threads [4]"
 	@echo "k			K-mer size for minimizers [32]"
-	@echo "w			Window size for minimizers (bp) [250]"
-	@echo "n			Minimum graph edge weight [2]"
+	@echo "w			Window size for minimizers (bp) [100]"
+	@echo "n			Minimum graph edge weight [1]"
 	@echo "g			Minimum gap size (bp) [20]"
 	@echo "f			Maximum number of contigs in a run for full transitive edge addition [10]"
 	@echo "a			Minimum number of anchored ONT reads required for an edge [1]"
 	@echo "z			Minimum size of contig (bp) to scaffold [500]"
 	@echo "v			If 1, track time and memory for each step of the pipeline [0]"
+	@echo "conservative	If True, runs ntLink in conservative mode [False]"
 	@echo ""
 	@echo "Note: "
 	@echo "	- Ensure all assembly and read files are in the current working directory, making soft links if neccessary"
@@ -101,7 +102,8 @@ help:
 
 scaffold: check_params \
 	ntLink_graph \
-	abyss_scaffold
+	abyss_scaffold \
+	clean
 
 #out.k32.w100.z1000.n2.abyss-scaffold.path
 LIST = $(shell seq $(n) $(max_n))
@@ -159,3 +161,7 @@ endif
 	
 $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa: $(prefix).stitch.path
 	$(time) MergeContigs -k2 $(target) $< > $@
+
+clean: $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa
+	rm $(prefix).n*.abyss-scaffold.path $(prefix).n*.abyss-scaffold.path.sterr
+	
