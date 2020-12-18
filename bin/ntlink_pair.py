@@ -50,14 +50,18 @@ class PairInfo:
     def __init__(self):
         self._gap_est = []
         self.anchor = 0
+        self._gap_estimate = None
 
     def add_gap_estimate(self, gap_est):
         "Add a gap estimate"
         self._gap_est.append(gap_est)
+        self._gap_estimate = None
 
     def get_gap_estimate(self):
         "Calculate gap estimate"
-        return int(np.median(self._gap_est))
+        if self._gap_estimate is None:
+            self._gap_estimate = int(np.median(self._gap_est))
+        return self._gap_estimate
 
     def n_supporting_reads(self):
         "Return the number of supporting reads for a pair"
@@ -290,7 +294,8 @@ class NtLink():
             positions = contig_positions[contig]
             if len(positions) < 2:
                 continue
-            start_idx, end_idx = np.argmin([i[0] for i in positions]), np.argmax([i[0] for i in positions])
+            ctg_positions = [i[0] for i in positions]
+            start_idx, end_idx = np.argmin(ctg_positions), np.argmax(ctg_positions)
             ctg_start, ont_start = positions[start_idx]
             ctg_end, ont_end = positions[end_idx]
             if self.args.x == 0:
