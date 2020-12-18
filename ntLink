@@ -21,7 +21,7 @@ k=32
 t=4
 
 # Minimum contig size
-z=500
+z=1000
 
 # Minimum edge weight
 n=1
@@ -42,7 +42,7 @@ f=10
 x=0
 
 # Run ntLink in conservative mode?
-conservative=False
+conservative=True
 
 # Prefix for output files
 prefix=out.k$(k).w$(w).z$(z)
@@ -92,9 +92,9 @@ help:
 	@echo "g			Minimum gap size (bp) [20]"
 	@echo "f			Maximum number of contigs in a run for full transitive edge addition [10]"
 	@echo "a			Minimum number of anchored ONT reads required for an edge [1]"
-	@echo "z			Minimum size of contig (bp) to scaffold [500]"
+	@echo "z			Minimum size of contig (bp) to scaffold [1000]"
 	@echo "v			If 1, track time and memory for each step of the pipeline [0]"
-	@echo "conservative	If True, runs ntLink in conservative mode [False]"
+	@echo "conservative		If False, runs ntLink in stitching mode [True]"
 	@echo ""
 	@echo "Note: "
 	@echo "	- Ensure all assembly and read files are in the current working directory, making soft links if neccessary"
@@ -164,4 +164,3 @@ $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa: $(prefix).stitch.path
 
 clean: $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa
 	rm $(prefix).n*.abyss-scaffold.path $(prefix).n*.abyss-scaffold.path.sterr
-	
