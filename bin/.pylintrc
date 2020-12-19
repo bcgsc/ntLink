@@ -1,9 +1,10 @@
 [basic]
-good-names = i, mx, j, a, b 
+good-names = i, mx, j, a, b, k, n, d, s, t 
 max-line-length = 120
 max-args = 10
 max-locals = 50
 max-branches = 20 
+max-public-methods = 30
  
 [MISCELLANEOUS]
 

@@ -27,13 +27,14 @@ reads		        List of long read files (separated by a space)
 prefix			Prefix of intermediate output files [out.k<k>.w<w>.n<n>]
 t			Number of threads [4]
 k			K-mer size for minimizers [32]
-w			Window size for minimizers (bp) [250]
-n			Minimum graph edge weight [2]
+w			Window size for minimizers (bp) [100]
+n			Minimum graph edge weight [1]
 g			Minimum gap size (bp) [20]
 f			Maximum number of contigs in a run for full transitive edge addition [10]
 a                       Minimum number of anchored ONT reads required for an edge [1]
-z			Minimum size of contig (bp) to scaffold [500]
+z			Minimum size of contig (bp) to scaffold [1000]
 v                       If 1, track time and memory for each step of the pipeline [0]
+conservative		If False, runs ntLink in stitching mode [True]
 
 Note: 
 	- Ensure all assembly and read files are in the current working directory, making soft links if neccessary

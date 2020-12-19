@@ -9,6 +9,7 @@ import datetime
 from collections import defaultdict
 from collections import namedtuple
 import itertools
+import re
 import sys
 import numpy as np
 import igraph as ig
@@ -49,14 +50,18 @@ class PairInfo:
     def __init__(self):
         self._gap_est = []
         self.anchor = 0
+        self._gap_estimate = None
 
     def add_gap_estimate(self, gap_est):
         "Add a gap estimate"
         self._gap_est.append(gap_est)
+        self._gap_estimate = None
 
     def get_gap_estimate(self):
         "Calculate gap estimate"
-        return int(np.median(self._gap_est))
+        if self._gap_estimate is None:
+            self._gap_estimate = int(np.median(self._gap_est))
+        return self._gap_estimate
 
     def n_supporting_reads(self):
         "Return the number of supporting reads for a pair"
@@ -180,19 +185,12 @@ class NtLink():
         return mx_info, mxs_filt
 
     @staticmethod
-    def reverse_orientation(orientation):
-        "Flip the given orientation"
-        assert orientation in ("+", "-")
-        if orientation == "+":
-            return "-"
-        return "+"
-
-    def normalize_pair(self, source_ctg, source_ori, target_ctg, target_ori):
+    def normalize_pair(source_ctg, source_ori, target_ctg, target_ori):
         "Normalize pairs. Lexicographically smallest contig first in pair"
         if source_ctg < target_ctg:
             return ScaffoldPair(source_ctg, source_ori, target_ctg, target_ori)
-        return ScaffoldPair(target_ctg, self.reverse_orientation(target_ori),
-                            source_ctg, self.reverse_orientation(source_ori))
+        return ScaffoldPair(target_ctg, ntlink_utils.reverse_orientation(target_ori),
+                            source_ctg, ntlink_utils.reverse_orientation(source_ori))
 
 
     def calculate_pair_info(self, mx_edge):
@@ -228,11 +226,11 @@ class NtLink():
             new_pairs[pair] = pairs[pair]
         return new_pairs
 
-
-    def reverse_complement_pair(self, pair):
+    @staticmethod
+    def reverse_complement_pair(pair):
         "Reverse complemented a directed pair of scaffolds"
-        return ScaffoldPair(pair.target_contig, self.reverse_orientation(pair.target_ori),
-                            pair.source_contig, self.reverse_orientation(pair.source_ori))
+        return ScaffoldPair(pair.target_contig, ntlink_utils.reverse_orientation(pair.target_ori),
+                            pair.source_contig, ntlink_utils.reverse_orientation(pair.source_ori))
 
     def build_scaffold_graph(self, pairs):
         "Builds a scaffold graph given the pairs info"
@@ -296,7 +294,8 @@ class NtLink():
             positions = contig_positions[contig]
             if len(positions) < 2:
                 continue
-            start_idx, end_idx = np.argmin([i[0] for i in positions]), np.argmax([i[0] for i in positions])
+            ctg_positions = [i[0] for i in positions]
+            start_idx, end_idx = np.argmin(ctg_positions), np.argmax(ctg_positions)
             ctg_start, ont_start = positions[start_idx]
             ctg_end, ont_end = positions[end_idx]
             if self.args.x == 0:
@@ -416,11 +415,12 @@ class NtLink():
                                       pair.target_contig + pair.target_ori, str(pairs[pair])]) + "\n")
         pair_out.close()
 
-    def filter_graph_global(self, graph):
+    @staticmethod
+    def filter_graph_global(graph, min_weight):
         "Filter the graph globally based on minimum edge weight"
         print(datetime.datetime.today(), ": Filtering the graph", file=sys.stdout)
         to_remove_edges = [edge.index for edge in graph.es()
-                           if edge['n'] < self.args.n]
+                           if edge['n'] < min_weight]
         new_graph = graph.copy()
         new_graph.delete_edges(to_remove_edges)
         return new_graph
@@ -440,7 +440,8 @@ class NtLink():
         parser.add_argument("-m", help="Target scaffolds minimizer TSV file")
         parser.add_argument("-p", help="Output prefix [out]", default="out",
                             type=str, required=False)
-        parser.add_argument("-n", help="Minimum edge weight [1]", default=1, type=int)
+        parser.add_argument("-n", help="Minimum edge weight [1], or range of minimum edge weights (ex. 1-10)",
+                            default=1, type=str)
         parser.add_argument("-k", help="Kmer size used for minimizer step", required=True, type=int)
         parser.add_argument("-f", help="Maximum number of contigs in a run for full transitive edge addition",
                             required=False, default=10, type=int)
@@ -472,6 +473,14 @@ class NtLink():
         print("Running pairing stage of ntLink ...\n")
         self.print_parameters()
 
+        # Check n argument
+        n_range_match = re.search(r'^(\d+)-(\d+)$', self.args.n)
+        n_int_match = re.search(r'^(\d+)$', self.args.n)
+        if not n_range_match and not n_int_match:
+            print("Error! -n parameter must be an integer or in a range of the"
+                  " form int-int")
+            sys.exit()
+
         # Read in the minimizers for target assembly
         mxs_info, mxs = self.read_minimizers(self.args.m)
         NtLink.list_mx_info = mxs_info
@@ -491,10 +500,20 @@ class NtLink():
 
         # Build directed graph
         graph = self.build_scaffold_graph(pairs)
-        graph = self.filter_graph_global(graph)
 
-        # Print out the directed graph
-        self.print_directed_graph(graph, self.args.p)
+        # Filter graph
+        if n_int_match:
+            graph = self.filter_graph_global(graph, int(self.args.n))
+            # Print out the directed graph
+            self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n))
+        if n_range_match:
+            min_n, max_n = int(n_range_match.group(1)), int(n_range_match.group(2))
+            graph = self.filter_graph_global(graph, min_n)
+            self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, min_n))
+
+            for i in range(min_n + 1, max_n + 1):
+                graph = ntlink_utils.filter_graph(graph, i)
+                self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, i))
 
         print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
 
