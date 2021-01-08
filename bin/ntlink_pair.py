@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Using ntJoin concept with long reads as input reference
+Finding contig pairs using lightweight long read mapping with minimizers
 """
 __author__ = 'laurencoombe'
 
@@ -428,24 +428,19 @@ class NtLink():
     @staticmethod
     def parse_arguments():
         "Parse ntLink arguments"
-        parser = argparse.ArgumentParser(
-            description="ntLink: Scaffolding genome assemblies using long reads",
-            epilog="Note: Script expects that the input minimizer TSV file has a matching fasta file.\n"
-                   "Example: myscaffolds.fa.k32.w1000.tsv - myscaffolds.fa is the expected matching fasta",
-            formatter_class=argparse.RawTextHelpFormatter)
+        parser = argparse.ArgumentParser(description="ntLink: Scaffolding genome assemblies using long reads")
         parser.add_argument("FILES", nargs="+", help="Minimizer TSV files of long reads")
-        parser.add_argument("-a", help="Minimum number of anchoring ONT for an edge", required=False,
-                            type=int, default=1)
         parser.add_argument("-s", help="Target scaffolds fasta file", required=True)
-        parser.add_argument("-m", help="Target scaffolds minimizer TSV file")
+        parser.add_argument("-m", help="Target scaffolds minimizer TSV file", required=True)
         parser.add_argument("-p", help="Output prefix [out]", default="out",
                             type=str, required=False)
-        parser.add_argument("-n", help="Minimum edge weight [1], or range of minimum edge weights (ex. 1-10)",
-                            default=1, type=str)
+        parser.add_argument("-n", help="Minimum edge weight [1]", default=1, type=int)
         parser.add_argument("-k", help="Kmer size used for minimizer step", required=True, type=int)
+        parser.add_argument("-z", help="Minimum size of contig to scaffold", required=False, default=500, type=int)
+        parser.add_argument("-a", help="Minimum number of anchoring long reads for an edge", required=False,
+                            type=int, default=1)
         parser.add_argument("-f", help="Maximum number of contigs in a run for full transitive edge addition",
                             required=False, default=10, type=int)
-        parser.add_argument("-z", help="Minimum size of contig to scaffold", required=False, default=500, type=int)
         parser.add_argument("-x", help="Fudge factor allowed between mapping block lengths on read and assembly. "
                                        "Set to 0 to allow mapping block to be up to read length",
                             type=float, default=0)
@@ -473,14 +468,6 @@ class NtLink():
         print("Running pairing stage of ntLink ...\n")
         self.print_parameters()
 
-        # Check n argument
-        n_range_match = re.search(r'^(\d+)-(\d+)$', self.args.n)
-        n_int_match = re.search(r'^(\d+)$', self.args.n)
-        if not n_range_match and not n_int_match:
-            print("Error! -n parameter must be an integer or in a range of the"
-                  " form int-int")
-            sys.exit()
-
         # Read in the minimizers for target assembly
         mxs_info, mxs = self.read_minimizers(self.args.m)
         NtLink.list_mx_info = mxs_info
@@ -502,18 +489,9 @@ class NtLink():
         graph = self.build_scaffold_graph(pairs)
 
         # Filter graph
-        if n_int_match:
-            graph = self.filter_graph_global(graph, int(self.args.n))
-            # Print out the directed graph
-            self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n))
-        if n_range_match:
-            min_n, max_n = int(n_range_match.group(1)), int(n_range_match.group(2))
-            graph = self.filter_graph_global(graph, min_n)
-            self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, min_n))
-
-            for i in range(min_n + 1, max_n + 1):
-                graph = ntlink_utils.filter_graph(graph, i)
-                self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, i))
+        graph = self.filter_graph_global(graph, int(self.args.n))
+        # Print out the directed graph
+        self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n))
 
         print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
 
