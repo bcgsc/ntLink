@@ -160,7 +160,6 @@ class NtLink():
         "Read the minimizers from a file, removing duplicate minimizers"
         print(datetime.datetime.today(), ": Reading minimizers", tsv_filename, file=sys.stdout)
         mx_info = {}  # mx -> Minimizer object
-        mxs = []  # List of lists of minimizers
         dup_mxs = set()  # Set of minimizers identified as duplicates
         with open(tsv_filename, 'r') as tsv:
             for line in tsv:
@@ -168,7 +167,6 @@ class NtLink():
                 if len(line) > 1:
                     ctg_name = line[0]
                     mx_pos_split = line[1].split(" ")
-                    mxs.append([mx_pos.split(":")[0] for mx_pos in mx_pos_split])
                     for mx_pos in mx_pos_split:
                         mx, pos, strand = mx_pos.split(":")
                         if mx in mx_info:  # This is a duplicate, add to dup set, don't add to dict
@@ -177,11 +175,8 @@ class NtLink():
                             mx_info[mx] = Minimizer(ctg_name, int(pos), strand)
 
         mx_info = {mx: mx_info[mx] for mx in mx_info if mx not in dup_mxs}
-        mxs_filt = []
-        for mx_list in mxs:
-            mx_list_filt = [mx for mx in mx_list if mx not in dup_mxs]
-            mxs_filt.append(mx_list_filt)
-        return mx_info, mxs_filt
+
+        return mx_info
 
     @staticmethod
     def normalize_pair(source_ctg, source_ori, target_ctg, target_ori):
@@ -345,11 +340,11 @@ class NtLink():
 
         return pair
 
-    def find_scaffold_pairs(self, list_mxs_target):
+    def find_scaffold_pairs(self):
         "Builds up pairing information between scaffolds"
         print(datetime.datetime.today(), ": Finding pairs", file=sys.stdout)
 
-        target_mxs = {mx for mx_list in list_mxs_target for mx in mx_list}
+        target_mxs = set(NtLink.list_mx_info.keys())
 
         pairs = {} # source -> target -> [gap estimate]
 
@@ -468,7 +463,7 @@ class NtLink():
         self.print_parameters()
 
         # Read in the minimizers for target assembly
-        mxs_info, mxs = self.read_minimizers(self.args.m)
+        mxs_info = self.read_minimizers(self.args.m)
         NtLink.list_mx_info = mxs_info
 
         # Load target scaffolds into memory
@@ -476,7 +471,7 @@ class NtLink():
         NtLink.scaffolds = scaffolds
 
         # Get directed scaffold pairs, gap estimates from long reads
-        pairs = self.find_scaffold_pairs(mxs)
+        pairs = self.find_scaffold_pairs()
 
         pairs = self.filter_pairs_distances(pairs)
 
