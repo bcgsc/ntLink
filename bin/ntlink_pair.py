@@ -9,7 +9,6 @@ import datetime
 from collections import defaultdict
 from collections import namedtuple
 import itertools
-import re
 import sys
 import numpy as np
 import igraph as ig
