@@ -7,11 +7,10 @@ __author__ = "Lauren Coombe @lcoombe"
 import datetime
 from collections import namedtuple
 import sys
-import igraph as ig
 
 from read_fasta import read_fasta
 
-Scaffold = namedtuple("Scaffold", ["id", "length", "sequence"])
+Scaffold = namedtuple("Scaffold", ["id", "length"])
 
 def vertex_name(graph, index):
     "Returns vertex name based on vertex id"
@@ -39,26 +38,9 @@ def read_fasta_file(filename):
     scaffolds = {}
     with open(filename, 'r') as fasta:
         for header, seq, _, _ in read_fasta(fasta):
-            scaffolds[header] = Scaffold(id=header, length=len(seq), sequence=seq)
+            scaffolds[header] = Scaffold(id=header, length=len(seq))
 
     return scaffolds
-
-def filter_graph(graph, min_weight):
-    "Filter the graph by edge weights on edges incident to branch nodes"
-    in_branch_nodes = [node.index for node in graph.vs() if node.indegree() > 1]
-    to_remove_in_edges = [edge for node in in_branch_nodes for edge in graph.incident(node, mode=ig.IN) # pylint: disable=no-member
-                          if graph.es()[edge]['n'] < min_weight]
-    new_graph = graph.copy()
-    new_graph.delete_edges(to_remove_in_edges)
-
-    out_branch_nodes = [node.index for node in new_graph.vs() if node.outdegree() > 1]
-    to_remove_out_edges = [edge for node in out_branch_nodes for edge in new_graph.incident(node, mode=ig.OUT) # pylint: disable=no-member
-                           if new_graph.es()[edge]['n'] < min_weight]
-
-    return_graph = new_graph.copy()
-    return_graph.delete_edges(to_remove_out_edges)
-
-    return return_graph
 
 def convert_path_index_to_name(graph, path):
     "Convert path of vertex indices to path of vertex names"

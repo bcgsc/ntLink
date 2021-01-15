@@ -412,8 +412,8 @@ class NtLink():
         "Write the scaffold pairs to file"
         pair_out = open(self.args.p + ".pairs.tsv", 'w')
         for pair in pairs:
-            pair_out.write("\t".join([pair.source_contig + pair.source_ori,
-                                      pair.target_contig + pair.target_ori, str(pairs[pair])]) + "\n")
+            pair_out.write("\t".join((pair.format_source(), pair.format_target(),
+                                      str(pairs[pair]))) + "\n")
         pair_out.close()
 
     @staticmethod
@@ -491,6 +491,7 @@ class NtLink():
 
         # Filter graph
         graph = self.filter_graph_global(graph, int(self.args.n))
+
         # Print out the directed graph
         self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n))
 
