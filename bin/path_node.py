@@ -1,4 +1,4 @@
-# Defining helper classes
+"PathNode helper class"
 class PathNode:
     "Defines a node in a path of contig regions"
     def __init__(self, contig, ori, gap_size=None):
@@ -11,9 +11,11 @@ class PathNode:
         self.gap_size = gap_size
 
     def get_ori_contig(self):
+        "Return contig with orientation"
         return "{}{}".format(self.contig, self.ori)
 
     def get_gap(self):
+        "Return gap"
         if self.gap_size is not None:
             return "{}N".format(self.gap_size)
         return None

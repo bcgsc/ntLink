@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Using ntJoin concept with long reads as input reference
+Finding contig pairs using lightweight long read mapping with minimizers
 """
 __author__ = 'laurencoombe'
 
@@ -9,7 +9,6 @@ import datetime
 from collections import defaultdict
 from collections import namedtuple
 import itertools
-import re
 import sys
 import numpy as np
 import igraph as ig
@@ -125,31 +124,31 @@ class NtLink():
 
         outfile.write("}\n")
 
-    def calculate_gap_size(self, u_mx, u_ori, v_mx, v_ori, est_distance):
-        "Calculates the estimated distance between two contigs, assuming full contig"
+    def calculate_gap_size(self, i_mx, i_ori, j_mx, j_ori, est_distance):
+        "Calculates the estimated distance between two contigs"
 
         # Correct for the overhanging sequence before/after terminal minimizers
-        if u_ori == "+":
-            u_ctg = NtLink.list_mx_info[u_mx].contig
+        if i_ori == "+":
+            u_ctg = NtLink.list_mx_info[i_mx].contig
             u_ctglen = NtLink.scaffolds[u_ctg].length
-            a = u_ctglen - NtLink.list_mx_info[u_mx].position - self.args.k
+            a = u_ctglen - NtLink.list_mx_info[i_mx].position - self.args.k
         else:
-            a = NtLink.list_mx_info[u_mx].position
-        if v_ori == "+":
-            b = NtLink.list_mx_info[v_mx].position
+            a = NtLink.list_mx_info[i_mx].position
+        if j_ori == "+":
+            b = NtLink.list_mx_info[j_mx].position
         else:
-            v_ctg = NtLink.list_mx_info[v_mx].contig
+            v_ctg = NtLink.list_mx_info[j_mx].contig
             v_ctglen = NtLink.scaffolds[v_ctg].length
-            b = v_ctglen - NtLink.list_mx_info[v_mx].position - self.args.k
+            b = v_ctglen - NtLink.list_mx_info[j_mx].position - self.args.k
 
         try:
             assert a >= 0
             assert b >= 0
         except AssertionError as assert_error:
-            print("ERROR: Gap distance estimation less than 0", "Vertex 1:", u_mx, "Vertex 2:", v_mx,
+            print("ERROR: Gap distance estimation less than 0", "Vertex 1:", i_mx, "Vertex 2:", j_mx,
                   sep="\n")
-            print("Minimizer positions:", NtLink.list_mx_info[u_mx].position,
-                  NtLink.list_mx_info[v_mx].position)
+            print("Minimizer positions:", NtLink.list_mx_info[i_mx].position,
+                  NtLink.list_mx_info[j_mx].position)
             print("Estimated distance: ", est_distance)
             raise assert_error
 
@@ -161,7 +160,6 @@ class NtLink():
         "Read the minimizers from a file, removing duplicate minimizers"
         print(datetime.datetime.today(), ": Reading minimizers", tsv_filename, file=sys.stdout)
         mx_info = {}  # mx -> Minimizer object
-        mxs = []  # List of lists of minimizers
         dup_mxs = set()  # Set of minimizers identified as duplicates
         with open(tsv_filename, 'r') as tsv:
             for line in tsv:
@@ -169,7 +167,6 @@ class NtLink():
                 if len(line) > 1:
                     ctg_name = line[0]
                     mx_pos_split = line[1].split(" ")
-                    mxs.append([mx_pos.split(":")[0] for mx_pos in mx_pos_split])
                     for mx_pos in mx_pos_split:
                         mx, pos, strand = mx_pos.split(":")
                         if mx in mx_info:  # This is a duplicate, add to dup set, don't add to dict
@@ -178,11 +175,8 @@ class NtLink():
                             mx_info[mx] = Minimizer(ctg_name, int(pos), strand)
 
         mx_info = {mx: mx_info[mx] for mx in mx_info if mx not in dup_mxs}
-        mxs_filt = []
-        for mx_list in mxs:
-            mx_list_filt = [mx for mx in mx_list if mx not in dup_mxs]
-            mxs_filt.append(mx_list_filt)
-        return mx_info, mxs_filt
+
+        return mx_info
 
     @staticmethod
     def normalize_pair(source_ctg, source_ori, target_ctg, target_ori):
@@ -197,18 +191,20 @@ class NtLink():
         "Given a contig pair, normalizes, defines orientation and estimates the gap size"
 
         assert mx_edge.mx_i_pos < mx_edge.mx_j_pos
+        source_ctg = NtLink.list_mx_info[mx_edge.mx_i].contig
+        target_ctg = NtLink.list_mx_info[mx_edge.mx_j].contig
         if mx_edge.mx_i_strand == NtLink.list_mx_info[mx_edge.mx_i].strand:
-            source_ctg, source_ori = NtLink.list_mx_info[mx_edge.mx_i].contig, "+"
+            source_ori = "+"
         else:
-            source_ctg, source_ori = NtLink.list_mx_info[mx_edge.mx_i].contig, "-"
+            source_ori = "-"
         if mx_edge.mx_j_strand == NtLink.list_mx_info[mx_edge.mx_j].strand:
-            target_ctg, target_ori = NtLink.list_mx_info[mx_edge.mx_j].contig, "+"
+            target_ori = "+"
         else:
-            target_ctg, target_ori = NtLink.list_mx_info[mx_edge.mx_j].contig, "-"
+            target_ori = "-"
         new_pair = self.normalize_pair(source_ctg, source_ori, target_ctg, target_ori)
         gap_estimate = self.calculate_gap_size(mx_edge.mx_i, source_ori, mx_edge.mx_j, target_ori,
                                                mx_edge.mx_j_pos - mx_edge.mx_i_pos)
-        return (new_pair, gap_estimate)
+        return new_pair, gap_estimate
 
     def filter_weak_anchor_pairs(self, pairs):
         "Filter out edges where there isn't at least threshold # well-anchored reads"
@@ -278,32 +274,35 @@ class NtLink():
 
     def get_accepted_anchor_contigs(self, mx_list, read_length):
         "Returns dictionary of contigs of appropriate length, mx hits, whether subsumed"
+        MinimizerPositions = namedtuple("MinimizerPositions", ["ctg_pos", "read_pos"])
         contig_list = []
-        contig_positions = {} #contig -> [mx positions]
+        contig_positions = {} # contig -> [mx positions]
         for mx, pos, _ in mx_list:
             contig = NtLink.list_mx_info[mx].contig
             if NtLink.scaffolds[contig].length >= self.args.z:
                 contig_list.append(contig)
                 if contig not in contig_positions:
                     contig_positions[contig] = []
-                contig_positions[contig].append((NtLink.list_mx_info[mx].position, int(pos)))
+                contig_positions[contig].append(MinimizerPositions(ctg_pos=NtLink.list_mx_info[mx].position,
+                                                                   read_pos=int(pos)))
 
-        # Filter out hits where mapped length on contig is greater than read length
+        # Filter out hits where mapped length on contig is greater than the read length
         noisy_contigs = set()
         for contig in contig_positions:
             positions = contig_positions[contig]
             if len(positions) < 2:
                 continue
-            ctg_positions = [i[0] for i in positions]
+            ctg_positions = [position.ctg_pos for position in positions]
             start_idx, end_idx = np.argmin(ctg_positions), np.argmax(ctg_positions)
-            ctg_start, ont_start = positions[start_idx]
-            ctg_end, ont_end = positions[end_idx]
+            start_positions = positions[start_idx]
+            end_positions = positions[end_idx]
             if self.args.x == 0:
-                if abs(ctg_end - ctg_start) > read_length:
+                if abs(end_positions.ctg_pos - start_positions.ctg_pos) > read_length + self.args.k:
                     noisy_contigs.add(contig)
             else:
-                threshold = min(read_length, (self.args.x * abs(ont_end - ont_start)) + self.args.k)
-                if abs(ctg_end - ctg_start) > threshold:
+                threshold = min(read_length + self.args.k,
+                                (self.args.x * abs(end_positions.read_pos - start_positions.read_pos)) + self.args.k)
+                if abs(end_positions.ctg_pos - start_positions.ctg_pos) > threshold:
                     noisy_contigs.add(contig)
         contig_list = [contig for contig in contig_list if contig not in noisy_contigs]
 
@@ -325,14 +324,14 @@ class NtLink():
 
         return return_contigs_hits, return_contig_runs
 
-    def add_pair(self, accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_ont, check_added=None):
+    def add_pair(self, accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_read, check_added=None):
         "Add pair to dictionary of pairs"
         mx_i = accepted_anchor_contigs[ctg_i].terminal_mx
         mx_j = accepted_anchor_contigs[ctg_j].first_mx
         pair, gap_est = self.calculate_pair_info(MinimizerEdge(mx_i.mx_hash, mx_i.position, mx_i.strand,
                                                                mx_j.mx_hash, mx_j.position, mx_j.strand))
 
-        if abs(gap_est) > length_ont:
+        if abs(gap_est) > length_read:
             return None
         if check_added is not None and pair in check_added:
             return None
@@ -346,11 +345,11 @@ class NtLink():
 
         return pair
 
-    def find_scaffold_pairs(self, list_mxs_target):
+    def find_scaffold_pairs(self):
         "Builds up pairing information between scaffolds"
         print(datetime.datetime.today(), ": Finding pairs", file=sys.stdout)
 
-        target_mxs = {mx for mx_list in list_mxs_target for mx in mx_list}
+        target_mxs = set(NtLink.list_mx_info.keys())
 
         pairs = {} # source -> target -> [gap estimate]
 
@@ -367,12 +366,14 @@ class NtLink():
                             mx, pos, strand = mx_pos.split(":")
                             if mx in target_mxs:
                                 mx_pos_split.append((mx, pos, strand))
-                        length_long_read = int(mx_pos_split_tups[-1].split(":")[1])
+                        if not mx_pos_split:
+                            continue
+                        length_long_read = int(mx_pos_split[-1][1])
                         accepted_anchor_contigs, contig_runs = self.get_accepted_anchor_contigs(mx_pos_split,
                                                                                                 length_long_read)
                         if self.args.verbose and accepted_anchor_contigs and len(accepted_anchor_contigs) > 1:
                             print(line[0], [str(accepted_anchor_contigs[ctg_run])
-                                            for ctg_run in accepted_anchor_contigs])
+                                            for ctg_run in accepted_anchor_contigs], file=sys.stdout)
 
                         # Filter ordered minimizer list for accepted contigs, keep track of hashes for gap sizes
                         mx_pos_split = [mx_tup for mx_tup in mx_pos_split
@@ -411,8 +412,8 @@ class NtLink():
         "Write the scaffold pairs to file"
         pair_out = open(self.args.p + ".pairs.tsv", 'w')
         for pair in pairs:
-            pair_out.write("\t".join([pair.source_contig + pair.source_ori,
-                                      pair.target_contig + pair.target_ori, str(pairs[pair])]) + "\n")
+            pair_out.write("\t".join((pair.format_source(), pair.format_target(),
+                                      str(pairs[pair]))) + "\n")
         pair_out.close()
 
     @staticmethod
@@ -428,24 +429,19 @@ class NtLink():
     @staticmethod
     def parse_arguments():
         "Parse ntLink arguments"
-        parser = argparse.ArgumentParser(
-            description="ntLink: Scaffolding genome assemblies using long reads",
-            epilog="Note: Script expects that the input minimizer TSV file has a matching fasta file.\n"
-                   "Example: myscaffolds.fa.k32.w1000.tsv - myscaffolds.fa is the expected matching fasta",
-            formatter_class=argparse.RawTextHelpFormatter)
+        parser = argparse.ArgumentParser(description="ntLink: Scaffolding genome assemblies using long reads")
         parser.add_argument("FILES", nargs="+", help="Minimizer TSV files of long reads")
-        parser.add_argument("-a", help="Minimum number of anchoring ONT for an edge", required=False,
-                            type=int, default=1)
         parser.add_argument("-s", help="Target scaffolds fasta file", required=True)
-        parser.add_argument("-m", help="Target scaffolds minimizer TSV file")
+        parser.add_argument("-m", help="Target scaffolds minimizer TSV file", required=True)
         parser.add_argument("-p", help="Output prefix [out]", default="out",
                             type=str, required=False)
-        parser.add_argument("-n", help="Minimum edge weight [1], or range of minimum edge weights (ex. 1-10)",
-                            default=1, type=str)
+        parser.add_argument("-n", help="Minimum edge weight [1]", default=1, type=int)
         parser.add_argument("-k", help="Kmer size used for minimizer step", required=True, type=int)
+        parser.add_argument("-z", help="Minimum size of contig to scaffold", required=False, default=500, type=int)
+        parser.add_argument("-a", help="Minimum number of anchoring long reads for an edge", required=False,
+                            type=int, default=1)
         parser.add_argument("-f", help="Maximum number of contigs in a run for full transitive edge addition",
                             required=False, default=10, type=int)
-        parser.add_argument("-z", help="Minimum size of contig to scaffold", required=False, default=500, type=int)
         parser.add_argument("-x", help="Fudge factor allowed between mapping block lengths on read and assembly. "
                                        "Set to 0 to allow mapping block to be up to read length",
                             type=float, default=0)
@@ -473,16 +469,8 @@ class NtLink():
         print("Running pairing stage of ntLink ...\n")
         self.print_parameters()
 
-        # Check n argument
-        n_range_match = re.search(r'^(\d+)-(\d+)$', self.args.n)
-        n_int_match = re.search(r'^(\d+)$', self.args.n)
-        if not n_range_match and not n_int_match:
-            print("Error! -n parameter must be an integer or in a range of the"
-                  " form int-int")
-            sys.exit()
-
         # Read in the minimizers for target assembly
-        mxs_info, mxs = self.read_minimizers(self.args.m)
+        mxs_info = self.read_minimizers(self.args.m)
         NtLink.list_mx_info = mxs_info
 
         # Load target scaffolds into memory
@@ -490,7 +478,7 @@ class NtLink():
         NtLink.scaffolds = scaffolds
 
         # Get directed scaffold pairs, gap estimates from long reads
-        pairs = self.find_scaffold_pairs(mxs)
+        pairs = self.find_scaffold_pairs()
 
         pairs = self.filter_pairs_distances(pairs)
 
@@ -502,18 +490,10 @@ class NtLink():
         graph = self.build_scaffold_graph(pairs)
 
         # Filter graph
-        if n_int_match:
-            graph = self.filter_graph_global(graph, int(self.args.n))
-            # Print out the directed graph
-            self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n))
-        if n_range_match:
-            min_n, max_n = int(n_range_match.group(1)), int(n_range_match.group(2))
-            graph = self.filter_graph_global(graph, min_n)
-            self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, min_n))
+        graph = self.filter_graph_global(graph, int(self.args.n))
 
-            for i in range(min_n + 1, max_n + 1):
-                graph = ntlink_utils.filter_graph(graph, i)
-                self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, i))
+        # Print out the directed graph
+        self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n))
 
         print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
 

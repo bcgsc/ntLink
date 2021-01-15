@@ -13,7 +13,7 @@ from collections import defaultdict
 import igraph as ig
 import numpy as np
 import ntlink_utils
-from PathNode import PathNode
+from path_node import PathNode
 
 class NtLinkPath:
     "Instance of ntLink stitch path phase"
@@ -141,11 +141,18 @@ class NtLinkPath:
                 edges.add((source, target))
                 edges.add((rev_t, rev_s))
 
+    @staticmethod
+    def is_contig(node, gap_re):
+        "Returns true if the given node is a contig, so doesn't fit the regex of a gap node"
+        gap_match = re.search(gap_re, node)
+        return gap_match
+
 
     def add_transitive_support(self, scaffold_graph, path_sequence, path_graph, neighbourhood=4):
         "Given a path sequence and a graph, add all transitive edges"
         edges = set()
-        path_sequence = [node for node in path_sequence if "N" not in node] # !! TODO - Generalize
+        gap_re = re.compile(r"^\d+N$")
+        path_sequence = [node for node in path_sequence if self.is_contig(node, gap_re)]
         for idx, s_t in enumerate(zip(path_sequence, path_sequence[1:])):
             s, t = s_t
             if not (ntlink_utils.has_vertex(path_graph, s) and ntlink_utils.has_vertex(path_graph, t) and
@@ -181,7 +188,7 @@ class NtLinkPath:
                         if path_graph.are_connected(source, target):
                             continue # continue if the source/target are already connected
                         if self.are_end_vertices(source, target, path_graph):
-                            self.add_path_edges(gap_est, i, k, new_edges)
+                            self.add_path_edges(gap_est, source, target, new_edges)
 
                     if ntlink_utils.has_vertex(path_graph, source) and \
                             not ntlink_utils.has_vertex(path_graph, target) and \
@@ -199,7 +206,6 @@ class NtLinkPath:
 
                     if not ntlink_utils.has_vertex(path_graph, source) and \
                             not ntlink_utils.has_vertex(path_graph, target):
-                          #  (source in new_vertices or target in new_vertices):
                         new_vertices.add(source)
                         new_vertices.add(ntlink_utils.reverse_scaf_ori(source))
 
@@ -212,18 +218,18 @@ class NtLinkPath:
     @staticmethod
     def add_path_edges(gap_dist, source, target, new_edges):
         "Add the new path edges in both orientations to given graph"
-        if (source not in new_edges and target not in new_edges[source]) or \
+        if (source not in new_edges) or \
                 (source in new_edges and target not in new_edges[source]):
             new_edges[source][target] = [gap_dist]
         else:
             new_edges[source][target].append(gap_dist)
 
-        rev_i, rev_k = ntlink_utils.reverse_scaf_ori(source), ntlink_utils.reverse_scaf_ori(target)
-        if (rev_k not in new_edges and rev_i not in new_edges[rev_k]) or \
-                (rev_k in new_edges and rev_i not in new_edges[rev_k]):
-            new_edges[rev_k][rev_i] = [gap_dist]
+        rev_target, rev_source = ntlink_utils.reverse_scaf_ori(source), ntlink_utils.reverse_scaf_ori(target)
+        if (rev_source not in new_edges) or \
+                (rev_source in new_edges and rev_target not in new_edges[rev_source]):
+            new_edges[rev_source][rev_target] = [gap_dist]
         else:
-            new_edges[rev_k][rev_i].append(gap_dist)
+            new_edges[rev_source][rev_target].append(gap_dist)
 
     def read_alternate_pathfiles(self, path_graph, scaffold_graph, best_filename):
         "Read through alt abyss-scaffold output files, adding potential new edges for paths"
@@ -326,7 +332,7 @@ class NtLinkPath:
         if len(source_nodes) == 1:
             target_nodes = [node.index for node in component_graph.vs() if node.outdegree() == 0]
             assert len(target_nodes) == 1
-            source, target = source_nodes[0], target_nodes[0]
+            source, target = source_nodes.pop(), target_nodes.pop()
             path = component_graph.get_shortest_paths(source, target)[0]
             num_edges = len(path) - 1
             if len(path) == len(component_graph.vs()) and \
@@ -405,57 +411,6 @@ class NtLinkPath:
 
 
     @staticmethod
-    def print_directed_graph(graph, out_prefix):
-        "Prints the directed scaffold graph in dot format"
-        out_graph = out_prefix + ".scaffold-paths.dot"
-        outfile = open(out_graph, 'w')
-        print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stderr)
-
-        outfile.write("digraph G {\n")
-
-        for node in graph.vs():
-            node_label = "\"{scaffold}\"\n".\
-                format(scaffold=node['name'])
-            outfile.write(node_label)
-
-        for edge in graph.es():
-            if 'n' in edge.attributes():
-                edge_str = "\"{source}\" -> \"{target}\" [d={d} n={n} path={id}]\n".\
-                    format(source=ntlink_utils.vertex_name(graph, edge.source),
-                           target=ntlink_utils.vertex_name(graph, edge.target),
-                           d=int(edge['d']), n=edge['n'], id=edge['path_id'])
-            else:
-                edge_str = "\"{source}\" -> \"{target}\" [d={d} path={id}]\n".\
-                    format(source=ntlink_utils.vertex_name(graph, edge.source),
-                           target=ntlink_utils.vertex_name(graph, edge.target),
-                           d=int(edge['d']), id=edge['path_id'])
-            outfile.write(edge_str)
-
-        outfile.write("}\n")
-
-    @staticmethod
-    def print_directed_graph_scaffold(graph, out_prefix):
-        "Prints the directed scaffold graph in dot format"
-        out_graph = out_prefix + ".scaffold-post-trans-add.dot"
-        outfile = open(out_graph, 'w')
-        print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stderr)
-
-        outfile.write("digraph G {\n")
-
-        for node in graph.vs():
-            node_label = "\"{scaffold}\"\n".\
-                format(scaffold=node['name'])
-            outfile.write(node_label)
-
-        for edge in graph.es():
-            edge_str = "\"{source}\" -> \"{target}\"\n".\
-                format(source=ntlink_utils.vertex_name(graph, edge.source),
-                       target=ntlink_utils.vertex_name(graph, edge.target))
-            outfile.write(edge_str)
-
-        outfile.write("}\n")
-
-    @staticmethod
     def find_optimal_n(path_filenames):
         "Given a set of path files with correponding err logs, find the optimal abyss-scaffold n"
         print(datetime.datetime.today(), " : Finding optimal n...", file=sys.stderr)
@@ -471,9 +426,10 @@ class NtLinkPath:
                     n50, name = line[5], line[10]
                     if n50 == "N50":
                         continue
-                    if float(n50) >= best_n50:
+                    n50 = float(n50)
+                    if n50 > best_n50:
                         name_match = re.search(n_match, name)
-                        best_n50 = float(n50)
+                        best_n50 = n50
                         best_n = int(name_match.group(1))
                         best_file = path_filename
 
