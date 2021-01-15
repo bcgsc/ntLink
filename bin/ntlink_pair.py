@@ -272,32 +272,35 @@ class NtLink():
 
     def get_accepted_anchor_contigs(self, mx_list, read_length):
         "Returns dictionary of contigs of appropriate length, mx hits, whether subsumed"
+        MinimizerPositions = namedtuple("MinimizerPositions", ["ctg_pos", "read_pos"])
         contig_list = []
-        contig_positions = {} #contig -> [mx positions]
+        contig_positions = {} # contig -> [mx positions]
         for mx, pos, _ in mx_list:
             contig = NtLink.list_mx_info[mx].contig
             if NtLink.scaffolds[contig].length >= self.args.z:
                 contig_list.append(contig)
                 if contig not in contig_positions:
                     contig_positions[contig] = []
-                contig_positions[contig].append((NtLink.list_mx_info[mx].position, int(pos)))
+                contig_positions[contig].append(MinimizerPositions(ctg_pos=NtLink.list_mx_info[mx].position,
+                                                                   read_pos=int(pos)))
 
-        # Filter out hits where mapped length on contig is greater than read length
+        # Filter out hits where mapped length on contig is greater than the read length
         noisy_contigs = set()
         for contig in contig_positions:
             positions = contig_positions[contig]
             if len(positions) < 2:
                 continue
-            ctg_positions = [i[0] for i in positions]
+            ctg_positions = [position.ctg_pos for position in positions]
             start_idx, end_idx = np.argmin(ctg_positions), np.argmax(ctg_positions)
-            ctg_start, ont_start = positions[start_idx]
-            ctg_end, ont_end = positions[end_idx]
+            start_positions = positions[start_idx]
+            end_positions = positions[end_idx]
             if self.args.x == 0:
-                if abs(ctg_end - ctg_start) > read_length:
+                if abs(end_positions.ctg_pos - start_positions.ctg_pos) > read_length + self.args.k:
                     noisy_contigs.add(contig)
             else:
-                threshold = min(read_length, (self.args.x * abs(ont_end - ont_start)) + self.args.k)
-                if abs(ctg_end - ctg_start) > threshold:
+                threshold = min(read_length + self.args.k,
+                                (self.args.x * abs(end_positions.read_pos - start_positions.read_pos)) + self.args.k)
+                if abs(end_positions.ctg_pos - start_positions.ctg_pos) > threshold:
                     noisy_contigs.add(contig)
         contig_list = [contig for contig in contig_list if contig not in noisy_contigs]
 
@@ -361,7 +364,9 @@ class NtLink():
                             mx, pos, strand = mx_pos.split(":")
                             if mx in target_mxs:
                                 mx_pos_split.append((mx, pos, strand))
-                        length_long_read = int(mx_pos_split_tups[-1].split(":")[1])
+                        if not mx_pos_split:
+                            continue
+                        length_long_read = int(mx_pos_split[-1][1])
                         accepted_anchor_contigs, contig_runs = self.get_accepted_anchor_contigs(mx_pos_split,
                                                                                                 length_long_read)
                         if self.args.verbose and accepted_anchor_contigs and len(accepted_anchor_contigs) > 1:
