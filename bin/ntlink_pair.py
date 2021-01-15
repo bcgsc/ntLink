@@ -124,31 +124,31 @@ class NtLink():
 
         outfile.write("}\n")
 
-    def calculate_gap_size(self, u_mx, u_ori, v_mx, v_ori, est_distance):
-        "Calculates the estimated distance between two contigs, assuming full contig"
+    def calculate_gap_size(self, i_mx, i_ori, j_mx, j_ori, est_distance):
+        "Calculates the estimated distance between two contigs"
 
         # Correct for the overhanging sequence before/after terminal minimizers
-        if u_ori == "+":
-            u_ctg = NtLink.list_mx_info[u_mx].contig
+        if i_ori == "+":
+            u_ctg = NtLink.list_mx_info[i_mx].contig
             u_ctglen = NtLink.scaffolds[u_ctg].length
-            a = u_ctglen - NtLink.list_mx_info[u_mx].position - self.args.k
+            a = u_ctglen - NtLink.list_mx_info[i_mx].position - self.args.k
         else:
-            a = NtLink.list_mx_info[u_mx].position
-        if v_ori == "+":
-            b = NtLink.list_mx_info[v_mx].position
+            a = NtLink.list_mx_info[i_mx].position
+        if j_ori == "+":
+            b = NtLink.list_mx_info[j_mx].position
         else:
-            v_ctg = NtLink.list_mx_info[v_mx].contig
+            v_ctg = NtLink.list_mx_info[j_mx].contig
             v_ctglen = NtLink.scaffolds[v_ctg].length
-            b = v_ctglen - NtLink.list_mx_info[v_mx].position - self.args.k
+            b = v_ctglen - NtLink.list_mx_info[j_mx].position - self.args.k
 
         try:
             assert a >= 0
             assert b >= 0
         except AssertionError as assert_error:
-            print("ERROR: Gap distance estimation less than 0", "Vertex 1:", u_mx, "Vertex 2:", v_mx,
+            print("ERROR: Gap distance estimation less than 0", "Vertex 1:", i_mx, "Vertex 2:", j_mx,
                   sep="\n")
-            print("Minimizer positions:", NtLink.list_mx_info[u_mx].position,
-                  NtLink.list_mx_info[v_mx].position)
+            print("Minimizer positions:", NtLink.list_mx_info[i_mx].position,
+                  NtLink.list_mx_info[j_mx].position)
             print("Estimated distance: ", est_distance)
             raise assert_error
 
@@ -191,18 +191,20 @@ class NtLink():
         "Given a contig pair, normalizes, defines orientation and estimates the gap size"
 
         assert mx_edge.mx_i_pos < mx_edge.mx_j_pos
+        source_ctg = NtLink.list_mx_info[mx_edge.mx_i].contig
+        target_ctg = NtLink.list_mx_info[mx_edge.mx_j].contig
         if mx_edge.mx_i_strand == NtLink.list_mx_info[mx_edge.mx_i].strand:
-            source_ctg, source_ori = NtLink.list_mx_info[mx_edge.mx_i].contig, "+"
+            source_ori = "+"
         else:
-            source_ctg, source_ori = NtLink.list_mx_info[mx_edge.mx_i].contig, "-"
+            source_ori = "-"
         if mx_edge.mx_j_strand == NtLink.list_mx_info[mx_edge.mx_j].strand:
-            target_ctg, target_ori = NtLink.list_mx_info[mx_edge.mx_j].contig, "+"
+            target_ori = "+"
         else:
-            target_ctg, target_ori = NtLink.list_mx_info[mx_edge.mx_j].contig, "-"
+            target_ori = "-"
         new_pair = self.normalize_pair(source_ctg, source_ori, target_ctg, target_ori)
         gap_estimate = self.calculate_gap_size(mx_edge.mx_i, source_ori, mx_edge.mx_j, target_ori,
                                                mx_edge.mx_j_pos - mx_edge.mx_i_pos)
-        return (new_pair, gap_estimate)
+        return new_pair, gap_estimate
 
     def filter_weak_anchor_pairs(self, pairs):
         "Filter out edges where there isn't at least threshold # well-anchored reads"
@@ -322,14 +324,14 @@ class NtLink():
 
         return return_contigs_hits, return_contig_runs
 
-    def add_pair(self, accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_ont, check_added=None):
+    def add_pair(self, accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_read, check_added=None):
         "Add pair to dictionary of pairs"
         mx_i = accepted_anchor_contigs[ctg_i].terminal_mx
         mx_j = accepted_anchor_contigs[ctg_j].first_mx
         pair, gap_est = self.calculate_pair_info(MinimizerEdge(mx_i.mx_hash, mx_i.position, mx_i.strand,
                                                                mx_j.mx_hash, mx_j.position, mx_j.strand))
 
-        if abs(gap_est) > length_ont:
+        if abs(gap_est) > length_read:
             return None
         if check_added is not None and pair in check_added:
             return None
@@ -371,7 +373,7 @@ class NtLink():
                                                                                                 length_long_read)
                         if self.args.verbose and accepted_anchor_contigs and len(accepted_anchor_contigs) > 1:
                             print(line[0], [str(accepted_anchor_contigs[ctg_run])
-                                            for ctg_run in accepted_anchor_contigs])
+                                            for ctg_run in accepted_anchor_contigs], file=sys.stdout)
 
                         # Filter ordered minimizer list for accepted contigs, keep track of hashes for gap sizes
                         mx_pos_split = [mx_tup for mx_tup in mx_pos_split
