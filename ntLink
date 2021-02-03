@@ -51,20 +51,20 @@ SHELL=bash -e -o pipefail
 ifeq ($(shell zsh -e -o pipefail -c 'true' 2>/dev/null; echo $$?), 0)
 # Set pipefail to ensure that all commands of a pipe succeed.
 SHELL=zsh -e -o pipefail
-# Report run time and memory usage with zsh.
+# Report run ntLink_time and memory usage with zsh.
 export REPORTTIME=1
 export TIMEFMT=time user=%U system=%S elapsed=%E cpu=%P memory=%M job=%J
 endif
 
-# Record run time and memory usage in a file using GNU time
+# Record run ntLink_time and memory usage in a file using GNU ntLink_time
 v=0
 ifeq ($(v), 0)
-time=
+ntLink_time=
 else
 ifneq ($(shell command -v gtime),)
-time=command gtime -v -o $@.time
+ntLink_time=command gtime -v -o $@.time
 else
-time=command time -v -o $@.time
+ntLink_time=command time -v -o $@.time
 endif
 endif
 
@@ -133,34 +133,34 @@ version:
 .SECONDARY:
 
 %.k$(k).w$(w).tsv: %
-	$(time) $(ntlink_path)/src/indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) $< > $@
+	$(ntLink_time) $(ntlink_path)/src/indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) $< > $@
 
 %.fa.gz: %.fa
-	$(time) $(gzip) $<
+	$(ntLink_time) $(gzip) $<
 
 $(prefix).n$(n).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
-	$(time)  sh -c '$(gzip) -cd $(reads) | \
+	$(ntLink_time)  sh -c '$(gzip) -cd $(reads) | \
 	$(ntlink_path)/src/indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) - | \
   	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
 	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) -'
 
 # Run abyss-scaffold scaffolding layout
 $(prefix).n%.abyss-scaffold.path: $(prefix).n$(n).scaffold.dot
-	$(time) sh -c 'cat $(target) | \
+	$(ntLink_time) sh -c 'cat $(target) | \
 	cut -d " " -f1  | \
 	abyss-scaffold -k2 -n $* -s$(z) --min-gap $(g) - $< 1> $@ 2>$@.sterr'
 
 $(prefix).stitch.path: $(path_targets)
 ifeq ($(conservative), True)
-	$(time) $(ntlink_path)/bin/ntlink_stitch_paths.py --min_n $(n) --max_n $(max_n)  -p out \
+	$(ntLink_time) $(ntlink_path)/bin/ntlink_stitch_paths.py --min_n $(n) --max_n $(max_n)  -p out \
 	-g $(prefix).n$(n).scaffold.dot --conservative $^ 1> $@
 else
-	$(time) $(ntlink_path)/bin/ntlink_stitch_paths.py --min_n $(n) --max_n $(max_n)  -p out \
+	$(ntLink_time) $(ntlink_path)/bin/ntlink_stitch_paths.py --min_n $(n) --max_n $(max_n)  -p out \
 	-g $(prefix).n$(n).scaffold.dot $^ 1> $@
 endif
 	
 $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa: $(prefix).stitch.path
-	$(time) MergeContigs -k2 $(target) $< > $@
+	$(ntLink_time) MergeContigs -k2 $(target) $< > $@
 
 clean: $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa
 	rm $(prefix).n*.abyss-scaffold.path $(prefix).n*.abyss-scaffold.path.sterr
