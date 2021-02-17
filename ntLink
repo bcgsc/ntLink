@@ -113,7 +113,11 @@ ntLink_graph: $(target).k$(k).w$(w).tsv \
 	$(path_targets)
 
 abyss_scaffold: ntLink_graph \
-	$(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa
+	$(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa \
+	$(target).k$(k).w$(w).z$(z).ntLink.scaffolds.fa
+
+$(target).k$(k).w$(w).z$(z).ntLink.scaffolds.fa: $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa
+	ln -sf $< $@
 
 check_params:
 ifeq ($(reads), None)
