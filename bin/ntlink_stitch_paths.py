@@ -272,7 +272,7 @@ class NtLinkPath:
         for node in in_branch_nodes:
             max_weight_edge, max_weight = None, None
             incident_edges = graph.incident(node, mode=ig.IN) # pylint: disable=no-member
-            if all([graph.es()[edge]['path_id'] == "new" for edge in incident_edges]):
+            if all((graph.es()[edge]['path_id'] == "new" for edge in incident_edges)):
                 max_weight = max([graph.es()[edge]['n'] for edge in incident_edges])
                 max_weight_edges = [edge for edge in incident_edges if graph.es()[edge]['n'] == max_weight]
                 if len(max_weight_edges) == 1:
@@ -285,7 +285,7 @@ class NtLinkPath:
         for node in out_branch_nodes:
             max_weight_edge, max_weight = None, None
             incident_edges = graph.incident(node, mode=ig.OUT) # pylint: disable=no-member
-            if all([graph.es()[edge]['path_id'] == "new" for edge in incident_edges]):
+            if all((graph.es()[edge]['path_id'] == "new" for edge in incident_edges)):
                 max_weight = max([graph.es()[edge]['n'] for edge in incident_edges])
                 max_weight_edges = [edge for edge in incident_edges if graph.es()[edge]['n'] == max_weight]
                 if len(max_weight_edges) == 1:
@@ -350,7 +350,7 @@ class NtLinkPath:
         visited = set()
         return_paths = []
         for path in paths:
-            if not any([node.contig in visited for node in path]):
+            if not any((node.contig in visited for node in path)):
                 return_paths.append(path)
             for node in path:
                 visited.add(node.contig)
