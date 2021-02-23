@@ -145,7 +145,7 @@ class NtLinkPath:
     def is_contig(node, gap_re):
         "Returns true if the given node is a contig, so doesn't fit the regex of a gap node"
         gap_match = re.search(gap_re, node)
-        return gap_match
+        return not gap_match
 
 
     def add_transitive_support(self, scaffold_graph, path_sequence, path_graph, neighbourhood=4):
