@@ -2,7 +2,7 @@
 
 # ntLink: Scaffold assemblies using long reads and minimizers
 # Written by Lauren Coombe @lcoombe
-# ntLink v0.0.1
+# ntLink v1.0.0
 
 # Input files
 target=None
@@ -26,7 +26,7 @@ z=1000
 # Minimum edge weight
 n=1
 
-# Higher Minimum edge weight (for pairing)
+# Upper threshold for minimum edge weight (for pairing)
 max_n=10
 
 # Minimum gap size between scaffolds
@@ -56,7 +56,7 @@ export REPORTTIME=1
 export TIMEFMT=time user=%U system=%S elapsed=%E cpu=%P memory=%M job=%J
 endif
 
-# Record run ntLink_time and memory usage in a file using GNU ntLink_time
+# Record run ntLink_time and memory usage in a file using GNU time
 v=0
 ifeq ($(v), 0)
 ntLink_time=
@@ -78,7 +78,7 @@ endif
 help:
 	@echo ""
 	@echo "ntLink: Scaffolding assemblies using long reads"
-	@echo "ntLink v0.0.1"
+	@echo "ntLink v1.0.0"
 	@echo "Usage: ntLink scaffold target=<target scaffolds> reads='List of long read files'"
 	@echo ""
 	@echo "Options:"
@@ -87,7 +87,7 @@ help:
 	@echo "prefix			Prefix of intermediate output files [out.k<k>.w<w>.z<z>]"
 	@echo "t			Number of threads [4]"
 	@echo "k			K-mer size for minimizers [32]"
-	@echo "w			Window size for minimizers (bp) [100]"
+	@echo "w			Window size for minimizers [100]"
 	@echo "n			Minimum graph edge weight [1]"
 	@echo "g			Minimum gap size (bp) [20]"
 	@echo "f			Maximum number of contigs in a run for full transitive edge addition [10]"
@@ -97,7 +97,7 @@ help:
 	@echo "conservative		If False, runs ntLink in stitching mode [True]"
 	@echo ""
 	@echo "Note: "
-	@echo "	- Ensure all assembly and read files are in the current working directory, making soft links if neccessary"
+	@echo "	- Ensure all assembly and read files are in the current working directory, making soft links if necessary"
 	@echo ""
 
 scaffold: check_params \
@@ -105,7 +105,7 @@ scaffold: check_params \
 	abyss_scaffold \
 	clean
 
-#out.k32.w100.z1000.n2.abyss-scaffold.path
+# Example path file: out.k32.w100.z1000.n2.abyss-scaffold.path
 LIST = $(shell seq $(n) $(max_n))
 LIST_n = $(addprefix .n, $(LIST))
 path_targets = $(addsuffix .abyss-scaffold.path, $(addprefix $(prefix), $(LIST_n)))
@@ -128,7 +128,7 @@ ifeq ($(target), None)
 endif
 
 version:
-	@echo "ntLink v0.0.1"
+	@echo "ntLink v1.0.0"
 	@echo "Written by Lauren Coombe (lcoombe@bcgsc.ca)"
 
 

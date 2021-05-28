@@ -1,15 +1,15 @@
 # ntLink
-Long read assembly scaffolder using minimizers
+Long-read genome assembly scaffolder using minimizers
 
 ## Description of the algorithm
-ntLink uses minimizers to perform a lightweight mapping between the input target assembly and the supplied long reads. These long read mappings are then used as evidence to orient and order the input target assembly contigs.
+ntLink uses minimizers to perform a lightweight mapping between the input target assembly and the supplied long reads. These long-read mappings are then used as evidence to orient and order the output scaffolds.
 
 ### General steps in the algorithm:
 1. Compute ordered minimizer sketches of the input target assembly and long reads
-2. Use minimizers to map long reads to the target assembly contigs
-3. Find contig pairs, where joins are suggested by the long read mapping evidence
-4. Output a scaffold graph, where the nodes are contigs and the edges are joins suggested by the long read data
-5. Scaffold the assembly using the scaffold graph with `abyss-scaffold`
+2. Use minimizers to map the long reads to the target assembly contigs
+3. Find contig pairs, where joins are suggested by the long-read mapping evidence
+4. Output a scaffold graph, where the nodes are oriented contigs and the edges are joins suggested by the long read data
+5. Traverse the scaffold graph using `abyss-scaffold` to output the final scaffolds
 
 ## Credits
 Concept: Rene Warren and Lauren Coombe
@@ -19,7 +19,7 @@ Design and implementation: Lauren Coombe
 ## Usage
 ```
 ntLink: Scaffolding assemblies using long reads
-ntLink v0.0.1
+ntLink v1.0.0
 Usage: ntLink scaffold target=<target scaffolds> reads='List of long read files'
 
 Options:
@@ -28,7 +28,7 @@ reads		        List of long read files (separated by a space)
 prefix			Prefix of intermediate output files [out.k<k>.w<w>.n<n>]
 t			Number of threads [4]
 k			K-mer size for minimizers [32]
-w			Window size for minimizers (bp) [100]
+w			Window size for minimizers [100]
 n			Minimum graph edge weight [1]
 g			Minimum gap size (bp) [20]
 f			Maximum number of contigs in a run for full transitive edge addition [10]
@@ -38,7 +38,7 @@ v                       If 1, track time and memory for each step of the pipelin
 conservative		If False, runs ntLink in stitching mode [True]
 
 Note: 
-	- Ensure all assembly and read files are in the current working directory, making soft links if neccessary
+	- Ensure all assembly and read files are in the current working directory, making soft links if necessary
 ```
 
 Running `ntLink help` prints the help documentation.
@@ -48,11 +48,11 @@ Running `ntLink help` prints the help documentation.
 ### Example
 Input files:
 * target assembly `my_assembly.fa`
-* long read files `long_reads_1.fq.gz`, `long_reads_2.fq.gz`
+* long read file `long_reads.fq.gz`
 
 ntLink command:
 ```
-ntLink scaffold target=my_assembly.fa reads='long_reads_1.fq.gz long_reads_2.fq.gz' k=32 w=500
+ntLink scaffold target=my_assembly.fa reads=long_reads.fq.gz k=32 w=500
 ```
  ## Installation
  Installing from source code:
