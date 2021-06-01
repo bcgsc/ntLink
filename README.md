@@ -54,6 +54,9 @@ ntLink command:
 ```
 ntLink scaffold target=my_assembly.fa reads=long_reads.fq.gz k=32 w=500
 ```
+
+The post-ntLink scaffolds file will have the suffix `*ntLink.scaffolds.fa`
+
  ## Installation
  Installing from source code:
  ```
