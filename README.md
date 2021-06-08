@@ -1,4 +1,4 @@
-![Logo](https://github.com/bcgsc/ntLink/blob/logo/ntlink-logo.png)
+![Logo](https://github.com/bcgsc/ntLink/blob/master/ntlink-logo.png)
 
 ## Scaffolding genome assemblies using long reads and minimizers
 
