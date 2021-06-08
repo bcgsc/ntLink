@@ -1,6 +1,5 @@
 ![Logo](https://github.com/bcgsc/ntLink/blob/logo/ntlink-logo.png)
 
-# ntLink
 Long-read genome assembly scaffolder using minimizers
 
 ## Description of the algorithm
