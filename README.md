@@ -17,6 +17,11 @@ Concept: Rene Warren and Lauren Coombe
 
 Design and implementation: Lauren Coombe
 
+## Citing ntLink
+If you use ntLink in your research, please cite:
+
+Coombe L, Li JX, Lo T, Wong J, Nikolic V, Warren RL and Birol I. LongStitch: High-quality genome assembly correction and scaffolding using long reads. bioRxiv. 2021;2021.06.17.448848. doi: https://doi.org/10.1101/2021.06.17.448848.
+
 ## Usage
 ```
 ntLink: Scaffolding assemblies using long reads
