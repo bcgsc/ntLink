@@ -57,7 +57,7 @@ Input files:
 
 ntLink command:
 ```
-ntLink scaffold target=my_assembly.fa reads=long_reads.fq.gz k=32 w=500
+ntLink scaffold target=my_assembly.fa reads=long_reads.fq.gz k=32 w=250
 ```
 
 The post-ntLink scaffolds file will have the suffix `*ntLink.scaffolds.fa`
@@ -80,7 +80,7 @@ The expected output files can be found in: `tests/expected_outputs`
 
 ## Dependencies
 * Python3 ([Numpy](https://numpy.org/), [Python-igraph](https://igraph.org/python/))
-* [ABySS](https://github.com/bcgsc/abyss)
+* [ABySS v2.3.0+](https://github.com/bcgsc/abyss)
 * GCC 5+ or Clang 4+ with OpenMP
 * [zlib](https://zlib.net/)
 
