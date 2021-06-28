@@ -2,7 +2,7 @@
 
 # ntLink: Scaffold assemblies using long reads and minimizers
 # Written by Lauren Coombe @lcoombe
-# ntLink v1.0.0
+# ntLink v1.0.1
 
 # Input files
 target=None
@@ -78,7 +78,7 @@ endif
 help:
 	@echo ""
 	@echo "ntLink: Scaffolding assemblies using long reads"
-	@echo "ntLink v1.0.0"
+	@echo "ntLink v1.0.1"
 	@echo "Usage: ntLink scaffold target=<target scaffolds> reads='List of long read files'"
 	@echo ""
 	@echo "Options:"
@@ -129,7 +129,7 @@ ifeq ($(target), None)
 endif
 
 version:
-	@echo "ntLink v1.0.0"
+	@echo "ntLink v1.0.1"
 	@echo "Written by Lauren Coombe (lcoombe@bcgsc.ca)"
 
 

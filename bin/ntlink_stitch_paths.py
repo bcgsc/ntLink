@@ -503,7 +503,7 @@ class NtLinkPath:
         parser.add_argument("--transitive", help="Require transitive support for edges?", action="store_true")
         parser.add_argument("--conservative", help="Conservative mode - take optimal N50 paths, no stitching",
                             action="store_true")
-        parser.add_argument("-v", "--version", action='version', version='ntLink v1.0.0')
+        parser.add_argument("-v", "--version", action='version', version='ntLink v1.0.1')
 
         return parser.parse_args()
 
