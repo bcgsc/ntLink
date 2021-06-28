@@ -118,6 +118,7 @@ abyss_scaffold: ntLink_graph \
 
 $(target).k$(k).w$(w).z$(z).ntLink.scaffolds.fa: $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa
 	ln -sf $< $@
+	echo "Done ntLink! Final post-ntLink scaffolds can be found in: $@"
 
 check_params:
 ifeq ($(reads), None)
