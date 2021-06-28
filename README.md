@@ -25,7 +25,6 @@ Coombe L, Li JX, Lo T, Wong J, Nikolic V, Warren RL and Birol I. LongStitch: Hig
 ## Usage
 ```
 ntLink: Scaffolding assemblies using long reads
-ntLink v1.0.0
 Usage: ntLink scaffold target=<target scaffolds> reads='List of long read files'
 
 Options:
