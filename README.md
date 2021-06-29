@@ -63,6 +63,18 @@ ntLink scaffold target=my_assembly.fa reads=long_reads.fq.gz k=32 w=250
 The post-ntLink scaffolds file will have the suffix `*ntLink.scaffolds.fa`
 
  ## Installation
+ ntLink is available from conda and homebrew package managers.
+ 
+ Installing using conda:
+ ```
+ conda install -c bioconda ntlink
+ ```
+ 
+ Installing using brew:
+ ```
+ brew install brewsci/bio/ntlink
+ ```
+ 
  Installing from source code:
  ```
 git clone https://github.com/bcgsc/ntLink.git
