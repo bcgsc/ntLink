@@ -8,7 +8,7 @@ from collections import defaultdict
 import sys
 
 from ntjoin_assemble import *
-from ntlink_stitch_paths import read_scaffold_graph
+from ntlink_stitch_paths import NtLinkPath
 
 '''
 Use minimizers to overlap the sequence pairs that are likely overlapping
@@ -289,7 +289,7 @@ def main():
     args = parser.parse_args()
 
     scaffolds = Ntjoin.read_fasta_file(args.s)
-    graph = read_scaffold_graph(args.d)
+    graph = NtLinkPath.read_scaffold_graph(args.d)
 
     # !! TODO only load minimizers into file that are useful
 
