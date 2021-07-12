@@ -1,0 +1,298 @@
+#!/usr/bin/env python3
+import argparse
+import datetime
+import igraph as ig
+import numpy as np
+from collections import defaultdict
+import sys
+
+
+from ntjoin_assemble import *
+
+'''
+Use minimizers to overlap the sequence pairs that are likely overlapping
+'''
+
+
+def edge_index(graph, source_name, target_name):
+    "Returns graph edge index based on source/target names"
+    return graph.get_eid(source_name, target_name)
+
+def calc_total_weight(list_files, weights):
+    "Calculate the total weight of an edge given the assembly support"
+    return sum([weights[f] for f in list_files])
+
+def set_edge_attributes(graph, edge_attributes):
+    "Sets the edge attributes for a python-igraph graph"
+    graph.es()["support"] = [edge_attributes[e]['support'] for e in sorted(edge_attributes.keys())]
+    graph.es()["weight"] = [edge_attributes[e]['weight'] for e in sorted(edge_attributes.keys())]
+
+def vertex_name(graph, index):
+    "Returns vertex name based on vertex id"
+    return graph.vs[index]['name']
+
+def read_minimizers(tsv_filename):
+    "Read the minimizers from a file, removing duplicate minimizers for a given contig"
+    print(datetime.datetime.today(), ": Reading minimizers", tsv_filename, file=sys.stdout)
+    mx_info = defaultdict(dict)  # contig -> mx -> (contig, position)
+    mx_info_filt = defaultdict(dict)
+    mxs = {}  # Contig -> [list of minimizers]
+    with open(tsv_filename, 'r') as tsv:
+        for line in tsv:
+            dup_mxs = set()  # Set of minimizers identified as duplicates
+            line = line.strip().split("\t")
+            if len(line) > 1:
+                name = line[0]
+                mx_pos_split = line[1].split(" ")
+                for mx_pos in mx_pos_split:
+                    mx, pos = mx_pos.split(":")
+                    if name in mx_info and mx in mx_info[name]:  # This is a duplicate, add to dup set, don't add to dict
+                        dup_mxs.add(mx)
+                    else:
+                        mx_info[name][mx] = (name, int(pos))
+                mxs[name] = [[mx_pos.split(":")[0] for mx_pos in mx_pos_split if mx_pos.split(":")[0] not in dup_mxs]]
+                mx_info_filt[name] = {}
+                mx_info_filt[name] = {mx: mx_info[name][mx] for mx in mx_info[name] if mx not in dup_mxs}
+
+    return mx_info_filt, mxs
+
+
+
+def print_graph(graph, list_mx_info):
+    "Prints the minimizer graph in dot format"
+    out_graph ="test_graph" + ".mx.dot"
+    outfile = open(out_graph, 'w')
+    print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
+
+    outfile.write("graph G {\n")
+
+    colours = ["red", "green", "blue", "purple", "orange",
+               "turquoise", "pink", "yellow", "orchid", "salmon"]
+    list_files = list(list_mx_info.keys())
+    if len(list_files) > len(colours):
+        colours = ["red"]*len(list_files)
+
+    for node in graph.vs():
+        mx_ctg_pos_labels = "\n".join([str(list_mx_info[assembly][node['name']])
+                                       for assembly in list_mx_info if node['name'] in list_mx_info[assembly]])
+        node_label = "\"%s\" [label=\"%s\n%s\"]" % (node['name'], node['name'], mx_ctg_pos_labels)
+        outfile.write("%s\n" % node_label)
+
+    for edge in graph.es():
+        outfile.write("\"%s\" -- \"%s\"" %
+                      (vertex_name(graph, edge.source),
+                       vertex_name(graph, edge.target)))
+        weight = edge['weight']
+        support = edge['support']
+        if len(support) == 1:
+            colour = colours[list_files.index(support[0])]
+        elif len(support) == 2:
+            colour = "lightgrey"
+        else:
+            colour = "black"
+        outfile.write(" [weight=%s color=%s]\n" % (weight, colour))
+
+    outfile.write("}\n")
+
+    print("\nfile_name\tnumber\tcolour")
+    for i, filename in enumerate(list_files):
+        print(filename, i, colours[i], sep="\t")
+    print("")
+
+def build_graph(list_mxs, weights):
+    "Builds an undirected graph: nodes=minimizers; edges=between adjacent minimizers"
+    print(datetime.datetime.today(), ": Building graph", file=sys.stdout)
+    graph = ig.Graph()
+
+    vertices = set()
+    edges = defaultdict(dict)  # source -> target -> [list assembly support]
+
+    for assembly in list_mxs:
+        for assembly_mx_list in list_mxs[assembly]:
+            for i, j in zip(range(0, len(assembly_mx_list)),
+                            range(1, len(assembly_mx_list))):
+                if assembly_mx_list[i] in edges and \
+                        assembly_mx_list[j] in edges[assembly_mx_list[i]]:
+                    edges[assembly_mx_list[i]][assembly_mx_list[j]].append(assembly)
+                elif assembly_mx_list[j] in edges and \
+                        assembly_mx_list[i] in edges[assembly_mx_list[j]]:
+                    edges[assembly_mx_list[j]][assembly_mx_list[i]].append(assembly)
+                else:
+                    edges[assembly_mx_list[i]][assembly_mx_list[j]] = [assembly]
+                vertices.add(assembly_mx_list[i])
+            if assembly_mx_list:
+                vertices.add(assembly_mx_list[-1])
+
+    formatted_edges = [(s, t) for s in edges for t in edges[s]]
+
+    print(datetime.datetime.today(), ": Adding vertices", file=sys.stdout)
+    graph.add_vertices(list(vertices))
+
+    print(datetime.datetime.today(), ": Adding edges", file=sys.stdout)
+    graph.add_edges(formatted_edges)
+
+    print(datetime.datetime.today(), ": Adding attributes", file=sys.stdout)
+    edge_attributes = {edge_index(graph, s, t): {"support": edges[s][t],
+                                                      "weight": calc_total_weight(edges[s][t],
+                                                                                       weights)}
+                       for s in edges for t in edges[s]}
+    set_edge_attributes(graph, edge_attributes)
+
+    return graph
+
+def is_graph_linear(graph):
+    "Given a graph, return True if all the components are linear"
+    for component in graph.components():
+        component_graph = graph.subgraph(component)
+        if not all(u.degree() < 3 for u in component_graph.vs()):
+            return False
+    return True
+
+def filter_graph_global(graph, n):
+    "Filter the graph globally based on minimum edge weight"
+    print(datetime.datetime.today(), ": Filtering the graph", file=sys.stdout)
+    to_remove_edges = [edge.index for edge in graph.es()
+                       if edge['weight'] < n]
+    new_graph = graph.copy()
+    new_graph.delete_edges(to_remove_edges)
+    return new_graph
+
+
+def is_valid_pos(mx, mx_pos, start, end):
+    if mx_pos[mx][1] >= start and mx_pos[mx][1] <= end:
+        return True
+    return False
+
+
+def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds, list_mx_info, fudge_factor):
+    "Filter to keep minimizers in particular positions"
+    list_mxs_pair_return = {}
+    source_noori, source_ori = source.strip("+-"), source[-1]
+    target_noori, target_ori = target.strip("+-"), target[-1]
+
+    if source_ori == "+":
+        start, end = (scaffolds[source_noori].length - overlap*-1 - 15) - int(overlap*-1*fudge_factor), \
+                     scaffolds[source_noori].length
+    else:
+        start, end = 0, int(overlap*-1*(fudge_factor+1))
+    print(source, start, end)
+    print(list_mxs_pair[source_noori])
+    list_mxs_pair_return[source_noori] = [[mx for mx in list_mxs_pair[source_noori][0]
+                                     if is_valid_pos(mx, list_mx_info[source_noori], start, end)]]
+
+    if target_ori == "-":
+        start, end = scaffolds[target_noori].length - overlap*-1 - 15 - int(overlap*-1*fudge_factor), \
+                     scaffolds[target_noori].length
+    else:
+        start, end = 0, int(overlap*-1*(fudge_factor+1))
+    print(target, start, end)
+    list_mxs_pair_return[target_noori] = [[mx for mx in list_mxs_pair[target_noori][0]
+                                     if is_valid_pos(mx, list_mx_info[target_noori], start, end)]]
+
+    list_mxs_pair_return = Ntjoin.filter_minimizers(list_mxs_pair_return)
+
+    return list_mxs_pair_return
+
+
+
+def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, fudge_factor):
+    source_noori = source.strip("+-")
+    target_noori = target.strip("+-")
+
+    weights = {source_noori: 1, target_noori: 1}
+
+    list_mxs_pair = {name: list_mxs[name] for name in list_mxs if (name == source_noori or name == target_noori)}
+
+    list_mxs_pair = Ntjoin.filter_minimizers(list_mxs_pair)
+
+    list_mxs_pair = filter_minimizers_position(list_mxs_pair, source, target, gap, scaffolds, list_mx_info, fudge_factor)
+
+    print(list_mxs_pair)
+    graph = build_graph(list_mxs_pair, weights)
+    print_graph(graph, list_mx_info)
+
+    graph = filter_graph_global(graph, 2)
+
+    # Print the DOT graph
+    print_graph(graph, list_mx_info)
+
+    paths_components = []
+    for component in graph.components():
+        component_graph = graph.subgraph(component)
+        source_nodes = [node.index for node in component_graph.vs() if node.degree() == 1]
+        singleton_node = [node.index for node in component_graph.vs() if node.degree() == 0]
+        if len(source_nodes) == 2:
+            source_comp, target_comp = source_nodes
+            if vertex_name(component_graph, source_comp) > vertex_name(component_graph, target_comp):
+                source_tmp = source_comp
+                source_comp = target_comp
+                target_comp = source_tmp
+            paths = component_graph.get_shortest_paths(source_comp, target_comp)
+
+            if len(paths) > 1:
+                print("NOTE: more than one path found")
+            path = paths[0]
+            source_start, target_start = [list_mx_info[assembly][vertex_name(component_graph, path[0])][1] for assembly in [source_noori, target_noori]]
+            source_end, target_end = [list_mx_info[assembly][vertex_name(component_graph, path[-1])][1] for assembly in [source_noori, target_noori]]
+            source_align_len = abs(source_start - source_end)
+            target_align_len = abs(target_start - target_end)
+
+            path = [vertex_name(component_graph, mx) for mx in path]
+            paths_components.append((path, np.median([source_align_len, target_align_len])))
+        elif singleton_node:
+            paths_components.append((vertex_name(component_graph, singleton_node), 1))
+
+    print(sorted(paths_components, key=lambda x: x[1], reverse=True))
+    path = sorted(paths_components, key=lambda x: x[1], reverse=True)[0][0]
+    mx = path[int(len(path)/2)]
+    cuts = {list_mx_info[assembly][mx][0]: list_mx_info[assembly][mx][1] for assembly in [source_noori, target_noori]}
+
+    if not cuts:
+        return
+    source_cut = cuts[source.strip("+-")]
+    target_cut = cuts[target.strip("+-")]
+
+    print(source, source_cut)
+    print(target, target_cut)
+
+    if source[-1] == "+":
+        source_piece = scaffolds[source.strip("+-")].sequence[:source_cut]
+    else:
+        source_piece = Ntjoin.reverse_complement(scaffolds[source.strip("+-")].sequence[source_cut + 15:])
+
+    if target[-1] == "+":
+        target_piece = scaffolds[target.strip("+-")].sequence[target_cut:]
+    else:
+        target_piece = Ntjoin.reverse_complement(scaffolds[target.strip("+-")].sequence[:target_cut + 15])
+
+    print(f">{source}", source_piece, sep="\n", file=sys.stderr)
+    print(f">{target}", target_piece, sep="\n", file=sys.stderr)
+
+    print(f">out_seq_{source}{target}", source_piece + "N" + target_piece, sep="\n", file=sys.stderr)
+
+
+def main():
+    print("Assessing putative overlaps...")
+
+    parser = argparse.ArgumentParser(description="Find coordinates for combining overlapping sequences")
+    parser.add_argument("-m", help="Minimizer TSV file", type=str, required=True)
+    parser.add_argument("-f", help="Fudge factor for estimated overlap [0.5]", type=float, default=0.5)
+    parser.add_argument("-p", help="Pairs TSV", required=True, type=str)
+    parser.add_argument("-s", help="Scaffold sequences", required=True, type=str)
+
+    args = parser.parse_args()
+
+    mxs_info, mxs = read_minimizers(args.m)
+
+    scaffolds = Ntjoin.read_fasta_file(args.s)
+
+    with open(args.p, 'r') as pairs_fin:
+        for pair in pairs_fin:
+            source, target, gap = pair.strip().split("\t")
+            merge_overlapping(mxs, mxs_info, source, target, int(gap), scaffolds, args.f)
+
+
+
+if __name__ == '__main__':
+    main()
+
