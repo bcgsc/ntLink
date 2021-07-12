@@ -3,11 +3,12 @@ import argparse
 import datetime
 import igraph as ig
 import numpy as np
+import re
 from collections import defaultdict
 import sys
 
-
 from ntjoin_assemble import *
+from ntlink_stitch_paths import read_scaffold_graph
 
 '''
 Use minimizers to overlap the sequence pairs that are likely overlapping
@@ -58,9 +59,9 @@ def read_minimizers(tsv_filename):
 
 
 
-def print_graph(graph, list_mx_info):
+def print_graph(graph, list_mx_info, prefix):
     "Prints the minimizer graph in dot format"
-    out_graph ="test_graph" + ".mx.dot"
+    out_graph = prefix + ".mx.dot"
     outfile = open(out_graph, 'w')
     print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
 
@@ -195,7 +196,7 @@ def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds
 
 
 
-def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, fudge_factor):
+def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, args):
     source_noori = source.strip("+-")
     target_noori = target.strip("+-")
 
@@ -205,16 +206,15 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, fu
 
     list_mxs_pair = Ntjoin.filter_minimizers(list_mxs_pair)
 
-    list_mxs_pair = filter_minimizers_position(list_mxs_pair, source, target, gap, scaffolds, list_mx_info, fudge_factor)
+    list_mxs_pair = filter_minimizers_position(list_mxs_pair, source, target, gap, scaffolds, list_mx_info, args.f)
 
-    print(list_mxs_pair)
     graph = build_graph(list_mxs_pair, weights)
-    print_graph(graph, list_mx_info)
+    print_graph(graph, list_mx_info, args.p)
 
     graph = filter_graph_global(graph, 2)
 
     # Print the DOT graph
-    print_graph(graph, list_mx_info)
+    print_graph(graph, list_mx_info, args.p)
 
     paths_components = []
     for component in graph.components():
@@ -258,17 +258,20 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, fu
     if source[-1] == "+":
         source_piece = scaffolds[source.strip("+-")].sequence[:source_cut]
     else:
-        source_piece = Ntjoin.reverse_complement(scaffolds[source.strip("+-")].sequence[source_cut + 15:])
+        source_piece = scaffolds[source.strip("+-")].sequence[source_cut + 15:]
 
     if target[-1] == "+":
         target_piece = scaffolds[target.strip("+-")].sequence[target_cut:]
     else:
-        target_piece = Ntjoin.reverse_complement(scaffolds[target.strip("+-")].sequence[:target_cut + 15])
+        target_piece = scaffolds[target.strip("+-")].sequence[:target_cut + 15]
 
-    print(f">{source}", source_piece, sep="\n", file=sys.stderr)
-    print(f">{target}", target_piece, sep="\n", file=sys.stderr)
+    scaffolds[source.strip("+-")] = Ntjoin.Scaffold(id=source.strip("+-"), sequence=source_piece, length=len(source_piece))
+    scaffolds[target.strip("+-")] = Ntjoin.Scaffold(id=target.strip("+-"), sequence=target_piece, length=len(target_piece))
 
-    print(f">out_seq_{source}{target}", source_piece + "N" + target_piece, sep="\n", file=sys.stderr)
+    # print(f">{source}", source_piece, sep="\n", file=sys.stderr)
+    # print(f">{target}", target_piece, sep="\n", file=sys.stderr)
+    #
+    # print(f">out_seq_{source}{target}", source_piece + "N" + target_piece, sep="\n", file=sys.stderr)
 
 
 def main():
@@ -277,19 +280,56 @@ def main():
     parser = argparse.ArgumentParser(description="Find coordinates for combining overlapping sequences")
     parser.add_argument("-m", help="Minimizer TSV file", type=str, required=True)
     parser.add_argument("-f", help="Fudge factor for estimated overlap [0.5]", type=float, default=0.5)
-    parser.add_argument("-p", help="Pairs TSV", required=True, type=str)
+    parser.add_argument("-a", help="Path file", required=True, type=str)
     parser.add_argument("-s", help="Scaffold sequences", required=True, type=str)
+    parser.add_argument("-d", help="Scaffold dot file", required=True, type=str)
+    parser.add_argument("-g", help="Minimum gap size (20)", default=20, type=int)
+    parser.add_argument("-p", help="Output file prefix [ntlink_merge]", default="ntlink_merge", type=str)
 
     args = parser.parse_args()
 
+    scaffolds = Ntjoin.read_fasta_file(args.s)
+    graph = read_scaffold_graph(args.d)
+
+    # !! TODO only load minimizers into file that are useful
+
     mxs_info, mxs = read_minimizers(args.m)
 
-    scaffolds = Ntjoin.read_fasta_file(args.s)
+    gap_re = re.compile(r'^(\d+)N$')
 
-    with open(args.p, 'r') as pairs_fin:
-        for pair in pairs_fin:
-            source, target, gap = pair.strip().split("\t")
-            merge_overlapping(mxs, mxs_info, source, target, int(gap), scaffolds, args.f)
+    out_pathfile = open(args.p + ".path", 'r')
+
+    with open(args.a, 'r') as path_fin:
+        for path in path_fin:
+            new_path = []
+            path_id, path_seq = path.strip().split("\t")
+            path_seq = path_seq.split(" ")
+            for i, j, k in zip(path_seq, path_seq[1:], path_seq[2:]):
+                source, gap, target = i, j, k
+                gap_match = re.search(gap_re, gap)
+                if not gap_match:
+                    continue
+                if int(gap_match.group(1)) <= args.g + 1 and graph.es()[edge_index(graph, source, target)]["d"]  < 0:
+                    gap = graph.es()[edge_index(graph, source, target)]["d"]
+                    merge_overlapping(mxs, mxs_info, source, target, gap, scaffolds, args) #!! TODO: output file name
+                    gap = "{}N".format(2)
+                if not new_path:
+                    new_path.append(source)
+                new_path.append(gap)
+                new_path.append(target)
+            out_pathfile.write("{path_id}\t{ctgs}".format(path_id=path_id, ctgs=" ".join(new_path)))
+    out_pathfile.close()
+
+    # Print out all scaffolds
+    fasta_outfile = open(args.p + ".trimmed_scafs.fa", 'w')
+    for scaffold in scaffolds:
+        print(">{}\n{}".format(scaffold.id, scaffold.sequence))
+    fasta_outfile.close()
+
+    # with open(args.a, 'r') as pairs_fin:
+    #     for pair in pairs_fin:
+    #         source, target, gap = pair.strip().split("\t")
+    #         merge_overlapping(mxs, mxs_info, source, target, int(gap), scaffolds, args.f)
 
 
 
