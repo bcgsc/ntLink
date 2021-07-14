@@ -313,7 +313,7 @@ def main():
                 if int(gap_match.group(1)) <= args.g + 1 and graph.es()[edge_index(graph, source, target)]["d"]  < 0:
                     gap = graph.es()[edge_index(graph, source, target)]["d"]
                     merge_overlapping(mxs, mxs_info, source, target, gap, scaffolds, args) #!! TODO: output file name
-                    gap = "{}N".format(2)
+                    gap = "{}N".format(2) #!! TODO: make parameter
                 if not new_path:
                     new_path.append(source)
                 new_path.append(gap)
