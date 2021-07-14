@@ -62,7 +62,7 @@ def read_minimizers(tsv_filename):
 def print_graph(graph, list_mx_info, prefix):
     "Prints the minimizer graph in dot format"
     out_graph = prefix + ".mx.dot"
-    outfile = open(out_graph, 'w')
+    outfile = open(out_graph, 'a')
     print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
 
     outfile.write("graph G {\n")
@@ -209,12 +209,12 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
     list_mxs_pair = filter_minimizers_position(list_mxs_pair, source, target, gap, scaffolds, list_mx_info, args.f)
 
     graph = build_graph(list_mxs_pair, weights)
-    print_graph(graph, list_mx_info, args.p)
 
     graph = filter_graph_global(graph, 2)
 
     # Print the DOT graph
-    print_graph(graph, list_mx_info, args.p)
+    if args.v:
+        print_graph(graph, list_mx_info, args.p)
 
     paths_components = []
     for component in graph.components():
@@ -265,8 +265,8 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
     else:
         target_piece = scaffolds[target.strip("+-")].sequence[:target_cut + 15]
 
-    scaffolds[source.strip("+-")] = Ntjoin.Scaffold(id=source.strip("+-"), sequence=source_piece, length=len(source_piece))
-    scaffolds[target.strip("+-")] = Ntjoin.Scaffold(id=target.strip("+-"), sequence=target_piece, length=len(target_piece))
+    scaffolds[source.strip("+-")] = Scaffold(id=source.strip("+-"), sequence=source_piece, length=len(source_piece))
+    scaffolds[target.strip("+-")] = Scaffold(id=target.strip("+-"), sequence=target_piece, length=len(target_piece))
 
     # print(f">{source}", source_piece, sep="\n", file=sys.stderr)
     # print(f">{target}", target_piece, sep="\n", file=sys.stderr)
@@ -283,8 +283,9 @@ def main():
     parser.add_argument("-a", help="Path file", required=True, type=str)
     parser.add_argument("-s", help="Scaffold sequences", required=True, type=str)
     parser.add_argument("-d", help="Scaffold dot file", required=True, type=str)
-    parser.add_argument("-g", help="Minimum gap size (20)", default=20, type=int)
+    parser.add_argument("-g", help="Minimum gap size [20]", default=20, type=int)
     parser.add_argument("-p", help="Output file prefix [ntlink_merge]", default="ntlink_merge", type=str)
+    parser.add_argument("-v", help="Verbose output logging", action="store_true")
 
     args = parser.parse_args()
 
@@ -297,7 +298,7 @@ def main():
 
     gap_re = re.compile(r'^(\d+)N$')
 
-    out_pathfile = open(args.p + ".path", 'r')
+    out_pathfile = open(args.p + ".path", 'w')
 
     with open(args.a, 'r') as path_fin:
         for path in path_fin:
@@ -317,13 +318,14 @@ def main():
                     new_path.append(source)
                 new_path.append(gap)
                 new_path.append(target)
-            out_pathfile.write("{path_id}\t{ctgs}".format(path_id=path_id, ctgs=" ".join(new_path)))
+            out_pathfile.write("{path_id}\t{ctgs}\n".format(path_id=path_id, ctgs=" ".join(new_path)))
     out_pathfile.close()
 
     # Print out all scaffolds
     fasta_outfile = open(args.p + ".trimmed_scafs.fa", 'w')
-    for scaffold in scaffolds:
-        print(">{}\n{}".format(scaffold.id, scaffold.sequence))
+    for out_scaffold in scaffolds:
+        scaffold = scaffolds[out_scaffold]
+        fasta_outfile.write(">{}\n{}\n".format(scaffold.id, scaffold.sequence))
     fasta_outfile.close()
 
     # with open(args.a, 'r') as pairs_fin:
