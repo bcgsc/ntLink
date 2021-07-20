@@ -266,13 +266,12 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
     else:
         target_piece = scaffolds[target.strip("+-")].sequence[:target_cut + 15]
 
+    if len(source_piece) == 0:
+        source_piece = "N"
+    if len(target_piece) == 0:
+        target_piece = "N"
     scaffolds[source.strip("+-")] = Scaffold(id=source.strip("+-"), sequence=source_piece, length=len(source_piece))
     scaffolds[target.strip("+-")] = Scaffold(id=target.strip("+-"), sequence=target_piece, length=len(target_piece))
-
-    # print(f">{source}", source_piece, sep="\n", file=sys.stderr)
-    # print(f">{target}", target_piece, sep="\n", file=sys.stderr)
-    #
-    # print(f">out_seq_{source}{target}", source_piece + "N" + target_piece, sep="\n", file=sys.stderr)
 
 
 def main():
@@ -328,12 +327,6 @@ def main():
         scaffold = scaffolds[out_scaffold]
         fasta_outfile.write(">{}\n{}\n".format(scaffold.id, scaffold.sequence))
     fasta_outfile.close()
-
-    # with open(args.a, 'r') as pairs_fin:
-    #     for pair in pairs_fin:
-    #         source, target, gap = pair.strip().split("\t")
-    #         merge_overlapping(mxs, mxs_info, source, target, int(gap), scaffolds, args.f)
-
 
 
 if __name__ == '__main__':
