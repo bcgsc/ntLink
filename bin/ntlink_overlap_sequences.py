@@ -241,7 +241,8 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
             paths_components.append((path, np.median([source_align_len, target_align_len])))
         elif singleton_node:
             paths_components.append((vertex_name(component_graph, singleton_node), 1))
-
+    if not paths_components:
+        return
     print(sorted(paths_components, key=lambda x: x[1], reverse=True))
     path = sorted(paths_components, key=lambda x: x[1], reverse=True)[0][0]
     mx = path[int(len(path)/2)]

@@ -146,7 +146,7 @@ version:
 $(prefix).n$(n).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
 	$(ntLink_time)  sh -c '$(gzip) -cd $(reads) | \
 	$(ntlink_path)/src/indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) - | \
-  	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
+	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
 	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) -'
 
 # Run abyss-scaffold scaffolding layout
@@ -165,11 +165,11 @@ else
 endif
 
 $(target).k15.w5.tsv: $(target)
-    $(ntLink_time) $(ntlink_path)/src/indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) $< > $@
+	$(ntLink_time) $(ntlink_path)/src/indexlr --long --pos -k 15 -w 5 -t $(t) $< > $@
 
 $(prefix).trimmed_scafs.fa: $(target).k15.w5.tsv $(prefix).stitch.path $(prefix).n$(n).scaffold.dot
-    $(ntLink_time) $(ntlink_path)/bin/ntlink_overlap_sequences.py -m $(target).k15.w5.tsv  -a $(prefix).stitch.path \
-    -s $(target) -d $(prefix).n$(n).scaffold.dot -p $(prefix) -g $(g)
+	$(ntLink_time) $(ntlink_path)/bin/ntlink_overlap_sequences.py -m $(target).k15.w5.tsv  -a $(prefix).stitch.path \
+	-s $(target) -d $(prefix).n$(n).scaffold.dot -p $(prefix) -g $(g)
 	
 $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa: $(prefix).stitch.path $(prefix).trimmed_scafs.fa
 	$(ntLink_time) MergeContigs -k2 $(prefix).trimmed_scafs.fa $< > $@
