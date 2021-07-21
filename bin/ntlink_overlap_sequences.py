@@ -25,7 +25,12 @@ class Scaffold:
         self._source_cut = len(sequence)
         self._target_cut = 0
 
+
     @property
+    def ori(self):
+        return self._ori
+
+    @ori.setter
     def ori(self, orientation):
         if self._ori is not None and self._ori != orientation:
             raise AssertionError("Ori is already set")
@@ -33,29 +38,28 @@ class Scaffold:
             raise ValueError("Orientation must be + or -")
         self._ori = orientation
 
-    @ori.setter
-    def ori(self):
-        return self._ori
-
     @property
+    def source_cut(self):
+        return self._source_cut
+
+    @source_cut.setter
     def source_cut(self, pos):
         if self._source_cut != len(self.sequence):
             raise AssertionError("Source cut is already set")
         self._source_cut = pos
 
-    @source_cut.setter
-    def source_cut(self):
-        return self._source_cut
 
     @property
+    def target_cut(self):
+        return self._target_cut
+
+    @target_cut.setter
     def target_cut(self, pos):
         if self._target_cut != 0:
             raise AssertionError("Target cut is already set")
         self._target_cut = pos
 
-    @target_cut.setter
-    def target_cut(self):
-        return self._target_cut
+
 
 
 def edge_index(graph, source_name, target_name):
@@ -249,8 +253,8 @@ def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds
 def set_scaffold_info(ctg_ori, pos, scaffolds, cut_type):
     "Set the cut and orientation information about the scaffold"
     ctg = ctg_ori.strip("+-")
-    ori = ctg_ori[-1]
-    scaffolds[ctg].ori = ori
+    orientation = ctg_ori[-1]
+    scaffolds[ctg].ori = orientation
     if cut_type == "source":
         scaffolds[ctg].source_cut = pos
     elif cut_type == "target":
@@ -334,7 +338,7 @@ def main():
 
     args = parser.parse_args()
 
-    scaffolds = Ntjoin.read_fasta_file(args.s)
+    scaffolds = read_fasta_file(args.s)
     graph = NtLinkPath.read_scaffold_graph(args.d)
 
     # !! TODO only load minimizers into file that are useful
