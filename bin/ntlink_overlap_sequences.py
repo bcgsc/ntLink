@@ -14,6 +14,47 @@ from ntlink_stitch_paths import NtLinkPath
 Use minimizers to overlap the sequence pairs that are likely overlapping
 '''
 
+class Scaffold:
+    "Defines a scaffold, and the cut points for that scaffold"
+
+    def __init__(self, ctg_id, sequence):
+        self.ctg_id = ctg_id
+        self.sequence = sequence
+        self.length = len(sequence)
+        self._ori = None
+        self._source_cut = len(sequence)
+        self._target_cut = 0
+
+    @property
+    def ori(self, orientation):
+        if self._ori is not None:
+            raise AssertionError("Ori is already set")
+        self._ori = orientation
+
+    @ori.setter
+    def ori(self):
+        return self._ori
+
+    @property
+    def source_cut(self, pos):
+        if self._source_cut != len(self.sequence):
+            raise AssertionError("Source cut is already set")
+        self._source_cut = pos
+
+    @source_cut.setter
+    def source_cut(self):
+        return self._source_cut
+
+    @property
+    def target_cut(self, pos):
+        if self._target_cut != 0:
+            raise AssertionError("Target cut is already set")
+        self._target_cut = pos
+
+    @target_cut.setter
+    def target_cut(self):
+        return self._target_cut
+        
 
 def edge_index(graph, source_name, target_name):
     "Returns graph edge index based on source/target names"
@@ -266,10 +307,15 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
     else:
         target_piece = scaffolds[target.strip("+-")].sequence[:target_cut + 15]
 
-    if len(source_piece) == 0:
-        source_piece = "N"
-    if len(target_piece) == 0:
-        target_piece = "N"
+    print(source[:-1], source_piece)
+    print(target[:-1], target_piece)
+
+    # if len(source_piece) == 0:
+    #     source_piece = "N"
+    #     print("HERE")
+    # if len(target_piece) == 0:
+    #     target_piece = "N"
+    #     print("HERE")
     scaffolds[source.strip("+-")] = Scaffold(id=source.strip("+-"), sequence=source_piece, length=len(source_piece))
     scaffolds[target.strip("+-")] = Scaffold(id=target.strip("+-"), sequence=target_piece, length=len(target_piece))
 
@@ -283,7 +329,7 @@ def main():
     parser.add_argument("-a", help="Path file", required=True, type=str)
     parser.add_argument("-s", help="Scaffold sequences", required=True, type=str)
     parser.add_argument("-d", help="Scaffold dot file", required=True, type=str)
-    parser.add_argument("-g", help="Minimum gap size [20]", default=20, type=int)
+    parser.add_argument("-g", help="Minimum gap size (bp) [20]", default=20, type=int)
     parser.add_argument("-p", help="Output file prefix [ntlink_merge]", default="ntlink_merge", type=str)
     parser.add_argument("-v", help="Verbose output logging", action="store_true")
 
