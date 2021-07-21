@@ -27,8 +27,10 @@ class Scaffold:
 
     @property
     def ori(self, orientation):
-        if self._ori is not None:
+        if self._ori is not None and self._ori != orientation:
             raise AssertionError("Ori is already set")
+        if orientation not in ["+", "-"]:
+            raise ValueError("Orientation must be + or -")
         self._ori = orientation
 
     @ori.setter
@@ -54,7 +56,7 @@ class Scaffold:
     @target_cut.setter
     def target_cut(self):
         return self._target_cut
-        
+
 
 def edge_index(graph, source_name, target_name):
     "Returns graph edge index based on source/target names"
@@ -98,7 +100,16 @@ def read_minimizers(tsv_filename):
 
     return mx_info_filt, mxs
 
+def read_fasta_file(filename):
+    "Read a fasta file into memory. Returns dictionary of scafID -> Scaffold"
+    print(datetime.datetime.today(), ": Reading fasta file", filename, file=sys.stdout)
+    scaffolds = {}
 
+    with open(filename, 'r') as fasta:
+        for header, seq, _, _ in read_fasta(fasta):
+            scaffolds[header] = Scaffold(ctg_id=header, sequence=seq)
+
+    return scaffolds
 
 def print_graph(graph, list_mx_info, prefix):
     "Prints the minimizer graph in dot format"
@@ -235,7 +246,17 @@ def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds
 
     return list_mxs_pair_return
 
-
+def set_scaffold_info(ctg_ori, pos, scaffolds, cut_type):
+    "Set the cut and orientation information about the scaffold"
+    ctg = ctg_ori.strip("+-")
+    ori = ctg_ori[-1]
+    scaffolds[ctg].ori = ori
+    if cut_type == "source":
+        scaffolds[ctg].source_cut = pos
+    elif cut_type == "target":
+        scaffolds[ctg].target_cut = pos
+    else:
+        raise ValueError("cut_type must be set to source or target")
 
 def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, args):
     source_noori = source.strip("+-")
@@ -294,30 +315,8 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
     source_cut = cuts[source.strip("+-")]
     target_cut = cuts[target.strip("+-")]
 
-    print(source, source_cut)
-    print(target, target_cut)
-
-    if source[-1] == "+":
-        source_piece = scaffolds[source.strip("+-")].sequence[:source_cut]
-    else:
-        source_piece = scaffolds[source.strip("+-")].sequence[source_cut + 15:]
-
-    if target[-1] == "+":
-        target_piece = scaffolds[target.strip("+-")].sequence[target_cut:]
-    else:
-        target_piece = scaffolds[target.strip("+-")].sequence[:target_cut + 15]
-
-    print(source[:-1], source_piece)
-    print(target[:-1], target_piece)
-
-    # if len(source_piece) == 0:
-    #     source_piece = "N"
-    #     print("HERE")
-    # if len(target_piece) == 0:
-    #     target_piece = "N"
-    #     print("HERE")
-    scaffolds[source.strip("+-")] = Scaffold(id=source.strip("+-"), sequence=source_piece, length=len(source_piece))
-    scaffolds[target.strip("+-")] = Scaffold(id=target.strip("+-"), sequence=target_piece, length=len(target_piece))
+    set_scaffold_info(source, source_cut, scaffolds, "source")
+    set_scaffold_info(target, target_cut, scaffolds, "target")
 
 
 def main():
@@ -371,8 +370,38 @@ def main():
     fasta_outfile = open(args.p + ".trimmed_scafs.fa", 'w')
     for out_scaffold in scaffolds:
         scaffold = scaffolds[out_scaffold]
-        fasta_outfile.write(">{}\n{}\n".format(scaffold.id, scaffold.sequence))
+        if scaffold.ori == "+":
+            sequence = scaffold.sequence[scaffold.target_cut:scaffold.source_cut]
+        else:
+            sequence = scaffold.sequence[scaffold.source_cut + 15:scaffold.target_cut+15] # !! TODO: make k parameter
+        if len(sequence) == 0:
+            sequence = "N"
+            print("HERE")
+        fasta_outfile.write(">{}\n{}\n".format(scaffold.id, sequence))
     fasta_outfile.close()
+
+    # if source[-1] == "+":
+    #     source_piece = scaffolds[source.strip("+-")].sequence[:source_cut]
+    # else:
+    #     source_piece = scaffolds[source.strip("+-")].sequence[source_cut + 15:]
+    #
+    # if target[-1] == "+":
+    #     target_piece = scaffolds[target.strip("+-")].sequence[target_cut:]
+    # else:
+    #     target_piece = scaffolds[target.strip("+-")].sequence[:target_cut + 15]
+    #
+    # print(source[:-1], source_piece)
+    # print(target[:-1], target_piece)
+    #
+    # # if len(source_piece) == 0:
+    # #     source_piece = "N"
+    # #     print("HERE")
+    # # if len(target_piece) == 0:
+    # #     target_piece = "N"
+    # #     print("HERE")
+    # scaffolds[source.strip("+-")] = Scaffold(id=source.strip("+-"), sequence=source_piece, length=len(source_piece))
+    # scaffolds[target.strip("+-")] = Scaffold(id=target.strip("+-"), sequence=target_piece, length=len(target_piece))
+
 
 
 if __name__ == '__main__':
