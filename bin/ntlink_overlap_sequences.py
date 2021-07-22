@@ -22,8 +22,8 @@ class Scaffold:
         self.sequence = sequence
         self.length = len(sequence)
         self._ori = None
-        self._source_cut = len(sequence)
-        self._target_cut = 0
+        self._source_cut = None
+        self._target_cut = None
 
 
     @property
@@ -36,7 +36,14 @@ class Scaffold:
             raise AssertionError("Ori is already set")
         if orientation not in ["+", "-"]:
             raise ValueError("Orientation must be + or -")
+        if self._ori is None:
+            if orientation == "+":
+                self._target_cut, self._source_cut = 0, self.length
+            elif orientation == "-":
+                self._target_cut, self._source_cut = self.length, 0
         self._ori = orientation
+
+
 
     @property
     def source_cut(self):
@@ -44,7 +51,8 @@ class Scaffold:
 
     @source_cut.setter
     def source_cut(self, pos):
-        if self._source_cut != len(self.sequence):
+        if (self.ori == "+" and self._source_cut != self.length) or \
+                (self.ori == "-" and self._source_cut != 0):
             raise AssertionError("Source cut is already set")
         self._source_cut = pos
 
@@ -55,10 +63,13 @@ class Scaffold:
 
     @target_cut.setter
     def target_cut(self, pos):
-        if self._target_cut != 0:
+        if (self.ori == "+" and self._target_cut != 0) or \
+                (self.ori == "-" and self._target_cut != self.length):
             raise AssertionError("Target cut is already set")
         self._target_cut = pos
 
+    def __str__(self):
+        return f"{self.ctg_id}{self._ori} {self.length} - s:{self._source_cut} t:{self._target_cut}"
 
 
 
@@ -232,8 +243,8 @@ def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds
                      scaffolds[source_noori].length
     else:
         start, end = 0, int(overlap*-1*(fudge_factor+1))
-    print(source, start, end)
-    print(list_mxs_pair[source_noori])
+#    print(source, start, end)
+#    print(list_mxs_pair[source_noori])
     list_mxs_pair_return[source_noori] = [[mx for mx in list_mxs_pair[source_noori][0]
                                      if is_valid_pos(mx, list_mx_info[source_noori], start, end)]]
 
@@ -242,7 +253,7 @@ def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds
                      scaffolds[target_noori].length
     else:
         start, end = 0, int(overlap*-1*(fudge_factor+1))
-    print(target, start, end)
+   # print(target, start, end)
     list_mxs_pair_return[target_noori] = [[mx for mx in list_mxs_pair[target_noori][0]
                                      if is_valid_pos(mx, list_mx_info[target_noori], start, end)]]
 
@@ -309,7 +320,7 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
             paths_components.append((vertex_name(component_graph, singleton_node), 1))
     if not paths_components:
         return
-    print(sorted(paths_components, key=lambda x: x[1], reverse=True))
+   # print(sorted(paths_components, key=lambda x: x[1], reverse=True))
     path = sorted(paths_components, key=lambda x: x[1], reverse=True)[0][0]
     mx = path[int(len(path)/2)]
     cuts = {list_mx_info[assembly][mx][0]: list_mx_info[assembly][mx][1] for assembly in [source_noori, target_noori]}
@@ -374,14 +385,19 @@ def main():
     fasta_outfile = open(args.p + ".trimmed_scafs.fa", 'w')
     for out_scaffold in scaffolds:
         scaffold = scaffolds[out_scaffold]
+        print(scaffold)
         if scaffold.ori == "+":
             sequence = scaffold.sequence[scaffold.target_cut:scaffold.source_cut]
-        else:
+        elif scaffold.ori == "-":
             sequence = scaffold.sequence[scaffold.source_cut + 15:scaffold.target_cut+15] # !! TODO: make k parameter
+        elif scaffold.ori is None:
+            sequence = scaffold.sequence
+        else:
+            raise ValueError("Invalid orientation for Scaffold:", scaffold)
         if len(sequence) == 0:
             sequence = "N"
             print("HERE")
-        fasta_outfile.write(">{}\n{}\n".format(scaffold.id, sequence))
+        fasta_outfile.write(">{}\n{}\n".format(scaffold.ctg_id, sequence))
     fasta_outfile.close()
 
     # if source[-1] == "+":
