@@ -243,8 +243,7 @@ def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds
                      scaffolds[source_noori].length
     else:
         start, end = 0, int(overlap*-1*(fudge_factor+1))
-#    print(source, start, end)
-#    print(list_mxs_pair[source_noori])
+
     list_mxs_pair_return[source_noori] = [[mx for mx in list_mxs_pair[source_noori][0]
                                      if is_valid_pos(mx, list_mx_info[source_noori], start, end)]]
 
@@ -253,7 +252,6 @@ def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds
                      scaffolds[target_noori].length
     else:
         start, end = 0, int(overlap*-1*(fudge_factor+1))
-   # print(target, start, end)
     list_mxs_pair_return[target_noori] = [[mx for mx in list_mxs_pair[target_noori][0]
                                      if is_valid_pos(mx, list_mx_info[target_noori], start, end)]]
 
@@ -320,7 +318,6 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
             paths_components.append((vertex_name(component_graph, singleton_node), 1))
     if not paths_components:
         return
-   # print(sorted(paths_components, key=lambda x: x[1], reverse=True))
     path = sorted(paths_components, key=lambda x: x[1], reverse=True)[0][0]
     mx = path[int(len(path)/2)]
     cuts = {list_mx_info[assembly][mx][0]: list_mx_info[assembly][mx][1] for assembly in [source_noori, target_noori]}
@@ -399,28 +396,6 @@ def main():
             print("HERE")
         fasta_outfile.write(">{}\n{}\n".format(scaffold.ctg_id, sequence))
     fasta_outfile.close()
-
-    # if source[-1] == "+":
-    #     source_piece = scaffolds[source.strip("+-")].sequence[:source_cut]
-    # else:
-    #     source_piece = scaffolds[source.strip("+-")].sequence[source_cut + 15:]
-    #
-    # if target[-1] == "+":
-    #     target_piece = scaffolds[target.strip("+-")].sequence[target_cut:]
-    # else:
-    #     target_piece = scaffolds[target.strip("+-")].sequence[:target_cut + 15]
-    #
-    # print(source[:-1], source_piece)
-    # print(target[:-1], target_piece)
-    #
-    # # if len(source_piece) == 0:
-    # #     source_piece = "N"
-    # #     print("HERE")
-    # # if len(target_piece) == 0:
-    # #     target_piece = "N"
-    # #     print("HERE")
-    # scaffolds[source.strip("+-")] = Scaffold(id=source.strip("+-"), sequence=source_piece, length=len(source_piece))
-    # scaffolds[target.strip("+-")] = Scaffold(id=target.strip("+-"), sequence=target_piece, length=len(target_piece))
 
 
 
