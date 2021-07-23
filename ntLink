@@ -45,7 +45,7 @@ x=0
 conservative=True
 
 # Prefix for output files
-prefix=out.k$(k).w$(w).z$(z)
+prefix=$(target).k$(k).w$(w).z$(z)
 
 SHELL=bash -e -o pipefail
 ifeq ($(shell zsh -e -o pipefail -c 'true' 2>/dev/null; echo $$?), 0)
@@ -84,7 +84,7 @@ help:
 	@echo "Options:"
 	@echo "target			Target assembly to be scaffolded in fasta format"
 	@echo "reads			List of long read files (separated by a space)"
-	@echo "prefix			Prefix of intermediate output files [out.k<k>.w<w>.z<z>]"
+	@echo "prefix			Prefix of intermediate output files [<target>.k<k>.w<w>.z<z>]"
 	@echo "t			Number of threads [4]"
 	@echo "k			K-mer size for minimizers [32]"
 	@echo "w			Window size for minimizers [100]"
@@ -105,7 +105,6 @@ scaffold: check_params \
 	abyss_scaffold \
 	clean
 
-# Example path file: out.k32.w100.z1000.n2.abyss-scaffold.path
 LIST = $(shell seq $(n) $(max_n))
 LIST_n = $(addprefix .n, $(LIST))
 path_targets = $(addsuffix .abyss-scaffold.path, $(addprefix $(prefix), $(LIST_n)))

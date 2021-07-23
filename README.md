@@ -30,7 +30,7 @@ Usage: ntLink scaffold target=<target scaffolds> reads='List of long read files'
 Options:
 target			Target assembly to be scaffolded in fasta format
 reads		        List of long read files (separated by a space)
-prefix			Prefix of intermediate output files [out.k<k>.w<w>.n<n>]
+prefix			Prefix of intermediate output files [<target>.k<k>.w<w>.n<n>]
 t			Number of threads [4]
 k			K-mer size for minimizers [32]
 w			Window size for minimizers [100]
