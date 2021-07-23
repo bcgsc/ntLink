@@ -232,26 +232,26 @@ def is_valid_pos(mx, mx_pos, start, end):
     return False
 
 
-def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds, list_mx_info, fudge_factor):
+def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds, list_mx_info, args):
     "Filter to keep minimizers in particular positions"
     list_mxs_pair_return = {}
     source_noori, source_ori = source.strip("+-"), source[-1]
     target_noori, target_ori = target.strip("+-"), target[-1]
 
     if source_ori == "+":
-        start, end = (scaffolds[source_noori].length - overlap*-1 - 15) - int(overlap*-1*fudge_factor), \
+        start, end = (scaffolds[source_noori].length - overlap*-1 - args.k) - int(overlap*-1*args.f), \
                      scaffolds[source_noori].length
     else:
-        start, end = 0, int(overlap*-1*(fudge_factor+1))
+        start, end = 0, int(overlap*-1*(args.f+1))
 
     list_mxs_pair_return[source_noori] = [[mx for mx in list_mxs_pair[source_noori][0]
                                      if is_valid_pos(mx, list_mx_info[source_noori], start, end)]]
 
     if target_ori == "-":
-        start, end = scaffolds[target_noori].length - overlap*-1 - 15 - int(overlap*-1*fudge_factor), \
+        start, end = scaffolds[target_noori].length - overlap*-1 - args.k - int(overlap*-1*args.f), \
                      scaffolds[target_noori].length
     else:
-        start, end = 0, int(overlap*-1*(fudge_factor+1))
+        start, end = 0, int(overlap*-1*(args.f+1))
     list_mxs_pair_return[target_noori] = [[mx for mx in list_mxs_pair[target_noori][0]
                                      if is_valid_pos(mx, list_mx_info[target_noori], start, end)]]
 
@@ -281,7 +281,7 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
 
     list_mxs_pair = Ntjoin.filter_minimizers(list_mxs_pair)
 
-    list_mxs_pair = filter_minimizers_position(list_mxs_pair, source, target, gap, scaffolds, list_mx_info, args.f)
+    list_mxs_pair = filter_minimizers_position(list_mxs_pair, source, target, gap, scaffolds, list_mx_info, args)
 
     graph = build_graph(list_mxs_pair, weights)
 
@@ -339,6 +339,7 @@ def main():
     parser.add_argument("-f", help="Fudge factor for estimated overlap [0.5]", type=float, default=0.5)
     parser.add_argument("-a", help="Path file", required=True, type=str)
     parser.add_argument("-s", help="Scaffold sequences", required=True, type=str)
+    parser.add_argument("-k", help="Indexlr k", required=True, type=int)
     parser.add_argument("-d", help="Scaffold dot file", required=True, type=str)
     parser.add_argument("-g", help="Minimum gap size (bp) [20]", default=20, type=int)
     parser.add_argument("-p", help="Output file prefix [ntlink_merge]", default="ntlink_merge", type=str)
@@ -386,7 +387,7 @@ def main():
         if scaffold.ori == "+":
             sequence = scaffold.sequence[scaffold.target_cut:scaffold.source_cut]
         elif scaffold.ori == "-":
-            sequence = scaffold.sequence[scaffold.source_cut + 15:scaffold.target_cut+15] # !! TODO: make k parameter
+            sequence = scaffold.sequence[scaffold.source_cut + args.k:scaffold.target_cut+args.k]
         elif scaffold.ori is None:
             sequence = scaffold.sequence
         else:
