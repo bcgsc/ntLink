@@ -342,6 +342,7 @@ def main():
     parser.add_argument("-k", help="Indexlr k", required=True, type=int)
     parser.add_argument("-d", help="Scaffold dot file", required=True, type=str)
     parser.add_argument("-g", help="Minimum gap size (bp) [20]", default=20, type=int)
+    parser.add_argument("--outgap", help="Gap size between trimmed overlapping sequences (bp) [2]", default=2, type=int)
     parser.add_argument("-p", help="Output file prefix [ntlink_merge]", default="ntlink_merge", type=str)
     parser.add_argument("-v", help="Verbose output logging", action="store_true")
 
@@ -371,7 +372,7 @@ def main():
                 if int(gap_match.group(1)) <= args.g + 1 and graph.es()[edge_index(graph, source, target)]["d"]  < 0:
                     gap = graph.es()[edge_index(graph, source, target)]["d"]
                     merge_overlapping(mxs, mxs_info, source, target, gap, scaffolds, args) #!! TODO: output file name
-                    gap = "{}N".format(2) #!! TODO: make parameter
+                    gap = "{}N".format(args.outgap)
                 if not new_path:
                     new_path.append(source)
                 new_path.append(gap)

@@ -32,6 +32,9 @@ max_n=10
 # Minimum gap size between scaffolds
 g=20
 
+# Gap size between overlapping trimmed scaffolds
+merge_gap=2
+
 # Minimum # anchoring ONT reads for an edge
 a=1
 
@@ -173,7 +176,7 @@ $(target).k$(small_k).w$(small_w).tsv: $(target)
 
 $(prefix).trimmed_scafs.fa: $(target).k$(small_k).w$(small_w).tsv $(prefix).stitch.path $(prefix).n$(n).scaffold.dot
 	$(ntLink_time) $(ntlink_path)/bin/ntlink_overlap_sequences.py -m $<  -a $(prefix).stitch.path \
-	-s $(target) -d $(prefix).n$(n).scaffold.dot -p $(prefix) -g $(g) -k $(small_k)
+	-s $(target) -d $(prefix).n$(n).scaffold.dot -p $(prefix) -g $(g) -k $(small_k) --outgap $(merge_gap)
 	
 $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa: $(prefix).stitch.path $(prefix).trimmed_scafs.fa
 	$(ntLink_time) MergeContigs -k2 $(prefix).trimmed_scafs.fa $< > $@
