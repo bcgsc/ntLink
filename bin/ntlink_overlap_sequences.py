@@ -6,6 +6,7 @@ import numpy as np
 import re
 from collections import defaultdict
 import sys
+import os
 
 from ntjoin_assemble import *
 from ntlink_stitch_paths import NtLinkPath
@@ -71,7 +72,15 @@ class Scaffold:
     def __str__(self):
         return f"{self.ctg_id}{self._ori} {self.length} - s:{self._source_cut} t:{self._target_cut}"
 
+class HiddenPrints:
+    "Adapted from: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print"
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')
 
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout.close()
+        sys.stdout = self._original_stdout
 
 def edge_index(graph, source_name, target_name):
     "Returns graph edge index based on source/target names"
@@ -169,7 +178,6 @@ def print_graph(graph, list_mx_info, prefix):
 
 def build_graph(list_mxs, weights):
     "Builds an undirected graph: nodes=minimizers; edges=between adjacent minimizers"
-    print(datetime.datetime.today(), ": Building graph", file=sys.stdout)
     graph = ig.Graph()
 
     vertices = set()
@@ -193,13 +201,10 @@ def build_graph(list_mxs, weights):
 
     formatted_edges = [(s, t) for s in edges for t in edges[s]]
 
-    print(datetime.datetime.today(), ": Adding vertices", file=sys.stdout)
     graph.add_vertices(list(vertices))
 
-    print(datetime.datetime.today(), ": Adding edges", file=sys.stdout)
     graph.add_edges(formatted_edges)
 
-    print(datetime.datetime.today(), ": Adding attributes", file=sys.stdout)
     edge_attributes = {edge_index(graph, s, t): {"support": edges[s][t],
                                                       "weight": calc_total_weight(edges[s][t],
                                                                                        weights)}
@@ -218,7 +223,6 @@ def is_graph_linear(graph):
 
 def filter_graph_global(graph, n):
     "Filter the graph globally based on minimum edge weight"
-    print(datetime.datetime.today(), ": Filtering the graph", file=sys.stdout)
     to_remove_edges = [edge.index for edge in graph.es()
                        if edge['weight'] < n]
     new_graph = graph.copy()
@@ -254,8 +258,8 @@ def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds
         start, end = 0, int(overlap*-1*(args.f+1))
     list_mxs_pair_return[target_noori] = [[mx for mx in list_mxs_pair[target_noori][0]
                                      if is_valid_pos(mx, list_mx_info[target_noori], start, end)]]
-
-    list_mxs_pair_return = Ntjoin.filter_minimizers(list_mxs_pair_return)
+    with HiddenPrints():
+        list_mxs_pair_return = Ntjoin.filter_minimizers(list_mxs_pair_return)
 
     return list_mxs_pair_return
 
@@ -279,7 +283,8 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
 
     list_mxs_pair = {name: list_mxs[name] for name in list_mxs if (name == source_noori or name == target_noori)}
 
-    list_mxs_pair = Ntjoin.filter_minimizers(list_mxs_pair)
+    with HiddenPrints():
+        list_mxs_pair = Ntjoin.filter_minimizers(list_mxs_pair)
 
     list_mxs_pair = filter_minimizers_position(list_mxs_pair, source, target, gap, scaffolds, list_mx_info, args)
 
@@ -384,7 +389,6 @@ def main():
     fasta_outfile = open(args.p + ".trimmed_scafs.fa", 'w')
     for out_scaffold in scaffolds:
         scaffold = scaffolds[out_scaffold]
-        print(scaffold)
         if scaffold.ori == "+":
             sequence = scaffold.sequence[scaffold.target_cut:scaffold.source_cut]
         elif scaffold.ori == "-":
@@ -395,7 +399,6 @@ def main():
             raise ValueError("Invalid orientation for Scaffold:", scaffold)
         if len(sequence) == 0:
             sequence = "N"
-            print("HERE")
         fasta_outfile.write(">{}\n{}\n".format(scaffold.ctg_id, sequence))
     fasta_outfile.close()
 
