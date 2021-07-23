@@ -357,7 +357,7 @@ def main():
 
     gap_re = re.compile(r'^(\d+)N$')
 
-    out_pathfile = open(args.p + ".path", 'w')
+    out_pathfile = open(args.p + ".trimmed_scafs.path", 'w')
 
     with open(args.a, 'r') as path_fin:
         for path in path_fin:
