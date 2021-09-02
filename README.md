@@ -1,3 +1,5 @@
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/bcgsc/ntlink)
+![Conda](https://img.shields.io/conda/dn/bioconda/ntlink?label=Conda)
 ![Logo](https://github.com/bcgsc/ntLink/blob/master/ntlink-logo.png)
 
 ## Scaffolding genome assemblies using long reads and minimizers
