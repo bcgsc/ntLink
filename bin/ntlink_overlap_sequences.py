@@ -10,6 +10,7 @@ import os
 
 from ntjoin_assemble import *
 from ntlink_stitch_paths import NtLinkPath
+import ntlink_utils
 
 '''
 Use minimizers to overlap the sequence pairs that are likely overlapping
@@ -341,7 +342,7 @@ def normalize_path(path_sequence, gap_re):
         return path_sequence
     new_seq = []
     for node in reversed(path_sequence):
-        if re.search(node, gap_re):
+        if re.search(gap_re, node):
             new_seq.append(node)
         else:
             new_seq.append(ntlink_utils.reverse_scaf_ori(node))
