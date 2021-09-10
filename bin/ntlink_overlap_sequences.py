@@ -243,26 +243,28 @@ def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds
     source_noori, source_ori = source.strip("+-"), source[-1]
     target_noori, target_ori = target.strip("+-"), target[-1]
 
-    if source_ori == "+":
-        start, end = (scaffolds[source_noori].length - overlap*-1 - args.k) - int(overlap*-1*args.f), \
-                     scaffolds[source_noori].length
-    else:
-        start, end = 0, int(overlap*-1*(args.f+1))
-
+    start, end = find_valid_mx_regions(source_noori, source_ori, scaffolds, overlap, args)
     list_mxs_pair_return[source_noori] = [[mx for mx in list_mxs_pair[source_noori][0]
                                      if is_valid_pos(mx, list_mx_info[source_noori], start, end)]]
 
-    if target_ori == "-":
-        start, end = scaffolds[target_noori].length - overlap*-1 - args.k - int(overlap*-1*args.f), \
-                     scaffolds[target_noori].length
-    else:
-        start, end = 0, int(overlap*-1*(args.f+1))
+    start, end = find_valid_mx_regions(target_noori, target_ori, scaffolds, overlap, args, source=False)
     list_mxs_pair_return[target_noori] = [[mx for mx in list_mxs_pair[target_noori][0]
                                      if is_valid_pos(mx, list_mx_info[target_noori], start, end)]]
     with HiddenPrints():
         list_mxs_pair_return = Ntjoin.filter_minimizers(list_mxs_pair_return)
 
     return list_mxs_pair_return
+
+
+def find_valid_mx_regions(scaf_noori, scaf_ori, scaffolds, overlap, args, source=True):
+    if (scaf_ori == "+" and source) or (scaf_ori == "-" and not source) :
+        start, end = (scaffolds[scaf_noori].length - overlap * -1 - args.k) - int(overlap * -1 * args.f), \
+                     scaffolds[scaf_noori].length
+    else:
+        start, end = 0, int(overlap * -1 * (args.f + 1))
+
+    return start, end
+
 
 def set_scaffold_info(ctg_ori, pos, scaffolds, cut_type):
     "Set the cut and orientation information about the scaffold"
