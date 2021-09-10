@@ -100,7 +100,14 @@ def vertex_name(graph, index):
     "Returns vertex name based on vertex id"
     return graph.vs[index]['name']
 
-def read_minimizers(tsv_filename):
+def is_in_valid_region(pos, valid_minimizer_positions):
+    "Returns True if the minimizer is in a valid position, else false"
+    for start, end in valid_minimizer_positions:
+        if pos >= start and pos <= end:
+            return True
+    return False
+
+def read_minimizers(tsv_filename, valid_mx_positions):
     "Read the minimizers from a file, removing duplicate minimizers for a given contig"
     print(datetime.datetime.today(), ": Reading minimizers", tsv_filename, file=sys.stdout)
     mx_info = defaultdict(dict)  # contig -> mx -> (contig, position)
@@ -112,9 +119,13 @@ def read_minimizers(tsv_filename):
             line = line.strip().split("\t")
             if len(line) > 1:
                 name = line[0]
+                if name not in valid_mx_positions:
+                    continue
                 mx_pos_split = line[1].split(" ")
                 for mx_pos in mx_pos_split:
                     mx, pos = mx_pos.split(":")
+                    if not is_in_valid_region(pos, valid_mx_positions[name]):
+                        continue
                     if name in mx_info and mx in mx_info[name]:  # This is a duplicate, add to dup set, don't add to dict
                         dup_mxs.add(mx)
                     else:
@@ -232,6 +243,7 @@ def filter_graph_global(graph, n):
 
 
 def is_valid_pos(mx, mx_pos, start, end):
+    "Return True if minimizer is within start/end coordinates, else False"
     if mx_pos[mx][1] >= start and mx_pos[mx][1] <= end:
         return True
     return False
@@ -243,11 +255,11 @@ def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds
     source_noori, source_ori = source.strip("+-"), source[-1]
     target_noori, target_ori = target.strip("+-"), target[-1]
 
-    start, end = find_valid_mx_regions(source_noori, source_ori, scaffolds, overlap, args)
+    start, end = find_valid_mx_region(source_noori, source_ori, scaffolds, overlap, args)
     list_mxs_pair_return[source_noori] = [[mx for mx in list_mxs_pair[source_noori][0]
                                      if is_valid_pos(mx, list_mx_info[source_noori], start, end)]]
 
-    start, end = find_valid_mx_regions(target_noori, target_ori, scaffolds, overlap, args, source=False)
+    start, end = find_valid_mx_region(target_noori, target_ori, scaffolds, overlap, args, source=False)
     list_mxs_pair_return[target_noori] = [[mx for mx in list_mxs_pair[target_noori][0]
                                      if is_valid_pos(mx, list_mx_info[target_noori], start, end)]]
     with HiddenPrints():
@@ -256,7 +268,7 @@ def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds
     return list_mxs_pair_return
 
 
-def find_valid_mx_regions(scaf_noori, scaf_ori, scaffolds, overlap, args, source=True):
+def find_valid_mx_region(scaf_noori, scaf_ori, scaffolds, overlap, args, source=True):
     if (scaf_ori == "+" and source) or (scaf_ori == "-" and not source) :
         start, end = (scaffolds[scaf_noori].length - overlap * -1 - args.k) - int(overlap * -1 * args.f), \
                      scaffolds[scaf_noori].length
@@ -350,6 +362,37 @@ def normalize_path(path_sequence, gap_re):
             new_seq.append(ntlink_utils.reverse_scaf_ori(node))
     return new_seq
 
+def find_valid_mx_regions(args, gap_re, graph, scaffolds):
+    "Return a dictionary with scaffold -> [(start, end)]"
+    valid_regions = {}
+
+    with open(args.a, 'r') as path_fin:
+        for path in path_fin:
+            path_id, path_seq = path.strip().split("\t")
+            path_seq = path_seq.split(" ")
+            path_seq = normalize_path(path_seq, gap_re)
+            for i, j, k in zip(path_seq, path_seq[1:], path_seq[2:]):
+                source, gap, target = i, j, k
+                source_noori, target_noori = source.strip("+-"), target.strip("+-")
+                gap_match = re.search(gap_re, gap)
+                if not gap_match:
+                    continue
+                if int(gap_match.group(1)) <= args.g + 1 and graph.es()[edge_index(graph, source, target)]["d"] < 0:
+                    gap = graph.es()[edge_index(graph, source, target)]["d"]
+                    source_start, source_end = find_valid_mx_region(source_noori, source[-1],
+                                                                    gap, args)
+                    if source_noori not in valid_regions:
+                        valid_regions[source_noori] = []
+                    valid_regions[source_noori].append((source_start, source_end))
+
+                    target_start, target_end = find_valid_mx_region(target_noori, target[-1],
+                                                                    gap, args, source=False)
+                    if target_noori not in valid_regions:
+                        valid_regions[target_noori] = []
+                    valid_regions[target_noori].append((target_start, target_end))
+    return valid_regions
+
+
 def main():
     print("Assessing putative overlaps...")
 
@@ -367,15 +410,18 @@ def main():
 
     args = parser.parse_args()
 
+    gap_re = re.compile(r'^(\d+)N$')
+
     scaffolds = read_fasta_file(args.s)
     graph = NtLinkPath.read_scaffold_graph(args.d)
 
     # !! TODO only load minimizers into file that are useful!
 
-    args.m = "-" if args.m == "/dev/stdin" else args.m
-    mxs_info, mxs = read_minimizers(args.m)
+    valid_mx_positions = find_valid_mx_regions(args, gap_re, graph, scaffolds)
 
-    gap_re = re.compile(r'^(\d+)N$')
+    args.m = "-" if args.m == "/dev/stdin" else args.m
+    mxs_info, mxs = read_minimizers(args.m, valid_mx_positions)
+
 
     out_pathfile = open(args.p + ".trimmed_scafs.path", 'w')
 
