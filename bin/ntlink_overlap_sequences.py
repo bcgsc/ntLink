@@ -124,7 +124,7 @@ def read_minimizers(tsv_filename, valid_mx_positions):
                 mx_pos_split = line[1].split(" ")
                 for mx_pos in mx_pos_split:
                     mx, pos = mx_pos.split(":")
-                    if not is_in_valid_region(pos, valid_mx_positions[name]):
+                    if not is_in_valid_region(int(pos), valid_mx_positions[name]):
                         continue
                     if name in mx_info and mx in mx_info[name]:  # This is a duplicate, add to dup set, don't add to dict
                         dup_mxs.add(mx)
