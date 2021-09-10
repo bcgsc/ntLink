@@ -380,13 +380,13 @@ def find_valid_mx_regions(args, gap_re, graph, scaffolds):
                 if int(gap_match.group(1)) <= args.g + 1 and graph.es()[edge_index(graph, source, target)]["d"] < 0:
                     gap = graph.es()[edge_index(graph, source, target)]["d"]
                     source_start, source_end = find_valid_mx_region(source_noori, source[-1],
-                                                                    gap, args)
+                                                                    scaffolds, gap, args)
                     if source_noori not in valid_regions:
                         valid_regions[source_noori] = []
                     valid_regions[source_noori].append((source_start, source_end))
 
                     target_start, target_end = find_valid_mx_region(target_noori, target[-1],
-                                                                    gap, args, source=False)
+                                                                    scaffolds, gap, args, source=False)
                     if target_noori not in valid_regions:
                         valid_regions[target_noori] = []
                     valid_regions[target_noori].append((target_start, target_end))
