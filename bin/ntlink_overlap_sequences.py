@@ -356,8 +356,9 @@ def main():
     scaffolds = read_fasta_file(args.s)
     graph = NtLinkPath.read_scaffold_graph(args.d)
 
-    # !! TODO only load minimizers into file that are useful
+    # !! TODO only load minimizers into file that are useful!
 
+    args.m = "-" if args.m == "/dev/stdin" else args.m
     mxs_info, mxs = read_minimizers(args.m)
 
     gap_re = re.compile(r'^(\d+)N$')

@@ -174,9 +174,10 @@ endif
 $(target).k$(small_k).w$(small_w).tsv: $(target)
 	$(ntLink_time) $(ntlink_path)/src/indexlr --long --pos -k $(small_k) -w $(small_w) -t $(t) $< > $@
 
-$(prefix).trimmed_scafs.fa: $(target).k$(small_k).w$(small_w).tsv $(prefix).stitch.path $(prefix).n$(n).scaffold.dot
-	$(ntLink_time) $(ntlink_path)/bin/ntlink_overlap_sequences.py -m $<  -a $(prefix).stitch.path \
-	-s $(target) -d $(prefix).n$(n).scaffold.dot -p $(prefix) -g $(g) -k $(small_k) --outgap $(merge_gap)
+$(prefix).trimmed_scafs.fa: $(target).k$(small_k).w$(small_w).tsv $(prefix).stitch.path $(prefix).n$(n).scaffold.dot $(target)
+	$(ntLink_time) sh -c '$(ntlink_path)/src/indexlr --long --pos -k $(small_k) -w $(small_w) -t $(t) $(target) |\
+	$(ntlink_path)/bin/ntlink_overlap_sequences.py -m $<  -a $(prefix).stitch.path \
+	-s $(target) -d $(prefix).n$(n).scaffold.dot -p $(prefix) -g $(g) -k $(small_k) --outgap $(merge_gap)'
 	
 $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa: $(prefix).trimmed_scafs.fa
 	$(ntLink_time) MergeContigs -k2 $< $(prefix).trimmed_scafs.path > $@
