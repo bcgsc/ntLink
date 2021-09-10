@@ -130,9 +130,12 @@ def read_minimizers(tsv_filename, valid_mx_positions):
                         dup_mxs.add(mx)
                     else:
                         mx_info[name][mx] = (name, int(pos))
-                mxs[name] = [[mx_pos.split(":")[0] for mx_pos in mx_pos_split if mx_pos.split(":")[0] not in dup_mxs]]
                 mx_info_filt[name] = {}
                 mx_info_filt[name] = {mx: mx_info[name][mx] for mx in mx_info[name] if mx not in dup_mxs}
+                mxs[name] = [[mx_pos.split(":")[0] for mx_pos in mx_pos_split
+                              if mx_pos.split(":")[0] not in dup_mxs and
+                              mx_pos.split(":")[0] in mx_info_filt[name]]]
+
 
     return mx_info_filt, mxs
 
