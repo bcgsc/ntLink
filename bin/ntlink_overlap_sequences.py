@@ -311,7 +311,7 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
 
             if len(paths) > 1:
                 print("NOTE: more than one path found")
-            path = paths[0]
+            path = sorted(paths)[0]
             source_start, target_start = [list_mx_info[assembly][vertex_name(component_graph, path[0])][1] for assembly in [source_noori, target_noori]]
             source_end, target_end = [list_mx_info[assembly][vertex_name(component_graph, path[-1])][1] for assembly in [source_noori, target_noori]]
             source_align_len = abs(source_start - source_end)
@@ -335,6 +335,17 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
     set_scaffold_info(source, source_cut, scaffolds, "source")
     set_scaffold_info(target, target_cut, scaffolds, "target")
 
+def normalize_path(path_sequence, gap_re):
+    "Given a path, normalize it to ensure deterministic running"
+    if path_sequence[0].strip("+-") < path_sequence[-1].strip("+-"):
+        return path_sequence
+    new_seq = []
+    for node in reversed(path_sequence):
+        if re.search(node, gap_re):
+            new_seq.append(node)
+        else:
+            new_seq.append(ntlink_utils.reverse_scaf_ori(node))
+    return new_seq
 
 def main():
     print("Assessing putative overlaps...")
@@ -370,6 +381,7 @@ def main():
             new_path = []
             path_id, path_seq = path.strip().split("\t")
             path_seq = path_seq.split(" ")
+            path_seq = normalize_path(path_seq, gap_re)
             for i, j, k in zip(path_seq, path_seq[1:], path_seq[2:]):
                 source, gap, target = i, j, k
                 gap_match = re.search(gap_re, gap)
@@ -400,7 +412,7 @@ def main():
             raise ValueError("Invalid orientation for Scaffold:", scaffold)
         if len(sequence) == 0:
             sequence = "N"
-        fasta_outfile.write(">{}\n{}\n".format(scaffold.ctg_id, sequence))
+        fasta_outfile.write(">{} {}-{}\n{}\n".format(scaffold.ctg_id, scaffold.source_cut, scaffold.target_cut, sequence))
     fasta_outfile.close()
 
 
