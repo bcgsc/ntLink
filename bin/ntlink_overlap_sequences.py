@@ -422,7 +422,7 @@ def main():
 
     valid_mx_positions = find_valid_mx_regions(args, gap_re, graph, scaffolds)
 
-    args.m = "-" if args.m == "/dev/stdin" else args.m
+    args.m = "/dev/stdin" if args.m == "-" else args.m
     mxs_info, mxs = read_minimizers(args.m, valid_mx_positions)
 
 
