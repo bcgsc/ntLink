@@ -135,7 +135,7 @@ def read_minimizers(tsv_filename, valid_mx_positions):
                 mxs[name] = [[mx_pos.split(":")[0] for mx_pos in mx_pos_split
                               if mx_pos.split(":")[0] not in dup_mxs and
                               mx_pos.split(":")[0] in mx_info_filt[name] and
-                              is_in_valid_region(mx_pos.split(":")[1], valid_mx_positions)]]
+                              is_in_valid_region(int(mx_pos.split(":")[1]), valid_mx_positions[name])]]
 
 
     return mx_info_filt, mxs
