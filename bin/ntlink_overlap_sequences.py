@@ -134,7 +134,8 @@ def read_minimizers(tsv_filename, valid_mx_positions):
                 mx_info_filt[name] = {mx: mx_info[name][mx] for mx in mx_info[name] if mx not in dup_mxs}
                 mxs[name] = [[mx_pos.split(":")[0] for mx_pos in mx_pos_split
                               if mx_pos.split(":")[0] not in dup_mxs and
-                              mx_pos.split(":")[0] in mx_info_filt[name]]]
+                              mx_pos.split(":")[0] in mx_info_filt[name] and
+                              is_in_valid_region(mx_pos.split(":")[1], valid_mx_positions)]]
 
 
     return mx_info_filt, mxs
@@ -326,9 +327,7 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
                 source_comp = target_comp
                 target_comp = source_tmp
             paths = component_graph.get_shortest_paths(source_comp, target_comp)
-
-            if len(paths) > 1:
-                print("NOTE: more than one path found")
+            assert len(paths) == 1
             path = sorted(paths)[0]
             source_start, target_start = [list_mx_info[assembly][vertex_name(component_graph, path[0])][1] for assembly in [source_noori, target_noori]]
             source_end, target_end = [list_mx_info[assembly][vertex_name(component_graph, path[-1])][1] for assembly in [source_noori, target_noori]]
@@ -341,7 +340,7 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
             paths_components.append((vertex_name(component_graph, singleton_node), 1))
     if not paths_components:
         return
-    path = sorted(paths_components, key=lambda x: x[1], reverse=True)[0][0]
+    path = sorted(paths_components, key=lambda x: x[1], reverse=True)[0][0] #!! TODO: deterministic for this step
     mx = path[int(len(path)/2)]
     cuts = {list_mx_info[assembly][mx][0]: list_mx_info[assembly][mx][1] for assembly in [source_noori, target_noori]}
 
