@@ -5,6 +5,7 @@ import igraph as ig
 import numpy as np
 import re
 from collections import defaultdict
+from collections import namedtuple
 import sys
 import os
 
@@ -15,6 +16,8 @@ import ntlink_utils
 '''
 Use minimizers to overlap the sequence pairs that are likely overlapping
 '''
+
+MappedPathInfo = namedtuple("MappedPathInfo", ["mapped_region_length", "mid_mx", "median_length_from_end"])
 
 class Scaffold:
     "Defines a scaffold, and the cut points for that scaffold"
@@ -294,9 +297,9 @@ def set_scaffold_info(ctg_ori, pos, scaffolds, cut_type):
     else:
         raise ValueError("cut_type must be set to source or target")
 
-def get_dist_from_end(ori, pos, scaf_len, source=True):
+def get_dist_from_end(ori, pos, scaf_len, target=False):
     "Given the orientation, calculate the distance of the mx from the scaffold end involved in the overlap checks. Returns distance as negative value"
-    if (ori == "+" and source) or (ori == "-" and not source):
+    if (ori == "+" and not target) or (ori == "-" and target):
         return (scaf_len - pos)*-1
     return pos*-1
 
@@ -342,23 +345,30 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
 
             path = [vertex_name(component_graph, mx) for mx in path]
             mid_mx = path[int(len(path)/2)]
-            mid_mx_dist_end_source = get_dist_from_end(source[-1], list_mx_info[source_noori][vertex_name(component_graph, mid_mx)][1],
+            mid_mx_dist_end_source = get_dist_from_end(source[-1], list_mx_info[source_noori][mid_mx][1],
                                                        scaffolds[source_noori].length)
-            mid_mx_dist_end_target = get_dist_from_end(target[-1],
-                                                       list_mx_info[target_noori][vertex_name(component_graph, mid_mx)][
-                                                           1],
-                                                       scaffolds[target_noori].length)
-            paths_components.append((np.median([source_align_len, target_align_len]), mid_mx,
-                                     np.median([mid_mx_dist_end_source, mid_mx_dist_end_target])))
+            mid_mx_dist_end_target = get_dist_from_end(target[-1], list_mx_info[target_noori][mid_mx][1],
+                                                       scaffolds[target_noori].length, target=True)
+            paths_components.append(MappedPathInfo(mapped_region_length=np.median([source_align_len, target_align_len]),
+                                                   mid_mx=mid_mx,
+                                                   median_length_from_end=np.median(
+                                                       [mid_mx_dist_end_source, mid_mx_dist_end_target])))
         elif singleton_node:
-            paths_components.append((1))
+            assert len(singleton_node) == 1
+            mid_mx = vertex_name(component_graph, singleton_node[0])
+            mid_mx_dist_end_source = get_dist_from_end(source[-1], list_mx_info[source_noori][mid_mx][1],
+                                                       scaffolds[source_noori].length)
+            mid_mx_dist_end_target = get_dist_from_end(target[-1], list_mx_info[target_noori][mid_mx][1],
+                                                       scaffolds[target_noori].length, target=True)
+            paths_components.append(MappedPathInfo(mapped_region_length=1, mid_mx=mid_mx,
+                                     median_length_from_end=np.median([mid_mx_dist_end_source, mid_mx_dist_end_target])))
         else:
             print("NOTE: non-singleton, {} source nodes".format(len(source_nodes)))
     if not paths_components:
         return
-    path = sorted(paths_components, key=lambda x: (x[0], x[2], x[1]), reverse=True)[0][0]
-    print(path)
-    mx = path[int(len(path)/2)]
+    path = sorted(paths_components, key=lambda x: (x.mapped_region_length, x.median_length_from_end,
+                                                   x.mid_mx), reverse=True)[0]
+    mx = path[1]
     cuts = {list_mx_info[assembly][mx][0]: list_mx_info[assembly][mx][1] for assembly in [source_noori, target_noori]}
 
     if not cuts:
