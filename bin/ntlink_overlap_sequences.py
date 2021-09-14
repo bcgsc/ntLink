@@ -294,6 +294,12 @@ def set_scaffold_info(ctg_ori, pos, scaffolds, cut_type):
     else:
         raise ValueError("cut_type must be set to source or target")
 
+def get_dist_from_end(ori, pos, scaf_len, source=True):
+    "Given the orientation, calculate the distance of the mx from the scaffold end involved in the overlap checks. Returns distance as negative value"
+    if (ori == "+" and source) or (ori == "-" and not source):
+        return (scaf_len - pos)*-1
+    return pos*-1
+
 def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, args):
     source_noori = source.strip("+-")
     target_noori = target.strip("+-")
@@ -335,12 +341,23 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
             target_align_len = abs(target_start - target_end)
 
             path = [vertex_name(component_graph, mx) for mx in path]
-            paths_components.append((path, np.median([source_align_len, target_align_len])))
+            mid_mx = path[int(len(path)/2)]
+            mid_mx_dist_end_source = get_dist_from_end(source[-1], list_mx_info[source_noori][vertex_name(component_graph, mid_mx)][1],
+                                                       scaffolds[source_noori].length)
+            mid_mx_dist_end_target = get_dist_from_end(target[-1],
+                                                       list_mx_info[target_noori][vertex_name(component_graph, mid_mx)][
+                                                           1],
+                                                       scaffolds[target_noori].length)
+            paths_components.append((np.median([source_align_len, target_align_len]), mid_mx,
+                                     np.median([mid_mx_dist_end_source, mid_mx_dist_end_target])))
         elif singleton_node:
-            paths_components.append((vertex_name(component_graph, singleton_node), 1))
+            paths_components.append((1))
+        else:
+            print("NOTE: non-singleton, {} source nodes".format(len(source_nodes)))
     if not paths_components:
         return
-    path = sorted(paths_components, key=lambda x: x[1], reverse=True)[0][0] #!! TODO: deterministic for this step
+    path = sorted(paths_components, key=lambda x: (x[0], x[2], x[1]), reverse=True)[0][0]
+    print(path)
     mx = path[int(len(path)/2)]
     cuts = {list_mx_info[assembly][mx][0]: list_mx_info[assembly][mx][1] for assembly in [source_noori, target_noori]}
 
