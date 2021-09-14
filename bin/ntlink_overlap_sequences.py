@@ -30,7 +30,6 @@ class Scaffold:
         self._source_cut = None
         self._target_cut = None
 
-
     @property
     def ori(self):
         return self._ori
@@ -48,8 +47,6 @@ class Scaffold:
                 self._target_cut, self._source_cut = self.length, 0
         self._ori = orientation
 
-
-
     @property
     def source_cut(self):
         return self._source_cut
@@ -60,7 +57,6 @@ class Scaffold:
                 (self.ori == "-" and self._source_cut != 0):
             raise AssertionError("Source cut is already set")
         self._source_cut = pos
-
 
     @property
     def target_cut(self):
@@ -114,7 +110,7 @@ def read_minimizers(tsv_filename, valid_mx_positions):
     "Read the minimizers from a file, removing duplicate minimizers for a given contig"
     print(datetime.datetime.today(), ": Reading minimizers", tsv_filename, file=sys.stdout)
     mx_info = defaultdict(dict)  # contig -> mx -> (contig, position)
-    mx_info_filt = defaultdict(dict)
+    #mx_info_filt = defaultdict(dict)
     mxs = {}  # Contig -> [list of minimizers]
     with open(tsv_filename, 'r') as tsv:
         for line in tsv:
@@ -133,15 +129,14 @@ def read_minimizers(tsv_filename, valid_mx_positions):
                         dup_mxs.add(mx)
                     else:
                         mx_info[name][mx] = (name, int(pos))
-                mx_info_filt[name] = {}
-                mx_info_filt[name] = {mx: mx_info[name][mx] for mx in mx_info[name] if mx not in dup_mxs}
+                mx_info[name] = {mx: mx_info[name][mx] for mx in mx_info[name] if mx not in dup_mxs}
                 mxs[name] = [[mx_pos.split(":")[0] for mx_pos in mx_pos_split
                               if mx_pos.split(":")[0] not in dup_mxs and
-                              mx_pos.split(":")[0] in mx_info_filt[name] and
+                              mx_pos.split(":")[0] in mx_info[name] and
                               is_in_valid_region(int(mx_pos.split(":")[1]), valid_mx_positions[name])]]
 
 
-    return mx_info_filt, mxs
+    return mx_info, mxs
 
 def read_fasta_file(filename):
     "Read a fasta file into memory. Returns dictionary of scafID -> Scaffold"
@@ -276,7 +271,7 @@ def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds
 
 
 def find_valid_mx_region(scaf_noori, scaf_ori, scaffolds, overlap, args, source=True):
-    if (scaf_ori == "+" and source) or (scaf_ori == "-" and not source) :
+    if (scaf_ori == "+" and source) or (scaf_ori == "-" and not source):
         start, end = (scaffolds[scaf_noori].length - overlap * -1 - args.k) - int(overlap * -1 * args.f), \
                      scaffolds[scaf_noori].length
     else:
@@ -400,8 +395,7 @@ def find_valid_mx_regions(args, gap_re, graph, scaffolds):
             path_id, path_seq = path.strip().split("\t")
             path_seq = path_seq.split(" ")
             path_seq = normalize_path(path_seq, gap_re)
-            for i, j, k in zip(path_seq, path_seq[1:], path_seq[2:]):
-                source, gap, target = i, j, k
+            for source, gap, target in zip(path_seq, path_seq[1:], path_seq[2:]):
                 source_noori, target_noori = source.strip("+-"), target.strip("+-")
                 gap_match = re.search(gap_re, gap)
                 if not gap_match:
@@ -422,9 +416,8 @@ def find_valid_mx_regions(args, gap_re, graph, scaffolds):
     return valid_regions
 
 
-def main():
-    print("Assessing putative overlaps...")
-
+def parse_arguments():
+    "Parse arguments for ntLink overlap"
     parser = argparse.ArgumentParser(description="Find coordinates for combining overlapping sequences")
     parser.add_argument("-m", help="Minimizer TSV file", type=str, required=True)
     parser.add_argument("-f", help="Fudge factor for estimated overlap [0.5]", type=float, default=0.5)
@@ -437,14 +430,31 @@ def main():
     parser.add_argument("-p", help="Output file prefix [ntlink_merge]", default="ntlink_merge", type=str)
     parser.add_argument("-v", help="Verbose output logging", action="store_true")
 
-    args = parser.parse_args()
+    return parser.parse_args()
+
+def print_args(args):
+    "Print the parameters for the ntLink overlap step"
+    print("Parameters for overlap stage:")
+    print("\t-m", args.m)
+    print("\t-f", args.f)
+    print("\t-a", args.a)
+    print("\t-s", args.s)
+    print("\t-k", args.k)
+    print("\t-d", args.d)
+    print("\t-g", args.g)
+    print("\t--outgap", args.outgap)
+    print("\t-p", args.p)
+
+def main():
+    print("Assessing putative overlaps...")
+
+    args = parse_arguments()
+    print_args(args)
 
     gap_re = re.compile(r'^(\d+)N$')
 
     scaffolds = read_fasta_file(args.s)
     graph = NtLinkPath.read_scaffold_graph(args.d)
-
-    # !! TODO only load minimizers into file that are useful!
 
     valid_mx_positions = find_valid_mx_regions(args, gap_re, graph, scaffolds)
 
