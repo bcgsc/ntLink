@@ -302,7 +302,7 @@ def get_dist_from_end(ori, pos, scaf_len, target=False):
         return (scaf_len - pos)*-1
     return pos*-1
 
-def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args):
+def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, gap):
     "Find the cut points for overlapping adjacent contigs"
     source_noori = source.strip("+-")
     target_noori = target.strip("+-")
@@ -310,7 +310,7 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args):
     weights = {source_noori: 1, target_noori: 1}
 
     list_mxs_pair = {source_noori: list_mxs[source_noori], target_noori: list_mxs[target_noori]}
-
+    list_mxs_pair = filter_minimizers_position(list_mxs_pair, source, target, gap, scaffolds, list_mx_info, args)
     with HiddenPrints():
         list_mxs_pair = Ntjoin.filter_minimizers(list_mxs_pair)
 
@@ -434,7 +434,8 @@ def merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds):
                 if not gap_match:
                     continue
                 if int(gap_match.group(1)) <= args.g + 1 and graph.es()[edge_index(graph, source, target)]["d"] < 0:
-                    merge_overlapping(mxs, mxs_info, source, target, scaffolds, args)
+                    merge_overlapping(mxs, mxs_info, source, target, scaffolds, args,
+                                      graph.es()[edge_index(graph, source, target)]["d"])
                     gap = "{}N".format(args.outgap)
                 if not new_path:
                     new_path.append(source)
