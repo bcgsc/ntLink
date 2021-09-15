@@ -41,6 +41,9 @@ a=1
 # Maximum number of contigs in a run for full transitive edge addition
 f=10
 
+# Whether to run overlap detection code or not
+overlap=True
+
 # Fudge factor for filtering by mapping block length
 x=0
 
@@ -102,6 +105,7 @@ help:
 	@echo "z			Minimum size of contig (bp) to scaffold [1000]"
 	@echo "v			If 1, track time and memory for each step of the pipeline [0]"
 	@echo "conservative		If False, runs ntLink in stitching mode [True]"
+	@echo "overlap			If True, runs extra step to attempt to identify overlapping sequences and trim them [True]"
 	@echo ""
 	@echo "Note: "
 	@echo "	- Ensure all assembly and read files are in the current working directory, making soft links if necessary"
@@ -178,9 +182,15 @@ $(prefix).trimmed_scafs.fa: $(prefix).stitch.path $(prefix).n$(n).scaffold.dot $
 	$(ntLink_time) sh -c '$(ntlink_path)/src/indexlr --long --pos -k $(small_k) -w $(small_w) -t $(t) $(target) |\
 	$(ntlink_path)/bin/ntlink_overlap_sequences.py -m -  -a $(prefix).stitch.path \
 	-s $(target) -d $(prefix).n$(n).scaffold.dot -p $(prefix) -g $(g) -k $(small_k) --outgap $(merge_gap)'
-	
+
+ifeq ($(overlap), True)
 $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa: $(prefix).trimmed_scafs.fa
 	$(ntLink_time) MergeContigs -k2 $< $(prefix).trimmed_scafs.path > $@
+else
+$(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa: $(target) $(prefix).stitch.path
+	$(ntLink_time) MergeContigs -k2 $< $(prefix).stitch.path > $@
+endif
+
 
 clean: $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa
 	rm $(prefix).n*.abyss-scaffold.path $(prefix).n*.abyss-scaffold.path.sterr
