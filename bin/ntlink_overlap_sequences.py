@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
+"""
+Use minimizers to overlap the sequence pairs that are likely overlapping
+"""
 import argparse
 import datetime
-import igraph as ig
-import numpy as np
 import re
-from collections import defaultdict
-from collections import namedtuple
 import sys
 import os
+from collections import defaultdict
+from collections import namedtuple
+import igraph as ig
+import numpy as np
 
-from ntjoin_assemble import *
+from ntjoin_assemble import Ntjoin
 from ntlink_stitch_paths import NtLinkPath
 import ntlink_utils
+from read_fasta import read_fasta
 
-'''
-Use minimizers to overlap the sequence pairs that are likely overlapping
-'''
-
-MappedPathInfo = namedtuple("MappedPathInfo", ["mapped_region_length", "mid_mx", "median_length_from_end"])
+MappedPathInfo = namedtuple("MappedPathInfo",
+                            ["mapped_region_length", "mid_mx", "median_length_from_end"])
 
 class Scaffold:
     "Defines a scaffold, and the cut points for that scaffold"
@@ -32,6 +33,7 @@ class Scaffold:
 
     @property
     def ori(self):
+        "Return orientation"
         return self._ori
 
     @ori.setter
@@ -49,6 +51,7 @@ class Scaffold:
 
     @property
     def source_cut(self):
+        "Return source cut"
         return self._source_cut
 
     @source_cut.setter
@@ -60,6 +63,7 @@ class Scaffold:
 
     @property
     def target_cut(self):
+        "Return target cut"
         return self._target_cut
 
     @target_cut.setter
@@ -74,6 +78,9 @@ class Scaffold:
 
 class HiddenPrints:
     "Adapted from: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print"
+    def __init__(self):
+        self._original_stdout = sys.stdout
+
     def __enter__(self):
         self._original_stdout = sys.stdout
         sys.stdout = open(os.devnull, 'w')
@@ -102,7 +109,7 @@ def vertex_name(graph, index):
 def is_in_valid_region(pos, valid_minimizer_positions):
     "Returns True if the minimizer is in a valid position for overlap detection, else False"
     for start, end in valid_minimizer_positions:
-        if pos >= start and pos <= end:
+        if start <= pos <= end:
             return True
     return False
 
@@ -124,7 +131,7 @@ def read_minimizers(tsv_filename, valid_mx_positions):
                     mx, pos = mx_pos.split(":")
                     if not is_in_valid_region(int(pos), valid_mx_positions[name]):
                         continue
-                    if name in mx_info and mx in mx_info[name]:  # This is a duplicate, add to dup set, don't add to dict
+                    if name in mx_info and mx in mx_info[name]:  # This is a duplicate
                         dup_mxs.add(mx)
                     else:
                         mx_info[name][mx] = (name, int(pos))
@@ -162,7 +169,8 @@ def print_graph(graph, list_mx_info, prefix):
 
     for node in graph.vs():
         mx_ctg_pos_labels = "\n".join([str(list_mx_info[assembly][node['name']])
-                                       for assembly in list_mx_info if node['name'] in list_mx_info[assembly]])
+                                       for assembly in list_mx_info
+                                       if node['name'] in list_mx_info[assembly]])
         node_label = "\"%s\" [label=\"%s\n%s\"]" % (node['name'], node['name'], mx_ctg_pos_labels)
         outfile.write("%s\n" % node_label)
 
@@ -245,7 +253,8 @@ def is_valid_pos(mx, mx_pos, start, end):
     return False
 
 
-def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds, list_mx_info, args):
+def filter_minimizers_position(list_mxs_pair, source, target, overlap,
+                               scaffolds, list_mx_info, args):
     "Filter to keep minimizers in particular positions"
     list_mxs_pair_return = {}
     source_noori, source_ori = source.strip("+-"), source[-1]
@@ -255,7 +264,8 @@ def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds
     list_mxs_pair_return[source_noori] = [[mx for mx in list_mxs_pair[source_noori][0]
                                      if is_valid_pos(mx, list_mx_info[source_noori], start, end)]]
 
-    start, end = find_valid_mx_region(target_noori, target_ori, scaffolds, overlap, args, source=False)
+    start, end = find_valid_mx_region(target_noori, target_ori, scaffolds, overlap, args,
+                                      source=False)
     list_mxs_pair_return[target_noori] = [[mx for mx in list_mxs_pair[target_noori][0]
                                      if is_valid_pos(mx, list_mx_info[target_noori], start, end)]]
     with HiddenPrints():
@@ -265,9 +275,10 @@ def filter_minimizers_position(list_mxs_pair, source, target, overlap, scaffolds
 
 
 def find_valid_mx_region(scaf_noori, scaf_ori, scaffolds, overlap, args, source=True):
+    "Return start/end of valid minimizer region on the scaffold"
     if (scaf_ori == "+" and source) or (scaf_ori == "-" and not source):
-        start, end = (scaffolds[scaf_noori].length - overlap * -1 - args.k) - int(overlap * -1 * args.f), \
-                     scaffolds[scaf_noori].length
+        start, end = (scaffolds[scaf_noori].length - overlap * -1 - args.k) - \
+                     int(overlap * -1 * args.f), scaffolds[scaf_noori].length
     else:
         start, end = 0, int(overlap * -1 * (args.f + 1))
 
@@ -286,12 +297,13 @@ def set_scaffold_info(ctg_ori, pos, scaffolds, cut_type):
         raise ValueError("cut_type must be set to source or target")
 
 def get_dist_from_end(ori, pos, scaf_len, target=False):
-    "Given the orientation, calculate the distance of the mx from the scaffold end involved in the overlap checks. Returns distance as negative value"
+    "Given the orientation, calculate the dist of the mx from the scaffold end (return -ve value)"
     if (ori == "+" and not target) or (ori == "-" and target):
         return (scaf_len - pos)*-1
     return pos*-1
 
 def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args):
+    "Find the cut points for overlapping adjacent contigs"
     source_noori = source.strip("+-")
     target_noori = target.strip("+-")
 
@@ -316,10 +328,9 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args):
         singleton_nodes = [node.index for node in component_graph.vs() if node.degree() == 0]
         if len(source_nodes) == 2:
             source_node, target_node = source_nodes
-            if vertex_name(component_graph, source_node) > vertex_name(component_graph, target_node):
-                source_tmp = source_node
-                source_node = target_node
-                target_node = source_tmp
+            if vertex_name(component_graph, source_node) > \
+                    vertex_name(component_graph, target_node):
+                source_node, target_node = target_node, source_node
             paths = component_graph.get_shortest_paths(source_node, target_node)
             assert len(paths) == 1
             path = [vertex_name(component_graph, mx) for mx in paths[0]]
@@ -332,11 +343,14 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args):
             target_align_len = abs(target_start - target_end)
 
             mid_mx = path[int(len(path)/2)]
-            mid_mx_dist_end_source = get_dist_from_end(source[-1], list_mx_info[source_noori][mid_mx][1],
+            mid_mx_dist_end_source = get_dist_from_end(source[-1],
+                                                       list_mx_info[source_noori][mid_mx][1],
                                                        scaffolds[source_noori].length)
-            mid_mx_dist_end_target = get_dist_from_end(target[-1], list_mx_info[target_noori][mid_mx][1],
+            mid_mx_dist_end_target = get_dist_from_end(target[-1],
+                                                       list_mx_info[target_noori][mid_mx][1],
                                                        scaffolds[target_noori].length, target=True)
-            paths_components.append(MappedPathInfo(mapped_region_length=np.median([source_align_len, target_align_len]),
+            paths_components.append(MappedPathInfo(mapped_region_length=np.median([source_align_len,
+                                                                                   target_align_len]),
                                                    mid_mx=mid_mx,
                                                    median_length_from_end=np.median(
                                                        [mid_mx_dist_end_source, mid_mx_dist_end_target])))
@@ -348,7 +362,8 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args):
             mid_mx_dist_end_target = get_dist_from_end(target[-1], list_mx_info[target_noori][mid_mx][1],
                                                        scaffolds[target_noori].length, target=True)
             paths_components.append(MappedPathInfo(mapped_region_length=1, mid_mx=mid_mx,
-                                                   median_length_from_end=np.median([mid_mx_dist_end_source, mid_mx_dist_end_target])))
+                                                   median_length_from_end=np.median([mid_mx_dist_end_source,
+                                                                                     mid_mx_dist_end_target])))
         else:
             print("NOTE: non-singleton, {} source nodes".format(len(source_nodes)))
     if not paths_components:
@@ -381,7 +396,7 @@ def find_valid_mx_regions(args, gap_re, graph, scaffolds):
 
     with open(args.a, 'r') as path_fin:
         for path in path_fin:
-            path_id, path_seq = path.strip().split("\t")
+            _, path_seq = path.strip().split("\t")
             path_seq = path_seq.split(" ")
             path_seq = normalize_path(path_seq, gap_re)
             for source, gap, target in zip(path_seq, path_seq[1:], path_seq[2:]):
@@ -478,6 +493,7 @@ def print_args(args):
     print("\t-p", args.p)
 
 def main():
+    "Run overlap sequence detection and trimming step of ntLink"
     print("Assessing putative overlaps...")
 
     args = parse_arguments()
@@ -500,4 +516,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
