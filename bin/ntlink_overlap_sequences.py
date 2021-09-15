@@ -276,8 +276,7 @@ def find_valid_mx_region(scaf_noori, scaf_ori, scaffolds, overlap, args, source=
 
 def set_scaffold_info(ctg_ori, pos, scaffolds, cut_type):
     "Set the cut and orientation information about the scaffold"
-    ctg = ctg_ori.strip("+-")
-    orientation = ctg_ori[-1]
+    ctg, orientation = ctg_ori.strip("+-"), ctg_ori[-1]
     scaffolds[ctg].ori = orientation
     if cut_type == "source":
         scaffolds[ctg].source_cut = pos
@@ -292,7 +291,7 @@ def get_dist_from_end(ori, pos, scaf_len, target=False):
         return (scaf_len - pos)*-1
     return pos*-1
 
-def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, args):
+def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args):
     source_noori = source.strip("+-")
     target_noori = target.strip("+-")
 
@@ -304,7 +303,6 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
         list_mxs_pair = Ntjoin.filter_minimizers(list_mxs_pair)
 
     graph = build_graph(list_mxs_pair, weights)
-
     graph = filter_graph_global(graph, 2)
 
     # Print the DOT graph if in verbose mode
@@ -315,17 +313,16 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
     for component in graph.components():
         component_graph = graph.subgraph(component)
         source_nodes = [node.index for node in component_graph.vs() if node.degree() == 1]
-        singleton_node = [node.index for node in component_graph.vs() if node.degree() == 0]
+        singleton_nodes = [node.index for node in component_graph.vs() if node.degree() == 0]
         if len(source_nodes) == 2:
-            source_comp, target_comp = source_nodes
-            if vertex_name(component_graph, source_comp) > vertex_name(component_graph, target_comp):
-                source_tmp = source_comp
-                source_comp = target_comp
-                target_comp = source_tmp
-            paths = component_graph.get_shortest_paths(source_comp, target_comp)
+            source_node, target_node = source_nodes
+            if vertex_name(component_graph, source_node) > vertex_name(component_graph, target_node):
+                source_tmp = source_node
+                source_node = target_node
+                target_node = source_tmp
+            paths = component_graph.get_shortest_paths(source_node, target_node)
             assert len(paths) == 1
-            path = sorted(paths)[0]
-            path = [vertex_name(component_graph, mx) for mx in path]
+            path = [vertex_name(component_graph, mx) for mx in paths[0]]
             start_mx, end_mx = path[0], path[-1]
             source_start, target_start = [list_mx_info[assembly][start_mx][1]
                                           for assembly in [source_noori, target_noori]]
@@ -343,9 +340,9 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
                                                    mid_mx=mid_mx,
                                                    median_length_from_end=np.median(
                                                        [mid_mx_dist_end_source, mid_mx_dist_end_target])))
-        elif singleton_node:
-            assert len(singleton_node) == 1
-            mid_mx = vertex_name(component_graph, singleton_node[0])
+        elif singleton_nodes:
+            assert len(singleton_nodes) == 1
+            mid_mx = vertex_name(component_graph, singleton_nodes[0])
             mid_mx_dist_end_source = get_dist_from_end(source[-1], list_mx_info[source_noori][mid_mx][1],
                                                        scaffolds[source_noori].length)
             mid_mx_dist_end_target = get_dist_from_end(target[-1], list_mx_info[target_noori][mid_mx][1],
@@ -358,8 +355,7 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
         return
     path = sorted(paths_components, key=lambda x: (x.mapped_region_length, x.median_length_from_end,
                                                    x.mid_mx), reverse=True)[0]
-    mx = path.mid_mx
-    source_cut, target_cut = list_mx_info[source_noori][mx][1], list_mx_info[target_noori][mx][1]
+    source_cut, target_cut = list_mx_info[source_noori][path.mid_mx][1], list_mx_info[target_noori][path.mid_mx][1]
 
     if source_cut is None or target_cut is None:
         return
@@ -410,6 +406,7 @@ def find_valid_mx_regions(args, gap_re, graph, scaffolds):
 
 def merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds):
     "Read through pathfile, and merge overlapping pieces, updating path file"
+    print(datetime.datetime.today(), ": Finding scaffold overlaps", file=sys.stdout)
     out_pathfile = open(args.p + ".trimmed_scafs.path", 'w')
     with open(args.a, 'r') as path_fin:
         for path in path_fin:
@@ -422,8 +419,7 @@ def merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds):
                 if not gap_match:
                     continue
                 if int(gap_match.group(1)) <= args.g + 1 and graph.es()[edge_index(graph, source, target)]["d"] < 0:
-                    gap = graph.es()[edge_index(graph, source, target)]["d"]
-                    merge_overlapping(mxs, mxs_info, source, target, gap, scaffolds, args)  # !! TODO: output file name
+                    merge_overlapping(mxs, mxs_info, source, target, scaffolds, args)
                     gap = "{}N".format(args.outgap)
                 if not new_path:
                     new_path.append(source)
@@ -432,6 +428,25 @@ def merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds):
             out_pathfile.write("{path_id}\t{ctgs}\n".format(path_id=path_id, ctgs=" ".join(new_path)))
     out_pathfile.close()
 
+def print_trimmed_scaffolds(args, scaffolds):
+    "Print the trimmed scaffolds fasta to file"
+    print(datetime.datetime.today(), ": Printing trimmed scaffolds", file=sys.stdout)
+    fasta_outfile = open(args.p + ".trimmed_scafs.fa", 'w')
+    for out_scaffold in scaffolds:
+        scaffold = scaffolds[out_scaffold]
+        if scaffold.ori == "+":
+            sequence = scaffold.sequence[scaffold.target_cut:scaffold.source_cut]
+        elif scaffold.ori == "-":
+            sequence = scaffold.sequence[scaffold.source_cut + args.k:scaffold.target_cut + args.k]
+        elif scaffold.ori is None:
+            sequence = scaffold.sequence
+        else:
+            raise ValueError("Invalid orientation for Scaffold:", scaffold)
+        if len(sequence) == 0:
+            sequence = "N"
+        fasta_outfile.write(
+            ">{} {}-{}\n{}\n".format(scaffold.ctg_id, scaffold.source_cut, scaffold.target_cut, sequence))
+    fasta_outfile.close()
 
 def parse_arguments():
     "Parse arguments for ntLink overlap"
@@ -480,22 +495,7 @@ def main():
 
     merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds)
 
-    # Print out all scaffolds
-    fasta_outfile = open(args.p + ".trimmed_scafs.fa", 'w')
-    for out_scaffold in scaffolds:
-        scaffold = scaffolds[out_scaffold]
-        if scaffold.ori == "+":
-            sequence = scaffold.sequence[scaffold.target_cut:scaffold.source_cut]
-        elif scaffold.ori == "-":
-            sequence = scaffold.sequence[scaffold.source_cut + args.k:scaffold.target_cut+args.k]
-        elif scaffold.ori is None:
-            sequence = scaffold.sequence
-        else:
-            raise ValueError("Invalid orientation for Scaffold:", scaffold)
-        if len(sequence) == 0:
-            sequence = "N"
-        fasta_outfile.write(">{} {}-{}\n{}\n".format(scaffold.ctg_id, scaffold.source_cut, scaffold.target_cut, sequence))
-    fasta_outfile.close()
+    print_trimmed_scaffolds(args, scaffolds)
 
 
 if __name__ == '__main__':
