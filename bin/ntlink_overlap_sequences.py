@@ -100,7 +100,7 @@ def vertex_name(graph, index):
     return graph.vs[index]['name']
 
 def is_in_valid_region(pos, valid_minimizer_positions):
-    "Returns True if the minimizer is in a valid position, else false"
+    "Returns True if the minimizer is in a valid position for overlap detection, else False"
     for start, end in valid_minimizer_positions:
         if pos >= start and pos <= end:
             return True
@@ -110,7 +110,6 @@ def read_minimizers(tsv_filename, valid_mx_positions):
     "Read the minimizers from a file, removing duplicate minimizers for a given contig"
     print(datetime.datetime.today(), ": Reading minimizers", tsv_filename, file=sys.stdout)
     mx_info = defaultdict(dict)  # contig -> mx -> (contig, position)
-    #mx_info_filt = defaultdict(dict)
     mxs = {}  # Contig -> [list of minimizers]
     with open(tsv_filename, 'r') as tsv:
         for line in tsv:
@@ -130,11 +129,9 @@ def read_minimizers(tsv_filename, valid_mx_positions):
                     else:
                         mx_info[name][mx] = (name, int(pos))
                 mx_info[name] = {mx: mx_info[name][mx] for mx in mx_info[name] if mx not in dup_mxs}
-                mxs[name] = [[mx_pos.split(":")[0] for mx_pos in mx_pos_split
-                              if mx_pos.split(":")[0] not in dup_mxs and
-                              mx_pos.split(":")[0] in mx_info[name] and
-                              is_in_valid_region(int(mx_pos.split(":")[1]), valid_mx_positions[name])]]
-
+                mxs[name] = [[mx for mx, pos in (mx_pos.split(":") for mx_pos in mx_pos_split)
+                              if mx not in dup_mxs and mx in mx_info[name] and
+                              is_in_valid_region(int(pos), valid_mx_positions[name])]]
 
     return mx_info, mxs
 
@@ -216,12 +213,9 @@ def build_graph(list_mxs, weights):
     formatted_edges = [(s, t) for s in edges for t in edges[s]]
 
     graph.add_vertices(list(vertices))
-
     graph.add_edges(formatted_edges)
-
     edge_attributes = {edge_index(graph, s, t): {"support": edges[s][t],
-                                                      "weight": calc_total_weight(edges[s][t],
-                                                                                       weights)}
+                                                 "weight": calc_total_weight(edges[s][t], weights)}
                        for s in edges for t in edges[s]}
     set_edge_attributes(graph, edge_attributes)
 
@@ -304,18 +298,16 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
 
     weights = {source_noori: 1, target_noori: 1}
 
-    list_mxs_pair = {name: list_mxs[name] for name in list_mxs if (name == source_noori or name == target_noori)}
+    list_mxs_pair = {source_noori: list_mxs[source_noori], target_noori: list_mxs[target_noori]}
 
     with HiddenPrints():
         list_mxs_pair = Ntjoin.filter_minimizers(list_mxs_pair)
-
-    list_mxs_pair = filter_minimizers_position(list_mxs_pair, source, target, gap, scaffolds, list_mx_info, args)
 
     graph = build_graph(list_mxs_pair, weights)
 
     graph = filter_graph_global(graph, 2)
 
-    # Print the DOT graph
+    # Print the DOT graph if in verbose mode
     if args.v:
         print_graph(graph, list_mx_info, args.p)
 
@@ -333,12 +325,15 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
             paths = component_graph.get_shortest_paths(source_comp, target_comp)
             assert len(paths) == 1
             path = sorted(paths)[0]
-            source_start, target_start = [list_mx_info[assembly][vertex_name(component_graph, path[0])][1] for assembly in [source_noori, target_noori]]
-            source_end, target_end = [list_mx_info[assembly][vertex_name(component_graph, path[-1])][1] for assembly in [source_noori, target_noori]]
+            path = [vertex_name(component_graph, mx) for mx in path]
+            start_mx, end_mx = path[0], path[-1]
+            source_start, target_start = [list_mx_info[assembly][start_mx][1]
+                                          for assembly in [source_noori, target_noori]]
+            source_end, target_end = [list_mx_info[assembly][end_mx][1]
+                                      for assembly in [source_noori, target_noori]]
             source_align_len = abs(source_start - source_end)
             target_align_len = abs(target_start - target_end)
 
-            path = [vertex_name(component_graph, mx) for mx in path]
             mid_mx = path[int(len(path)/2)]
             mid_mx_dist_end_source = get_dist_from_end(source[-1], list_mx_info[source_noori][mid_mx][1],
                                                        scaffolds[source_noori].length)
@@ -356,20 +351,18 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, gap, scaffolds, ar
             mid_mx_dist_end_target = get_dist_from_end(target[-1], list_mx_info[target_noori][mid_mx][1],
                                                        scaffolds[target_noori].length, target=True)
             paths_components.append(MappedPathInfo(mapped_region_length=1, mid_mx=mid_mx,
-                                     median_length_from_end=np.median([mid_mx_dist_end_source, mid_mx_dist_end_target])))
+                                                   median_length_from_end=np.median([mid_mx_dist_end_source, mid_mx_dist_end_target])))
         else:
             print("NOTE: non-singleton, {} source nodes".format(len(source_nodes)))
     if not paths_components:
         return
     path = sorted(paths_components, key=lambda x: (x.mapped_region_length, x.median_length_from_end,
                                                    x.mid_mx), reverse=True)[0]
-    mx = path[1]
-    cuts = {list_mx_info[assembly][mx][0]: list_mx_info[assembly][mx][1] for assembly in [source_noori, target_noori]}
+    mx = path.mid_mx
+    source_cut, target_cut = list_mx_info[source_noori][mx][1], list_mx_info[target_noori][mx][1]
 
-    if not cuts:
+    if source_cut is None or target_cut is None:
         return
-    source_cut = cuts[source.strip("+-")]
-    target_cut = cuts[target.strip("+-")]
 
     set_scaffold_info(source, source_cut, scaffolds, "source")
     set_scaffold_info(target, target_cut, scaffolds, "target")
@@ -414,6 +407,30 @@ def find_valid_mx_regions(args, gap_re, graph, scaffolds):
                         valid_regions[target_noori] = []
                     valid_regions[target_noori].append((target_start, target_end))
     return valid_regions
+
+def merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds):
+    "Read through pathfile, and merge overlapping pieces, updating path file"
+    out_pathfile = open(args.p + ".trimmed_scafs.path", 'w')
+    with open(args.a, 'r') as path_fin:
+        for path in path_fin:
+            new_path = []
+            path_id, path_seq = path.strip().split("\t")
+            path_seq = path_seq.split(" ")
+            path_seq = normalize_path(path_seq, gap_re)
+            for source, gap, target in zip(path_seq, path_seq[1:], path_seq[2:]):
+                gap_match = re.search(gap_re, gap)
+                if not gap_match:
+                    continue
+                if int(gap_match.group(1)) <= args.g + 1 and graph.es()[edge_index(graph, source, target)]["d"] < 0:
+                    gap = graph.es()[edge_index(graph, source, target)]["d"]
+                    merge_overlapping(mxs, mxs_info, source, target, gap, scaffolds, args)  # !! TODO: output file name
+                    gap = "{}N".format(args.outgap)
+                if not new_path:
+                    new_path.append(source)
+                new_path.append(gap)
+                new_path.append(target)
+            out_pathfile.write("{path_id}\t{ctgs}\n".format(path_id=path_id, ctgs=" ".join(new_path)))
+    out_pathfile.close()
 
 
 def parse_arguments():
@@ -461,30 +478,7 @@ def main():
     args.m = "/dev/stdin" if args.m == "-" else args.m
     mxs_info, mxs = read_minimizers(args.m, valid_mx_positions)
 
-
-    out_pathfile = open(args.p + ".trimmed_scafs.path", 'w')
-
-    with open(args.a, 'r') as path_fin:
-        for path in path_fin:
-            new_path = []
-            path_id, path_seq = path.strip().split("\t")
-            path_seq = path_seq.split(" ")
-            path_seq = normalize_path(path_seq, gap_re)
-            for i, j, k in zip(path_seq, path_seq[1:], path_seq[2:]):
-                source, gap, target = i, j, k
-                gap_match = re.search(gap_re, gap)
-                if not gap_match:
-                    continue
-                if int(gap_match.group(1)) <= args.g + 1 and graph.es()[edge_index(graph, source, target)]["d"]  < 0:
-                    gap = graph.es()[edge_index(graph, source, target)]["d"]
-                    merge_overlapping(mxs, mxs_info, source, target, gap, scaffolds, args) #!! TODO: output file name
-                    gap = "{}N".format(args.outgap)
-                if not new_path:
-                    new_path.append(source)
-                new_path.append(gap)
-                new_path.append(target)
-            out_pathfile.write("{path_id}\t{ctgs}\n".format(path_id=path_id, ctgs=" ".join(new_path)))
-    out_pathfile.close()
+    merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds)
 
     # Print out all scaffolds
     fasta_outfile = open(args.p + ".trimmed_scafs.fa", 'w')
@@ -502,7 +496,6 @@ def main():
             sequence = "N"
         fasta_outfile.write(">{} {}-{}\n{}\n".format(scaffold.ctg_id, scaffold.source_cut, scaffold.target_cut, sequence))
     fasta_outfile.close()
-
 
 
 if __name__ == '__main__':
