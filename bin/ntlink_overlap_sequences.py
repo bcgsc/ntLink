@@ -367,16 +367,18 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, g
         else:
             print("NOTE: non-singleton, {} source nodes".format(len(source_nodes)))
     if not paths_components:
-        return
+        return False
     path = sorted(paths_components, key=lambda x: (x.mapped_region_length, x.median_length_from_end,
                                                    x.mid_mx), reverse=True)[0]
     source_cut, target_cut = list_mx_info[source_noori][path.mid_mx][1], list_mx_info[target_noori][path.mid_mx][1]
 
     if source_cut is None or target_cut is None:
-        return
+        return False
 
     set_scaffold_info(source, source_cut, scaffolds, "source")
     set_scaffold_info(target, target_cut, scaffolds, "target")
+
+    return True
 
 def normalize_path(path_sequence, gap_re):
     "Given a path, normalize it to ensure deterministic running"
@@ -434,9 +436,10 @@ def merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds):
                 if not gap_match:
                     continue
                 if int(gap_match.group(1)) <= args.g + 1 and graph.es()[edge_index(graph, source, target)]["d"] < 0:
-                    merge_overlapping(mxs, mxs_info, source, target, scaffolds, args,
+                    cuts_found = merge_overlapping(mxs, mxs_info, source, target, scaffolds, args,
                                       graph.es()[edge_index(graph, source, target)]["d"])
-                    gap = "{}N".format(args.outgap)
+                    if cuts_found:
+                        gap = "{}N".format(args.outgap)
                 if not new_path:
                     new_path.append(source)
                 new_path.append(gap)
