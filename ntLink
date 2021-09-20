@@ -42,7 +42,7 @@ a=1
 f=10
 
 # Whether to run overlap detection code or not
-overlap=True
+overlap=False
 
 # Fudge factor for filtering by mapping block length
 x=0
@@ -105,7 +105,7 @@ help:
 	@echo "z			Minimum size of contig (bp) to scaffold [1000]"
 	@echo "v			If 1, track time and memory for each step of the pipeline [0]"
 	@echo "conservative		If False, runs ntLink in stitching mode [True]"
-	@echo "overlap			If True, runs extra step to attempt to identify overlapping sequences and trim them [True]"
+	@echo "overlap			If True, runs extra step to attempt to identify overlapping sequences and trim them [False]"
 	@echo ""
 	@echo "Note: "
 	@echo "	- Ensure all assembly and read files are in the current working directory, making soft links if necessary"
