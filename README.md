@@ -70,7 +70,7 @@ The post-ntLink scaffolds file will have the suffix `*ntLink.scaffolds.fa`
  
  Installing using conda:
  ```
- conda install -c bioconda ntlink
+ conda install -c bioconda -c conda-forge ntlink
  ```
  
  Installing using brew:
