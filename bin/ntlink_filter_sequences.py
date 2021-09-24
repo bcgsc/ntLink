@@ -29,8 +29,6 @@ def main():
     parser.add_argument("-g", help="Minimum gap size (bp) [20]", required=False, type=int, default=20)
     args = parser.parse_args()
 
-    print("Filtering sequences for ntLink overlap stage..")
-
     gap_re = re.compile(r'^(\d+)N$')
 
     with ntlink_utils.HiddenPrints():
