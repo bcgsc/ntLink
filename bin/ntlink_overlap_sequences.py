@@ -11,6 +11,8 @@ from collections import defaultdict
 from collections import namedtuple
 import igraph as ig
 import numpy as np
+from read_fasta import read_fasta
+
 
 import ntjoin_utils
 import ntlink_utils
@@ -18,7 +20,7 @@ import ntlink_utils
 MappedPathInfo = namedtuple("MappedPathInfo",
                             ["mapped_region_length", "mid_mx", "median_length_from_end"])
 
-class Scaffold:
+class ScaffoldCut:
     "Defines a scaffold, and the cut points for that scaffold"
 
     def __init__(self, ctg_id, sequence):
@@ -131,6 +133,17 @@ def read_minimizers(tsv_filename, valid_mx_positions):
                               is_in_valid_region(int(pos), valid_mx_positions[name])]]
 
     return mx_info, mxs
+
+def read_fasta_file_trim_prep(filename):
+    "Read a fasta file into memory. Returns dictionary of scafID -> Scaffold"
+    print(datetime.datetime.today(), ": Reading fasta file", filename, file=sys.stdout)
+    scaffolds = {}
+
+    with open(filename, 'r') as fasta:
+        for header, seq, _, _ in read_fasta(fasta):
+            scaffolds[header] = ScaffoldCut(ctg_id=header, sequence=seq)
+
+    return scaffolds
 
 def print_graph(graph, list_mx_info, prefix):
     "Prints the minimizer graph in dot format"
@@ -433,7 +446,7 @@ def main():
     gap_re = re.compile(r'^(\d+)N$')
     args.outgap = args.outgap + 1
 
-    scaffolds = ntlink_utils.read_fasta_file(args.s)
+    scaffolds = read_fasta_file_trim_prep(args.s)
     graph = ntlink_utils.read_scaffold_graph(args.d)
 
     valid_mx_positions = ntlink_utils.find_valid_mx_regions(args, gap_re, graph, scaffolds)
