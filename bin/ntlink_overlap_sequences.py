@@ -393,6 +393,8 @@ def normalize_path(path_sequence, gap_re):
 
 def find_valid_mx_regions(args, gap_re, graph, scaffolds):
     "Return a dictionary with scaffold -> [(start, end)]"
+    print(datetime.datetime.today(), ": Finding valid minimizer regions", file=sys.stdout)
+
     valid_regions = {}
 
     with open(args.a, 'r') as path_fin:

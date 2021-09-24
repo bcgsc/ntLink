@@ -61,6 +61,8 @@ def reverse_scaf_ori(scaffold):
 
 def read_scaffold_graph(in_graph_file):
     "Reads in a scaffold graph in dot format"
+    print(datetime.datetime.today(), ": Reading scaffold file", in_graph_file, file=sys.stdout)
+
 
     graph = ig.Graph(directed=True)
 
