@@ -21,10 +21,12 @@ def filter_sequences(fa_in, valid_mx_regions):
 def main():
     "Run filtering of input sequences, print to the command line"
     parser = argparse.ArgumentParser(description="Filter input fasta sequences based on ntLink paths")
-    parser.add_argument("-f", "--fasta", help="Input fasta file", required=True, type=str)
+    parser.add_argument("-s", "--fasta", help="Input fasta file", required=True, type=str)
     parser.add_argument("-d", "--dot", help="Input scaffold graph dot file", required=True, type=str)
-    parser.add_argument("-p", "--path", help="Input path file", required=True, type=str)
-    parser.add_argument("-g", help="Minimum gap size (bp) [20]", required=True, type=int)
+    parser.add_argument("-a", "--path", help="Input path file", required=True, type=str)
+    parser.add_argument("-k", help="K-mer size (bp)", required=True, type=int)
+    parser.add_argument("-f", help="Fudge factor for estimated overlap [0.5]", type=float, default=0.5)
+    parser.add_argument("-g", help="Minimum gap size (bp) [20]", required=False, type=int, default=20)
     args = parser.parse_args()
 
     print("Filtering sequences for ntLink overlap stage..")
