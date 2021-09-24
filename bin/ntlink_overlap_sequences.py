@@ -504,6 +504,7 @@ def main():
     print_args(args)
 
     gap_re = re.compile(r'^(\d+)N$')
+    args.outgap = args.outgap + 1
 
     scaffolds = read_fasta_file(args.s)
     graph = NtLinkPath.read_scaffold_graph(args.d)

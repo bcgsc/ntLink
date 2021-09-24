@@ -33,7 +33,7 @@ max_n=10
 g=20
 
 # Gap size between overlapping trimmed scaffolds
-merge_gap=2
+merge_gap?=$g
 
 # Minimum # anchoring ONT reads for an edge
 a=1
@@ -42,7 +42,7 @@ a=1
 f=10
 
 # Whether to run overlap detection code or not
-overlap=False
+overlap=True
 
 # Fudge factor for filtering by mapping block length
 x=0
