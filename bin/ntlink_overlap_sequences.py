@@ -13,7 +13,6 @@ import igraph as ig
 import numpy as np
 
 import ntjoin_utils
-from ntlink_stitch_paths import NtLinkPath
 import ntlink_utils
 from read_fasta import read_fasta
 
@@ -223,7 +222,7 @@ def build_graph(list_mxs, weights):
     graph.add_vertices(list(vertices))
     graph.add_edges(formatted_edges)
     edge_attributes = {edge_index(graph, s, t): {"support": edges[s][t],
-                                                 "weight": calc_total_weight(edges[s][t], weights)}
+                                                  "weight": calc_total_weight(edges[s][t], weights)}
                        for s in edges for t in edges[s]}
     set_edge_attributes(graph, edge_attributes)
 
@@ -507,7 +506,7 @@ def main():
     args.outgap = args.outgap + 1
 
     scaffolds = read_fasta_file(args.s)
-    graph = NtLinkPath.read_scaffold_graph(args.d)
+    graph = ntlink_utils.read_scaffold_graph(args.d)
 
     valid_mx_positions = find_valid_mx_regions(args, gap_re, graph, scaffolds)
 

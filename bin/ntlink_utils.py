@@ -5,8 +5,10 @@ General utility functions for ntLink
 __author__ = "Lauren Coombe @lcoombe"
 
 import datetime
-from collections import namedtuple
+from collections import namedtuple, defaultdict
+import re
 import sys
+import igraph as ig
 
 from read_fasta import read_fasta
 
@@ -56,3 +58,48 @@ def reverse_orientation(orientation):
 def reverse_scaf_ori(scaffold):
     "Reverse orientation of scaffold"
     return scaffold[:-1] + reverse_orientation(scaffold[-1])
+
+def read_scaffold_graph(in_graph_file):
+    "Reads in a scaffold graph in dot format"
+
+    graph = ig.Graph(directed=True)
+
+    vertices = set()
+    edges = defaultdict(dict)  # source -> target -> EdgeInfo
+
+    node_re = re.compile(r'\"(\S+[+-])\"\s+\[l\=\d+\]')
+    edge_re = re.compile(r'\"(\S+[+-])\"\s+\-\>\s+\"(\S+[+-])\"\s+\[d\=(\-?\d+)\s+e\=\d+\s+n\=(\d+)\]')
+
+    past_header = False
+
+    with open(in_graph_file, 'r') as in_graph:
+        for line in in_graph:
+            line = line.strip()
+            if not past_header:
+                past_header = True
+                continue
+            node_match = re.search(node_re, line)
+            if node_match:
+                vertices.add(node_match.group(1))
+                continue
+
+            edge_match = re.search(edge_re, line)
+            if edge_match:
+                source, target, gap_est, num_links = edge_match.group(1), edge_match.group(2), \
+                                                     edge_match.group(3), edge_match.group(4)
+                edges[source][target] = (int(gap_est), int(num_links))
+            elif line != "}":
+                print("Error! Unexpected line in input dot file:", line)
+                sys.exit(1)
+
+    formatted_edges = [(s, t) for s in edges for t in edges[s]]
+    graph.add_vertices(list(vertices))
+    graph.add_edges(formatted_edges)
+
+    edge_attributes = {edge_index(graph, s, t): {'d': edges[s][t][0],
+                                                 "n": edges[s][t][1]}
+                       for s in edges for t in edges[s]}
+    graph.es()["d"] = [edge_attributes[e]['d'] for e in sorted(edge_attributes.keys())]
+    graph.es()["n"] = [edge_attributes[e]['n'] for e in sorted(edge_attributes.keys())]
+
+    return graph
