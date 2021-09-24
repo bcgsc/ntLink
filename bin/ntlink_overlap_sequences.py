@@ -518,6 +518,8 @@ def main():
 
     print_trimmed_scaffolds(args, scaffolds)
 
+    print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
+
 
 if __name__ == '__main__':
     main()
