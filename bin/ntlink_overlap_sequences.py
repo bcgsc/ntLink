@@ -12,7 +12,7 @@ from collections import namedtuple
 import igraph as ig
 import numpy as np
 
-from ntjoin_assemble import Ntjoin
+import ntjoin_utils
 from ntlink_stitch_paths import NtLinkPath
 import ntlink_utils
 from read_fasta import read_fasta
@@ -269,7 +269,7 @@ def filter_minimizers_position(list_mxs_pair, source, target, overlap,
     list_mxs_pair_return[target_noori] = [[mx for mx in list_mxs_pair[target_noori][0]
                                      if is_valid_pos(mx, list_mx_info[target_noori], start, end)]]
     with HiddenPrints():
-        list_mxs_pair_return = Ntjoin.filter_minimizers(list_mxs_pair_return)
+        list_mxs_pair_return = ntjoin_utils.filter_minimizers(list_mxs_pair_return)
 
     return list_mxs_pair_return
 
@@ -312,7 +312,7 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, g
     list_mxs_pair = {source_noori: list_mxs[source_noori], target_noori: list_mxs[target_noori]}
     list_mxs_pair = filter_minimizers_position(list_mxs_pair, source, target, gap, scaffolds, list_mx_info, args)
     with HiddenPrints():
-        list_mxs_pair = Ntjoin.filter_minimizers(list_mxs_pair)
+        list_mxs_pair = ntjoin_utils.filter_minimizers(list_mxs_pair)
 
     graph = build_graph(list_mxs_pair, weights)
     graph = filter_graph_global(graph, 2)
