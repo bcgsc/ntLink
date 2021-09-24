@@ -9,10 +9,24 @@ from collections import namedtuple, defaultdict
 import re
 import sys
 import igraph as ig
+import os
 
 from read_fasta import read_fasta
 
 Scaffold = namedtuple("Scaffold", ["id", "length"])
+
+class HiddenPrints:
+    "Adapted from: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print"
+    def __init__(self):
+        self._original_stdout = sys.stdout
+
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout.close()
+        sys.stdout = self._original_stdout
 
 def vertex_name(graph, index):
     "Returns vertex name based on vertex id"

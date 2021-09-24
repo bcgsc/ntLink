@@ -33,9 +33,10 @@ def main():
 
     gap_re = re.compile(r'^(\d+)N$')
 
-    graph = ntlink_utils.read_scaffold_graph(args.dot)
-    scaffolds = ntlink_overlap_sequences.read_fasta_file_trim_prep(args.fasta)
-    valid_mx_regions = ntlink_utils.find_valid_mx_regions(args, gap_re, graph, scaffolds)
+    with ntlink_utils.HiddenPrints():
+        graph = ntlink_utils.read_scaffold_graph(args.dot)
+        scaffolds = ntlink_overlap_sequences.read_fasta_file_trim_prep(args.fasta)
+        valid_mx_regions = ntlink_utils.find_valid_mx_regions(args, gap_re, graph, scaffolds)
 
     filter_sequences(args.fasta, valid_mx_regions)
 

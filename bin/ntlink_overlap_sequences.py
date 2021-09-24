@@ -76,19 +76,6 @@ class ScaffoldCut:
     def __str__(self):
         return f"{self.ctg_id}{self._ori} {self.length} - s:{self._source_cut} t:{self._target_cut}"
 
-class HiddenPrints:
-    "Adapted from: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print"
-    def __init__(self):
-        self._original_stdout = sys.stdout
-
-    def __enter__(self):
-        self._original_stdout = sys.stdout
-        sys.stdout = open(os.devnull, 'w')
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        sys.stdout.close()
-        sys.stdout = self._original_stdout
-
 def calc_total_weight(list_files, weights):
     "Calculate the total weight of an edge given the assembly support"
     return sum([weights[f] for f in list_files])
@@ -260,7 +247,7 @@ def filter_minimizers_position(list_mxs_pair, source, target, overlap,
                                                    source=False)
     list_mxs_pair_return[target_noori] = [[mx for mx in list_mxs_pair[target_noori][0]
                                            if is_valid_pos(mx, list_mx_info[target_noori], start, end)]]
-    with HiddenPrints():
+    with ntlink_utils.HiddenPrints():
         list_mxs_pair_return = ntjoin_utils.filter_minimizers(list_mxs_pair_return)
 
     return list_mxs_pair_return
@@ -291,7 +278,7 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, g
 
     list_mxs_pair = {source_noori: list_mxs[source_noori], target_noori: list_mxs[target_noori]}
     list_mxs_pair = filter_minimizers_position(list_mxs_pair, source, target, gap, scaffolds, list_mx_info, args)
-    with HiddenPrints():
+    with ntlink_utils.HiddenPrints():
         list_mxs_pair = ntjoin_utils.filter_minimizers(list_mxs_pair)
 
     graph = build_graph(list_mxs_pair, weights)
@@ -364,7 +351,7 @@ def merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds):
     "Read through pathfile, and merge overlapping pieces, updating path file"
     print(datetime.datetime.today(), ": Finding scaffold overlaps", file=sys.stdout)
     out_pathfile = open(args.p + ".trimmed_scafs.path", 'w')
-    with open(args.a, 'r') as path_fin:
+    with open(args.path, 'r') as path_fin:
         for path in path_fin:
             new_path = []
             path_id, path_seq = path.strip().split("\t")
@@ -446,7 +433,7 @@ def main():
     gap_re = re.compile(r'^(\d+)N$')
     args.outgap = args.outgap + 1
 
-    scaffolds = read_fasta_file_trim_prep(args.s)
+    scaffolds = read_fasta_file_trim_prep(args.fasta)
     graph = ntlink_utils.read_scaffold_graph(args.d)
 
     valid_mx_positions = ntlink_utils.find_valid_mx_regions(args, gap_re, graph, scaffolds)
