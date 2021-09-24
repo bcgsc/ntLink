@@ -105,3 +105,56 @@ def read_scaffold_graph(in_graph_file):
     graph.es()["n"] = [edge_attributes[e]['n'] for e in sorted(edge_attributes.keys())]
 
     return graph
+
+def find_valid_mx_regions(args, gap_re, graph, scaffolds):
+    "Return a dictionary with scaffold -> [(start, end)], marking the valid overlap positions for minimizers on contigs"
+    print(datetime.datetime.today(), ": Finding valid minimizer regions", file=sys.stdout)
+
+    valid_regions = {}
+
+    with open(args.a, 'r') as path_fin:
+        for path in path_fin:
+            _, path_seq = path.strip().split("\t")
+            path_seq = path_seq.split(" ")
+            path_seq = normalize_path(path_seq, gap_re)
+            for source, gap, target in zip(path_seq, path_seq[1:], path_seq[2:]):
+                source_noori, target_noori = source.strip("+-"), target.strip("+-")
+                gap_match = re.search(gap_re, gap)
+                if not gap_match:
+                    continue
+                if int(gap_match.group(1)) <= args.g + 1 and graph.es()[edge_index(graph, source, target)]["d"] < 0:
+                    gap = graph.es()[edge_index(graph, source, target)]["d"]
+                    source_start, source_end = find_valid_mx_region(source_noori, source[-1],
+                                                                    scaffolds, gap, args)
+                    if source_noori not in valid_regions:
+                        valid_regions[source_noori] = []
+                    valid_regions[source_noori].append((source_start, source_end))
+
+                    target_start, target_end = find_valid_mx_region(target_noori, target[-1],
+                                                                    scaffolds, gap, args, source=False)
+                    if target_noori not in valid_regions:
+                        valid_regions[target_noori] = []
+                    valid_regions[target_noori].append((target_start, target_end))
+    return valid_regions
+
+def normalize_path(path_sequence, gap_re):
+    "Given a path, normalize it to ensure deterministic running"
+    if path_sequence[0].strip("+-") < path_sequence[-1].strip("+-"):
+        return path_sequence
+    new_seq = []
+    for node in reversed(path_sequence):
+        if re.search(gap_re, node):
+            new_seq.append(node)
+        else:
+            new_seq.append(reverse_scaf_ori(node))
+    return new_seq
+
+def find_valid_mx_region(scaf_noori, scaf_ori, scaffolds, overlap, args, source=True):
+    "Return start/end of valid minimizer region on the scaffold"
+    if (scaf_ori == "+" and source) or (scaf_ori == "-" and not source):
+        start, end = (scaffolds[scaf_noori].length - overlap * -1 - args.k) - \
+                     int(overlap * -1 * args.f), scaffolds[scaf_noori].length
+    else:
+        start, end = 0, int(overlap * -1 * (args.f + 1))
+
+    return start, end

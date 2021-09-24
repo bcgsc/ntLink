@@ -14,7 +14,6 @@ import numpy as np
 
 import ntjoin_utils
 import ntlink_utils
-from read_fasta import read_fasta
 
 MappedPathInfo = namedtuple("MappedPathInfo",
                             ["mapped_region_length", "mid_mx", "median_length_from_end"])
@@ -88,10 +87,6 @@ class HiddenPrints:
         sys.stdout.close()
         sys.stdout = self._original_stdout
 
-def edge_index(graph, source_name, target_name):
-    "Returns graph edge index based on source/target names"
-    return graph.get_eid(source_name, target_name)
-
 def calc_total_weight(list_files, weights):
     "Calculate the total weight of an edge given the assembly support"
     return sum([weights[f] for f in list_files])
@@ -100,10 +95,6 @@ def set_edge_attributes(graph, edge_attributes):
     "Sets the edge attributes for a python-igraph graph"
     graph.es()["support"] = [edge_attributes[e]['support'] for e in sorted(edge_attributes.keys())]
     graph.es()["weight"] = [edge_attributes[e]['weight'] for e in sorted(edge_attributes.keys())]
-
-def vertex_name(graph, index):
-    "Returns vertex name based on vertex id"
-    return graph.vs[index]['name']
 
 def is_in_valid_region(pos, valid_minimizer_positions):
     "Returns True if the minimizer is in a valid position for overlap detection, else False"
@@ -141,17 +132,6 @@ def read_minimizers(tsv_filename, valid_mx_positions):
 
     return mx_info, mxs
 
-def read_fasta_file(filename):
-    "Read a fasta file into memory. Returns dictionary of scafID -> Scaffold"
-    print(datetime.datetime.today(), ": Reading fasta file", filename, file=sys.stdout)
-    scaffolds = {}
-
-    with open(filename, 'r') as fasta:
-        for header, seq, _, _ in read_fasta(fasta):
-            scaffolds[header] = Scaffold(ctg_id=header, sequence=seq)
-
-    return scaffolds
-
 def print_graph(graph, list_mx_info, prefix):
     "Prints the minimizer graph in dot format"
     out_graph = prefix + ".mx.dot"
@@ -175,8 +155,8 @@ def print_graph(graph, list_mx_info, prefix):
 
     for edge in graph.es():
         outfile.write("\"%s\" -- \"%s\"" %
-                      (vertex_name(graph, edge.source),
-                       vertex_name(graph, edge.target)))
+                      (ntlink_utils.vertex_name(graph, edge.source),
+                       ntlink_utils.vertex_name(graph, edge.target)))
         weight = edge['weight']
         support = edge['support']
         if len(support) == 1:
@@ -221,7 +201,7 @@ def build_graph(list_mxs, weights):
 
     graph.add_vertices(list(vertices))
     graph.add_edges(formatted_edges)
-    edge_attributes = {edge_index(graph, s, t): {"support": edges[s][t],
+    edge_attributes = {ntlink_utils.edge_index(graph, s, t): {"support": edges[s][t],
                                                   "weight": calc_total_weight(edges[s][t], weights)}
                        for s in edges for t in edges[s]}
     set_edge_attributes(graph, edge_attributes)
@@ -259,30 +239,18 @@ def filter_minimizers_position(list_mxs_pair, source, target, overlap,
     source_noori, source_ori = source.strip("+-"), source[-1]
     target_noori, target_ori = target.strip("+-"), target[-1]
 
-    start, end = find_valid_mx_region(source_noori, source_ori, scaffolds, overlap, args)
+    start, end = ntlink_utils.find_valid_mx_region(source_noori, source_ori, scaffolds, overlap, args)
     list_mxs_pair_return[source_noori] = [[mx for mx in list_mxs_pair[source_noori][0]
-                                     if is_valid_pos(mx, list_mx_info[source_noori], start, end)]]
+                                           if is_valid_pos(mx, list_mx_info[source_noori], start, end)]]
 
-    start, end = find_valid_mx_region(target_noori, target_ori, scaffolds, overlap, args,
-                                      source=False)
+    start, end = ntlink_utils.find_valid_mx_region(target_noori, target_ori, scaffolds, overlap, args,
+                                                   source=False)
     list_mxs_pair_return[target_noori] = [[mx for mx in list_mxs_pair[target_noori][0]
-                                     if is_valid_pos(mx, list_mx_info[target_noori], start, end)]]
+                                           if is_valid_pos(mx, list_mx_info[target_noori], start, end)]]
     with HiddenPrints():
         list_mxs_pair_return = ntjoin_utils.filter_minimizers(list_mxs_pair_return)
 
     return list_mxs_pair_return
-
-
-def find_valid_mx_region(scaf_noori, scaf_ori, scaffolds, overlap, args, source=True):
-    "Return start/end of valid minimizer region on the scaffold"
-    if (scaf_ori == "+" and source) or (scaf_ori == "-" and not source):
-        start, end = (scaffolds[scaf_noori].length - overlap * -1 - args.k) - \
-                     int(overlap * -1 * args.f), scaffolds[scaf_noori].length
-    else:
-        start, end = 0, int(overlap * -1 * (args.f + 1))
-
-    return start, end
-
 
 def set_scaffold_info(ctg_ori, pos, scaffolds, cut_type):
     "Set the cut and orientation information about the scaffold"
@@ -327,12 +295,12 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, g
         singleton_nodes = [node.index for node in component_graph.vs() if node.degree() == 0]
         if len(source_nodes) == 2:
             source_node, target_node = source_nodes
-            if vertex_name(component_graph, source_node) > \
-                    vertex_name(component_graph, target_node):
+            if ntlink_utils.vertex_name(component_graph, source_node) > \
+                    ntlink_utils.vertex_name(component_graph, target_node):
                 source_node, target_node = target_node, source_node
             paths = component_graph.get_shortest_paths(source_node, target_node)
             assert len(paths) == 1
-            path = [vertex_name(component_graph, mx) for mx in paths[0]]
+            path = [ntlink_utils.vertex_name(component_graph, mx) for mx in paths[0]]
             start_mx, end_mx = path[0], path[-1]
             source_start, target_start = [list_mx_info[assembly][start_mx][1]
                                           for assembly in [source_noori, target_noori]]
@@ -355,7 +323,7 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, g
                                                        [mid_mx_dist_end_source, mid_mx_dist_end_target])))
         elif singleton_nodes:
             assert len(singleton_nodes) == 1
-            mid_mx = vertex_name(component_graph, singleton_nodes[0])
+            mid_mx = ntlink_utils.vertex_name(component_graph, singleton_nodes[0])
             mid_mx_dist_end_source = get_dist_from_end(source[-1], list_mx_info[source_noori][mid_mx][1],
                                                        scaffolds[source_noori].length)
             mid_mx_dist_end_target = get_dist_from_end(target[-1], list_mx_info[target_noori][mid_mx][1],
@@ -379,49 +347,6 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, g
 
     return True
 
-def normalize_path(path_sequence, gap_re):
-    "Given a path, normalize it to ensure deterministic running"
-    if path_sequence[0].strip("+-") < path_sequence[-1].strip("+-"):
-        return path_sequence
-    new_seq = []
-    for node in reversed(path_sequence):
-        if re.search(gap_re, node):
-            new_seq.append(node)
-        else:
-            new_seq.append(ntlink_utils.reverse_scaf_ori(node))
-    return new_seq
-
-def find_valid_mx_regions(args, gap_re, graph, scaffolds):
-    "Return a dictionary with scaffold -> [(start, end)]"
-    print(datetime.datetime.today(), ": Finding valid minimizer regions", file=sys.stdout)
-
-    valid_regions = {}
-
-    with open(args.a, 'r') as path_fin:
-        for path in path_fin:
-            _, path_seq = path.strip().split("\t")
-            path_seq = path_seq.split(" ")
-            path_seq = normalize_path(path_seq, gap_re)
-            for source, gap, target in zip(path_seq, path_seq[1:], path_seq[2:]):
-                source_noori, target_noori = source.strip("+-"), target.strip("+-")
-                gap_match = re.search(gap_re, gap)
-                if not gap_match:
-                    continue
-                if int(gap_match.group(1)) <= args.g + 1 and graph.es()[edge_index(graph, source, target)]["d"] < 0:
-                    gap = graph.es()[edge_index(graph, source, target)]["d"]
-                    source_start, source_end = find_valid_mx_region(source_noori, source[-1],
-                                                                    scaffolds, gap, args)
-                    if source_noori not in valid_regions:
-                        valid_regions[source_noori] = []
-                    valid_regions[source_noori].append((source_start, source_end))
-
-                    target_start, target_end = find_valid_mx_region(target_noori, target[-1],
-                                                                    scaffolds, gap, args, source=False)
-                    if target_noori not in valid_regions:
-                        valid_regions[target_noori] = []
-                    valid_regions[target_noori].append((target_start, target_end))
-    return valid_regions
-
 def merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds):
     "Read through pathfile, and merge overlapping pieces, updating path file"
     print(datetime.datetime.today(), ": Finding scaffold overlaps", file=sys.stdout)
@@ -431,14 +356,15 @@ def merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds):
             new_path = []
             path_id, path_seq = path.strip().split("\t")
             path_seq = path_seq.split(" ")
-            path_seq = normalize_path(path_seq, gap_re)
+            path_seq = ntlink_utils.normalize_path(path_seq, gap_re)
             for source, gap, target in zip(path_seq, path_seq[1:], path_seq[2:]):
                 gap_match = re.search(gap_re, gap)
                 if not gap_match:
                     continue
-                if int(gap_match.group(1)) <= args.g + 1 and graph.es()[edge_index(graph, source, target)]["d"] < 0:
+                if int(gap_match.group(1)) <= args.g + 1 and \
+                        graph.es()[ntlink_utils.edge_index(graph, source, target)]["d"] < 0:
                     cuts_found = merge_overlapping(mxs, mxs_info, source, target, scaffolds, args,
-                                      graph.es()[edge_index(graph, source, target)]["d"])
+                                      graph.es()[ntlink_utils.edge_index(graph, source, target)]["d"])
                     if cuts_found:
                         gap = "{}N".format(args.outgap)
                 if not new_path:
@@ -507,10 +433,10 @@ def main():
     gap_re = re.compile(r'^(\d+)N$')
     args.outgap = args.outgap + 1
 
-    scaffolds = read_fasta_file(args.s)
+    scaffolds = ntlink_utils.read_fasta_file(args.s)
     graph = ntlink_utils.read_scaffold_graph(args.d)
 
-    valid_mx_positions = find_valid_mx_regions(args, gap_re, graph, scaffolds)
+    valid_mx_positions = ntlink_utils.find_valid_mx_regions(args, gap_re, graph, scaffolds)
 
     args.m = "/dev/stdin" if args.m == "-" else args.m
     mxs_info, mxs = read_minimizers(args.m, valid_mx_positions)
