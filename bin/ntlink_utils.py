@@ -112,7 +112,7 @@ def find_valid_mx_regions(args, gap_re, graph, scaffolds):
 
     valid_regions = {}
 
-    with open(args.a, 'r') as path_fin:
+    with open(args.path, 'r') as path_fin:
         for path in path_fin:
             _, path_seq = path.strip().split("\t")
             path_seq = path_seq.split(" ")
