@@ -30,7 +30,7 @@ Usage: ntLink scaffold target=<target scaffolds> reads='List of long read files'
 Options:
 target			Target assembly to be scaffolded in fasta format
 reads		        List of long read files (separated by a space)
-prefix			Prefix of intermediate output files [out.k<k>.w<w>.n<n>]
+prefix			Prefix of intermediate output files [<target>.k<k>.w<w>.n<n>]
 t			Number of threads [4]
 k			K-mer size for minimizers [32]
 w			Window size for minimizers [100]
@@ -57,12 +57,24 @@ Input files:
 
 ntLink command:
 ```
-ntLink scaffold target=my_assembly.fa reads=long_reads.fq.gz k=32 w=500
+ntLink scaffold target=my_assembly.fa reads=long_reads.fq.gz k=32 w=250
 ```
 
 The post-ntLink scaffolds file will have the suffix `*ntLink.scaffolds.fa`
 
  ## Installation
+ ntLink is available from conda and homebrew package managers.
+ 
+ Installing using conda:
+ ```
+ conda install -c bioconda ntlink
+ ```
+ 
+ Installing using brew:
+ ```
+ brew install brewsci/bio/ntlink
+ ```
+ 
  Installing from source code:
  ```
 git clone https://github.com/bcgsc/ntLink.git
@@ -80,7 +92,8 @@ The expected output files can be found in: `tests/expected_outputs`
 
 ## Dependencies
 * Python3 ([Numpy](https://numpy.org/), [Python-igraph](https://igraph.org/python/))
-* [ABySS](https://github.com/bcgsc/abyss)
+* [ABySS v2.3.0+](https://github.com/bcgsc/abyss)
+* GCC 5+ or Clang 4+ with OpenMP
 * [zlib](https://zlib.net/)
 
 Python dependencies can be installed with:
