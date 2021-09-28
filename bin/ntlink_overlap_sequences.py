@@ -6,7 +6,6 @@ import argparse
 import datetime
 import re
 import sys
-import os
 from collections import defaultdict
 from collections import namedtuple
 import igraph as ig
@@ -25,7 +24,6 @@ class ScaffoldCut:
 
     def __init__(self, ctg_id, sequence):
         self.ctg_id = ctg_id
-        self.sequence = sequence
         self.length = len(sequence)
         self._ori = None
         self._source_cut = None
@@ -378,20 +376,21 @@ def print_trimmed_scaffolds(args, scaffolds):
     "Print the trimmed scaffolds fasta to file"
     print(datetime.datetime.today(), ": Printing trimmed scaffolds", file=sys.stdout)
     fasta_outfile = open(args.p + ".trimmed_scafs.fa", 'w')
-    for out_scaffold in scaffolds:
-        scaffold = scaffolds[out_scaffold]
-        if scaffold.ori == "+":
-            sequence = scaffold.sequence[scaffold.target_cut:scaffold.source_cut]
-        elif scaffold.ori == "-":
-            sequence = scaffold.sequence[scaffold.source_cut + args.k:scaffold.target_cut + args.k]
-        elif scaffold.ori is None:
-            sequence = scaffold.sequence
-        else:
-            raise ValueError("Invalid orientation for Scaffold:", scaffold)
-        if len(sequence) == 0:
-            sequence = "N"
-        fasta_outfile.write(
-            ">{} {}-{}\n{}\n".format(scaffold.ctg_id, scaffold.source_cut, scaffold.target_cut, sequence))
+    with open(args.fasta, 'r') as fin:
+        for name, seq, _, _ in read_fasta(fin):
+            scaffold = scaffolds[name]
+            if scaffold.ori == "+":
+                sequence_out = seq[scaffold.target_cut:scaffold.source_cut]
+            elif scaffold.ori == "-":
+                sequence_out = seq[scaffold.source_cut + args.k:scaffold.target_cut + args.k]
+            elif scaffold.ori is None:
+                sequence_out = seq
+            else:
+                raise ValueError("Invalid orientation for Scaffold:", scaffold)
+            if len(sequence_out) == 0:
+                sequence_out = "N"
+            fasta_outfile.write(
+                ">{} {}-{}\n{}\n".format(scaffold.ctg_id, scaffold.source_cut, scaffold.target_cut, sequence_out))
     fasta_outfile.close()
 
 def parse_arguments():

@@ -6,10 +6,10 @@ __author__ = "Lauren Coombe @lcoombe"
 
 import datetime
 from collections import namedtuple, defaultdict
+import os
 import re
 import sys
 import igraph as ig
-import os
 
 from read_fasta import read_fasta
 
