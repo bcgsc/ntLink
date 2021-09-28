@@ -8,18 +8,18 @@
 
 package btllib;
 
-public class SWIGTYPE_p_p_char {
+public class SWIGTYPE_p_unsigned_long_long {
   private transient long swigCPtr;
 
-  protected SWIGTYPE_p_p_char(long cPtr, @SuppressWarnings("unused") boolean futureUse) {
+  protected SWIGTYPE_p_unsigned_long_long(long cPtr, @SuppressWarnings("unused") boolean futureUse) {
     swigCPtr = cPtr;
   }
 
-  protected SWIGTYPE_p_p_char() {
+  protected SWIGTYPE_p_unsigned_long_long() {
     swigCPtr = 0;
   }
 
-  protected static long getCPtr(SWIGTYPE_p_p_char obj) {
+  protected static long getCPtr(SWIGTYPE_p_unsigned_long_long obj) {
     return (obj == null) ? 0 : obj.swigCPtr;
   }
 }

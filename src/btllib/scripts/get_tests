@@ -14,9 +14,7 @@ function portable_realpath() {
   python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' $1
 }
 
-files=$(find extras/python -type f | grep "\(.*\.h$\)\|\(.*\.hpp$\)\|\(.*\.cpp$\)\|\(.*\.cxx$\)")
-files+=" "
-files+=$(find extras/java -type f | grep "\(.*\.h$\)\|\(.*\.hpp$\)\|\(.*\.cpp$\)\|\(.*\.cxx$\)")
+files=$(find tests -type f | grep "\(.*\.cpp$\)\|\(.*\.cxx$\)")
 for file in $files; do
   echo -n "$(portable_realpath $file) "
 done

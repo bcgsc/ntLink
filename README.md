@@ -1,3 +1,5 @@
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/bcgsc/ntlink)
+![Conda](https://img.shields.io/conda/dn/bioconda/ntlink?label=Conda)
 ![Logo](https://github.com/bcgsc/ntLink/blob/master/ntlink-logo.png)
 
 ## Scaffolding genome assemblies using long reads and minimizers
@@ -49,10 +51,11 @@ Note:
 Running `ntLink help` prints the help documentation.
 
 * Input reads files can be gzipped (or not), and in either fastq or fasta format
+* Input read and contigs files must be in single-line fasta format
 
 ### Example
 Input files:
-* target assembly `my_assembly.fa`
+* target assembly `my_assembly.fa` (in single-line fasta format)
 * long read file `long_reads.fq.gz`
 
 ntLink command:
@@ -67,7 +70,7 @@ The post-ntLink scaffolds file will have the suffix `*ntLink.scaffolds.fa`
  
  Installing using conda:
  ```
- conda install -c bioconda ntlink
+ conda install -c bioconda -c conda-forge ntlink
  ```
  
  Installing using brew:
