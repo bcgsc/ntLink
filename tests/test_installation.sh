@@ -11,4 +11,6 @@ ntLink scaffold -B target=scaffolds_2.fa reads=long_reads_2.fq.gz prefix=test2 w
 
 ntLink scaffold -B target=scaffolds_3.fa reads=long_reads_3.fa.gz prefix=test3 k=24 w=250
 
+ntLink scaffold -B target=scaffolds_4.fa reads=long_reads_4.fa.gz prefix=test4 k=40 w=100
+
 echo "Done tests! Compare your generated files with the files in the expected_outputs folder to ensure the tests were successful."

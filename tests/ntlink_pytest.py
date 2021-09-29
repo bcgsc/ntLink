@@ -20,13 +20,21 @@ def check_stats(abyssfac_filename):
     assert int(reference_stats["N50"]) == int(ci_stats["N50"])
     assert int(reference_stats["n"]) == int(ci_stats["n"])
 
+def check_trimmed_scaffolds(prefix):
+    "Check that the trimmed scaffolds are identical to expected"
+    cmd = "cmp {0}.trimmed_scafs.fa expected_outputs/{0}.trimmed_scafs.fa".format(prefix)
+    cmd_shlex = shlex.split(cmd)
+
+    return_code = subprocess.call(cmd_shlex)
+    assert return_code == 0
+
 def cleanup_files(target, prefix, k=32, w=100, n=2):
     "Remove all files in the input list"
     file_list = [f"{target}.k{k}.w{w}.z1000.stitch.abyss-scaffold.fa", f"{target}.k{k}.w{w}.tsv",
                  f"{prefix}.pairs.tsv",
                  f"{prefix}.n{n}.scaffold.dot", f"{prefix}.stitch.path",
                  f"{prefix}.trimmed_scafs.fa", f"{prefix}.trimmed_scafs.path",
-                 f"{target}.k{k}.w{w}.z1000.ntLink.scaffolds.fa"]
+                 f"{target}.k{k}.w{w}.z1000.ntLink.scaffolds.fa", f"{target}.k{k}.w{w}.z1000.ntLink.scaffolds.fa.abyssfac.tsv"]
 
     for out_file in file_list:
         command = "rm {0}".format(out_file)
@@ -101,3 +109,23 @@ def test_3():
 
     # Clean-up files
     cleanup_files("scaffolds_3.fa", "test3", k=24, w=250)
+
+def test_4():
+    "Testing multiple output paths, long reads in gzipped fasta format, sequences overlap"
+    test_paths = run_ntLink("scaffolds_4.fa", "long_reads_4.fa.gz", "test4", k=40, w=100)
+
+    expected_paths = ["scaf1+ 21N scaf2+", "scaf3- 21N scaf4+"]
+
+    for path in test_paths:
+        assert path in expected_paths
+
+    # Test abyss-fac
+    scaffolds = "{target}.k{k}.w{w}.z1000.ntLink.scaffolds.fa".format(target="scaffolds_4.fa", k=40, w=100)
+    run_abyssfac(scaffolds)
+    check_stats(scaffolds + ".abyssfac.tsv")
+
+    # Compare trimmed scaffolds to expected
+    check_trimmed_scaffolds("test4")
+
+    # Clean-up files
+    cleanup_files("scaffolds_4.fa", "test4", k=40, w=100)
