@@ -28,13 +28,14 @@ def check_trimmed_scaffolds(prefix):
     return_code = subprocess.call(cmd_shlex)
     assert return_code == 0
 
-def cleanup_files(target, prefix, k=32, w=100, n=2):
+def cleanup_files(target, prefix, k=32, w=100, n=2, **kwargs):
     "Remove all files in the input list"
     file_list = [f"{target}.k{k}.w{w}.z1000.stitch.abyss-scaffold.fa", f"{target}.k{k}.w{w}.tsv",
                  f"{prefix}.pairs.tsv",
                  f"{prefix}.n{n}.scaffold.dot", f"{prefix}.stitch.path",
-                 f"{prefix}.trimmed_scafs.fa", f"{prefix}.trimmed_scafs.path",
                  f"{target}.k{k}.w{w}.z1000.ntLink.scaffolds.fa", f"{target}.k{k}.w{w}.z1000.ntLink.scaffolds.fa.abyssfac.tsv"]
+    if "overlap" in kwargs and kwargs["overlap"] is not False:
+        file_list.extend([f"{prefix}.trimmed_scafs.fa", f"{prefix}.trimmed_scafs.path"])
 
     for out_file in file_list:
         command = "rm {0}".format(out_file)
@@ -42,18 +43,24 @@ def cleanup_files(target, prefix, k=32, w=100, n=2):
         return_code = subprocess.call(command_shlex)
         assert return_code == 0
 
-def run_ntLink(target, reads, prefix, k=32, w=100, n=2):
+def run_ntLink(target, reads, prefix, k=32, w=100, n=2, **kwargs):
     "Run ntLink, return paths"
-    command = "../ntLink scaffold -B target={target} reads={reads} prefix={prefix} k={k} w={w} z=1000 n={n}".format(target=target,
+    args_str = " ".join(f"{k}={v}" for k, v in kwargs.items())
+    command = "../ntLink scaffold -B target={target} reads={reads} prefix={prefix} k={k} w={w} z=1000 n={n} {extra_args}".format(target=target,
                                                                                                                    reads=reads,
                                                                                                                    prefix=prefix,
-                                                                                                                   k=k, w=w, n=n)
+                                                                                                                   k=k, w=w, n=n, extra_args=args_str)
     command_shlex = shlex.split(command)
     return_code = subprocess.call(command_shlex)
     assert return_code == 0
 
     test_paths = []
-    with open("{prefix}.trimmed_scafs.path".format(prefix=prefix), 'r') as test1_path:
+    path_file = None
+    if "overlap" in kwargs and kwargs["overlap"] is False:
+        path_file = f"{prefix}.stitch.path"
+    else:
+        path_file = f"{prefix}.trimmed_scafs.path"
+    with open(path_file.format(prefix=prefix), 'r') as test1_path:
         for line in test1_path:
             line = line.strip().split("\t")
             test_paths.append(line[1])
@@ -79,9 +86,9 @@ def test_1():
 
 def test_2():
     "Testing 4 sequences together, long reads in gzipped fastq format"
-    test_paths = run_ntLink("scaffolds_2.fa", "long_reads_2.fq.gz", "test2")
+    test_paths = run_ntLink("scaffolds_2.fa", "long_reads_2.fq.gz", "test2", k=32, w=100, overlap=False)
 
-    expected_paths = ["189459+ 73N 183836- 448N 182169- 1311N 190964+"]
+    expected_paths = ["189459+ 73N 183836- 448N 182169- 1311N 190964+", '190964- 1311N 182169+ 448N 183836+ 73N 189459-']
     for path in test_paths:
         assert path in expected_paths
 
