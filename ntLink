@@ -168,10 +168,10 @@ $(prefix).n%.abyss-scaffold.path: $(prefix).n$(n).scaffold.dot
 $(prefix).stitch.path: $(path_targets)
 ifeq ($(conservative), True)
 	$(ntLink_time) $(ntlink_path)/bin/ntlink_stitch_paths.py --min_n $(n) --max_n $(max_n)  -p out \
-	-g $(prefix).n$(n).scaffold.dot --conservative $^ 1> $@
+	-g $(prefix).n$(n).scaffold.dot --conservative $^ -o $@
 else
 	$(ntLink_time) $(ntlink_path)/bin/ntlink_stitch_paths.py --min_n $(n) --max_n $(max_n)  -p out \
-	-g $(prefix).n$(n).scaffold.dot $^ 1> $@
+	-g $(prefix).n$(n).scaffold.dot $^ -o $@
 endif
 
 $(target).k$(small_k).w$(small_w).tsv: $(target)

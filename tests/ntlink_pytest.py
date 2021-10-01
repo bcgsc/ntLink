@@ -34,7 +34,7 @@ def cleanup_files(target, prefix, k=32, w=100, n=2, **kwargs):
                  f"{prefix}.pairs.tsv",
                  f"{prefix}.n{n}.scaffold.dot", f"{prefix}.stitch.path",
                  f"{target}.k{k}.w{w}.z1000.ntLink.scaffolds.fa", f"{target}.k{k}.w{w}.z1000.ntLink.scaffolds.fa.abyssfac.tsv"]
-    if "overlap" in kwargs and kwargs["overlap"] is not False:
+    if "overlap" not in kwargs or kwargs["overlap"] is not False:
         file_list.extend([f"{prefix}.trimmed_scafs.fa", f"{prefix}.trimmed_scafs.path"])
 
     for out_file in file_list:
@@ -98,7 +98,7 @@ def test_2():
     check_stats(scaffolds + ".abyssfac.tsv")
 
     # Clean-up files
-    cleanup_files("scaffolds_2.fa", "test2")
+    cleanup_files("scaffolds_2.fa", "test2", overlap=False)
 
 def test_3():
     "Testing multiple output paths, long reads in gzipped fasta format"
