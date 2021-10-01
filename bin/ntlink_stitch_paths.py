@@ -19,56 +19,10 @@ class NtLinkPath:
     "Instance of ntLink stitch path phase"
 
     @staticmethod
-    def read_scaffold_graph(in_graph_file):
-        "Reads in a scaffold graph in dot format"
-
-        graph = ig.Graph(directed=True)
-
-        vertices = set()
-        edges = defaultdict(dict)  # source -> target -> EdgeInfo
-
-        node_re = re.compile(r'\"(\S+[+-])\"\s+\[l\=\d+\]')
-        edge_re = re.compile(r'\"(\S+[+-])\"\s+\-\>\s+\"(\S+[+-])\"\s+\[d\=(\-?\d+)\s+e\=\d+\s+n\=(\d+)\]')
-
-        past_header = False
-
-        with open(in_graph_file, 'r') as in_graph:
-            for line in in_graph:
-                line = line.strip()
-                if not past_header:
-                    past_header = True
-                    continue
-                node_match = re.search(node_re, line)
-                if node_match:
-                    vertices.add(node_match.group(1))
-                    continue
-
-                edge_match = re.search(edge_re, line)
-                if edge_match:
-                    source, target, gap_est, num_links = edge_match.group(1), edge_match.group(2), \
-                                                         edge_match.group(3), edge_match.group(4)
-                    edges[source][target] = (int(gap_est), int(num_links))
-                elif line != "}":
-                    print("Error! Unexpected line in input dot file:", line)
-                    sys.exit(1)
-
-        formatted_edges = [(s, t) for s in edges for t in edges[s]]
-        graph.add_vertices(list(vertices))
-        graph.add_edges(formatted_edges)
-
-        edge_attributes = {ntlink_utils.edge_index(graph, s, t): {'d': edges[s][t][0],
-                                                                  "n": edges[s][t][1]}
-                           for s in edges for t in edges[s]}
-        graph.es()["d"] = [edge_attributes[e]['d'] for e in sorted(edge_attributes.keys())]
-        graph.es()["n"] = [edge_attributes[e]['n'] for e in sorted(edge_attributes.keys())]
-
-        return graph
-
-    @staticmethod
     def read_paths(path_filename):
         "Read paths into graph data structure"
         #191361	188729-5+ 21N 40000+
-        print(datetime.datetime.today(), ": Building path graph", file=sys.stderr)
+        print(datetime.datetime.today(), ": Building path graph", file=sys.stdout)
 
         graph = ig.Graph(directed=True)
 
@@ -165,12 +119,12 @@ class NtLinkPath:
 
     def read_alternate_pathfile(self, filename, path_graph, new_vertices, new_edges, scaffold_graph):
         "Read through alt abyss-scaffold output file, adding potential new edges"
-        print("Reading {}".format(filename), file=sys.stderr)
+        print("Reading {}".format(filename), file=sys.stdout)
         gap_re = re.compile(r'^(\d+)N$')
         trans_edges = set()
 
         if not os.path.exists(filename):
-            print("{} does not exist, skipping.".format(filename), file=sys.stderr)
+            print("{} does not exist, skipping.".format(filename), file=sys.stdout)
             return set()
         with open(filename, 'r') as fin:
             for path in fin:
@@ -358,10 +312,10 @@ class NtLinkPath:
 
     def find_paths(self, graph):
         "Finds paths through input scaffold graph"
-        print(datetime.datetime.today(), ": Finding paths", file=sys.stderr)
+        print(datetime.datetime.today(), ": Finding paths", file=sys.stdout)
         NtLinkPath.gin = graph
         components = graph.components(mode="weak")
-        print("\nTotal number of components in graph:", len(components), "\n", sep=" ", file=sys.stderr)
+        print("\nTotal number of components in graph:", len(components), "\n", sep=" ", file=sys.stdout)
 
         paths = [self.find_paths_process(component) for component in components]
 
@@ -413,7 +367,7 @@ class NtLinkPath:
     @staticmethod
     def find_optimal_n(path_filenames):
         "Given a set of path files with correponding err logs, find the optimal abyss-scaffold n"
-        print(datetime.datetime.today(), " : Finding optimal n...", file=sys.stderr)
+        print(datetime.datetime.today(), " : Finding optimal n...", file=sys.stdout)
         best_n50, best_n, best_file = 0, 0, None
         n_match = re.compile(r'n=(\d+)\s+s=')
 
@@ -434,42 +388,43 @@ class NtLinkPath:
                         best_file = path_filename
 
         print(datetime.datetime.today(), " : Optimal n =", best_n,
-              "at N50 =", best_n50, file=sys.stderr)
+              "at N50 =", best_n50, file=sys.stdout)
 
         return best_file
 
     @staticmethod
-    def print_paths(paths):
+    def print_paths(paths, out_filename):
         "Print the contig paths"
         path_id = 0
-        for path in paths:
-            path_list = []
-            for node in path:
-                path_list.append(node.get_ori_contig())
-                if node.get_gap() is not None:
-                    path_list.append(node.get_gap())
-            if len(path_list) < 2:
-                continue
-            path_str = " ".join(path_list)
-            print("ntLink_{path_id}".format(path_id=path_id), path_str, sep="\t")
-            path_id += 1
+        with open(out_filename, 'w') as fout:
+            for path in paths:
+                path_list = []
+                for node in path:
+                    path_list.append(node.get_ori_contig())
+                    if node.get_gap() is not None:
+                        path_list.append(node.get_gap())
+                if len(path_list) < 2:
+                    continue
+                path_str = " ".join(path_list)
+                fout.write("ntLink_{path_id}\t{path}\n".format(path_id=path_id, path=path_str))
+                path_id += 1
 
 
     def main(self):
         "Run ntLink stitch paths stage"
-        print("Running ntLink stitch paths stage...\n", file=sys.stderr)
+        print("Running ntLink stitch paths stage...\n", file=sys.stdout)
 
         best_file = self.find_optimal_n(self.args.PATH)
 
         path_graph = self.read_paths(best_file)
 
         if self.args.conservative:
-            print("Printing paths for optimal N50, no stitching...\n", file=sys.stderr)
+            print("Printing paths for optimal N50, no stitching...\n", file=sys.stdout)
             paths = self.find_paths(path_graph)
-            self.print_paths(paths)
+            self.print_paths(paths, self.args.o)
             sys.exit(0)
 
-        scaffold_graph = self.read_scaffold_graph(self.args.g)
+        scaffold_graph = ntlink_utils.read_scaffold_graph(self.args.g)
 
         self.read_alternate_pathfiles(path_graph, scaffold_graph, best_file)
 
@@ -477,14 +432,14 @@ class NtLinkPath:
         assert self.is_graph_linear(path_graph)
 
         if self.args.transitive:
-            print("Checking for transitive support...\n", file=sys.stderr)
+            print("Checking for transitive support...\n", file=sys.stdout)
             path_graph = self.transitive_filter(path_graph, scaffold_graph)
 
         NtLinkPath.gin = path_graph
 
         paths = self.find_paths(path_graph)
 
-        self.print_paths(paths)
+        self.print_paths(paths, self.args.o)
 
 
 
@@ -499,6 +454,7 @@ class NtLinkPath:
         parser.add_argument("-g", help="Unfiltered scaffold graph dot file", required=True, type=str)
         parser.add_argument("-a", help="Ratio of best to second best edge to create potential connection",
                             required=False, default=0.3, type=float)
+        parser.add_argument("-o", help="Output path file name", required=True)
         parser.add_argument("-p", help="Output file prefix", required=False, default="out", type=str)
         parser.add_argument("--transitive", help="Require transitive support for edges?", action="store_true")
         parser.add_argument("--conservative", help="Conservative mode - take optimal N50 paths, no stitching",

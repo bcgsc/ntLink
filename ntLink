@@ -32,11 +32,17 @@ max_n=10
 # Minimum gap size between scaffolds
 g=20
 
+# Gap size between overlapping trimmed scaffolds
+merge_gap?=$g
+
 # Minimum # anchoring ONT reads for an edge
 a=1
 
 # Maximum number of contigs in a run for full transitive edge addition
 f=10
+
+# Whether to run overlap detection code or not
+overlap=True
 
 # Fudge factor for filtering by mapping block length
 x=0
@@ -46,6 +52,10 @@ conservative=True
 
 # Prefix for output files
 prefix=$(target).k$(k).w$(w).z$(z)
+
+# Indexlr parameters for overlapping
+small_k=15
+small_w=5
 
 SHELL=bash -e -o pipefail
 ifeq ($(shell zsh -e -o pipefail -c 'true' 2>/dev/null; echo $$?), 0)
@@ -95,6 +105,7 @@ help:
 	@echo "z			Minimum size of contig (bp) to scaffold [1000]"
 	@echo "v			If 1, track time and memory for each step of the pipeline [0]"
 	@echo "conservative		If False, runs ntLink in stitching mode [True]"
+	@echo "overlap			If True, runs extra step to attempt to identify and trim overlapping joined sequences [True]"
 	@echo ""
 	@echo "Note: "
 	@echo "	- Ensure all assembly and read files are in the current working directory, making soft links if necessary"
@@ -145,7 +156,7 @@ version:
 $(prefix).n$(n).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
 	$(ntLink_time)  sh -c '$(gzip) -cd $(reads) | \
 	$(ntlink_path)/src/indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) - | \
-  	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
+	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
 	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) -'
 
 # Run abyss-scaffold scaffolding layout
@@ -157,14 +168,30 @@ $(prefix).n%.abyss-scaffold.path: $(prefix).n$(n).scaffold.dot
 $(prefix).stitch.path: $(path_targets)
 ifeq ($(conservative), True)
 	$(ntLink_time) $(ntlink_path)/bin/ntlink_stitch_paths.py --min_n $(n) --max_n $(max_n)  -p out \
-	-g $(prefix).n$(n).scaffold.dot --conservative $^ 1> $@
+	-g $(prefix).n$(n).scaffold.dot --conservative $^ -o $@
 else
 	$(ntLink_time) $(ntlink_path)/bin/ntlink_stitch_paths.py --min_n $(n) --max_n $(max_n)  -p out \
-	-g $(prefix).n$(n).scaffold.dot $^ 1> $@
+	-g $(prefix).n$(n).scaffold.dot $^ -o $@
 endif
-	
-$(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa: $(prefix).stitch.path
-	$(ntLink_time) MergeContigs -k2 $(target) $< > $@
+
+$(target).k$(small_k).w$(small_w).tsv: $(target)
+	$(ntLink_time) $(ntlink_path)/src/indexlr --long --pos -k $(small_k) -w $(small_w) -t $(t) $< > $@
+
+$(prefix).trimmed_scafs.fa: $(prefix).stitch.path $(prefix).n$(n).scaffold.dot $(target)
+	$(ntLink_time) sh -c '$(ntlink_path)/bin/ntlink_filter_sequences.py --fasta $(target) \
+	--dot $(prefix).n$(n).scaffold.dot --path $< -k $(small_k) -f $g |\
+	$(ntlink_path)/src/indexlr --long --pos -k $(small_k) -w $(small_w) -t $(t) - |\
+	$(ntlink_path)/bin/ntlink_overlap_sequences.py -m -  --path $< \
+	-s $(target) -d $(prefix).n$(n).scaffold.dot -p $(prefix) -g $(g) -k $(small_k) --outgap $(merge_gap)'
+
+ifeq ($(overlap), True)
+$(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa: $(prefix).trimmed_scafs.fa
+	$(ntLink_time) MergeContigs -k2 $< $(prefix).trimmed_scafs.path > $@
+else
+$(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa: $(target) $(prefix).stitch.path
+	$(ntLink_time) MergeContigs -k2 $< $(prefix).stitch.path > $@
+endif
+
 
 clean: $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa
 	rm $(prefix).n*.abyss-scaffold.path $(prefix).n*.abyss-scaffold.path.sterr

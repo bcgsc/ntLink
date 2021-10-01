@@ -43,6 +43,7 @@ a                       Minimum number of anchored ONT reads required for an edg
 z			Minimum size of contig (bp) to scaffold [1000]
 v                       If 1, track time and memory for each step of the pipeline [0]
 conservative		If False, runs ntLink in stitching mode [True]
+overlap			If True, runs extra step to attempt to identify and trim overlapping joined sequences [True]
 
 Note: 
 	- Ensure all assembly and read files are in the current working directory, making soft links if necessary
@@ -51,11 +52,10 @@ Note:
 Running `ntLink help` prints the help documentation.
 
 * Input reads files can be gzipped (or not), and in either fastq or fasta format
-* Input read and contigs files must be in single-line fasta format
 
 ### Example
 Input files:
-* target assembly `my_assembly.fa` (in single-line fasta format)
+* target assembly `my_assembly.fa` 
 * long read file `long_reads.fq.gz`
 
 ntLink command:
