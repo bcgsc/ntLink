@@ -430,7 +430,7 @@ def main():
     print_args(args)
 
     gap_re = re.compile(r'^(\d+)N$')
-    args.outgap = args.outgap + 1
+    args.outgap = args.outgap + 1 # Accounting for abyss-scaffold incrementing by one in path file
 
     scaffolds = read_fasta_file_trim_prep(args.fasta)
     graph = ntlink_utils.read_scaffold_graph(args.d)

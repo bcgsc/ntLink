@@ -51,11 +51,10 @@ Note:
 Running `ntLink help` prints the help documentation.
 
 * Input reads files can be gzipped (or not), and in either fastq or fasta format
-* Input read and contigs files must be in single-line fasta format
 
 ### Example
 Input files:
-* target assembly `my_assembly.fa` (in single-line fasta format)
+* target assembly `my_assembly.fa` 
 * long read file `long_reads.fq.gz`
 
 ntLink command:
