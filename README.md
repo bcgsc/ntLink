@@ -65,6 +65,8 @@ ntLink scaffold target=my_assembly.fa reads=long_reads.fq.gz k=32 w=250
 
 The post-ntLink scaffolds file will have the suffix `*ntLink.scaffolds.fa`
 
+**For more information about the ntLink algorithm and tips for running ntLink see our [wiki](https://github.com/bcgsc/ntLink/wiki)**
+
  ## Installation
  ntLink is available from conda and homebrew package managers.
  
