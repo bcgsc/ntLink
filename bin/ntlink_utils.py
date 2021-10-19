@@ -48,13 +48,14 @@ def has_vertex(graph, name):
         return False
     return True
 
-def has_edge(g, source, target):
-    "Returns True if graph has edge, else False"
+def has_estimated_overlap(graph, source, target):
+    "Returns True if the edge has an estimated overlap, else False"
     try:
-        edge_index(g, source, target)
+        overlap = graph.es()[edge_index(graph, source, target)]["d"]
+        return overlap < 0
     except ig.InternalError:
         return False
-    return True
+
 
 def read_fasta_file(filename):
     "Read a fasta file into memory. Returns dictionary of scafID -> Scaffold"
@@ -143,8 +144,7 @@ def find_valid_mx_regions(args, gap_re, graph, scaffolds):
                 gap_match = re.search(gap_re, gap)
                 if not gap_match:
                     continue
-                if int(gap_match.group(1)) <= args.g + 1 and has_edge(graph, source, target) and \
-                        graph.es()[edge_index(graph, source, target)]["d"] < 0:
+                if int(gap_match.group(1)) <= args.g + 1 and has_estimated_overlap(graph, source, target):
                     gap = graph.es()[edge_index(graph, source, target)]["d"]
                     source_start, source_end = find_valid_mx_region(source_noori, source[-1],
                                                                     scaffolds, gap, args)
