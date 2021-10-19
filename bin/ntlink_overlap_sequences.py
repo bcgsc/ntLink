@@ -360,7 +360,7 @@ def merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds):
                 if not gap_match:
                     continue
                 if int(gap_match.group(1)) <= args.g + 1 and \
-                        graph.es()[ntlink_utils.edge_index(graph, source, target)]["d"] < 0:
+                        ntlink_utils.has_estimated_overlap(graph, source, target):
                     cuts_found = merge_overlapping(mxs, mxs_info, source, target, scaffolds, args,
                                       graph.es()[ntlink_utils.edge_index(graph, source, target)]["d"])
                     if cuts_found:
