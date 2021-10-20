@@ -406,7 +406,7 @@ def parse_arguments():
     parser.add_argument("--outgap", help="Gap size between trimmed overlapping sequences (bp) [2]", default=2, type=int)
     parser.add_argument("-p", help="Output file prefix [ntlink_merge]", default="ntlink_merge", type=str)
     parser.add_argument("-v", help="Verbose output logging", action="store_true")
-    parser.add_argument("--version", action='version', version='ntLink v1.1.0')
+    parser.add_argument("--version", action='version', version='ntLink v1.1.1')
 
     return parser.parse_args()
 
