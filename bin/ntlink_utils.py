@@ -91,6 +91,9 @@ def read_scaffold_graph(in_graph_file):
     vertices = set()
     edges = defaultdict(dict)  # source -> target -> EdgeInfo
 
+    scaf_num = None
+
+    scaf_num_re = re.compile(r'graph \[scaf_num=(\S+)\]')
     node_re = re.compile(r'\"(\S+[+-])\"\s+\[l\=\d+\]')
     edge_re = re.compile(r'\"(\S+[+-])\"\s+\-\>\s+\"(\S+[+-])\"\s+\[d\=(\-?\d+)\s+e\=\d+\s+n\=(\d+)\]')
 
@@ -112,6 +115,13 @@ def read_scaffold_graph(in_graph_file):
                 source, target, gap_est, num_links = edge_match.group(1), edge_match.group(2), \
                                                      edge_match.group(3), edge_match.group(4)
                 edges[source][target] = (int(gap_est), int(num_links))
+                continue
+            scaf_num_match = re.search(scaf_num_re, line)
+            if scaf_num_match:
+                try:
+                    scaf_num = int(scaf_num_match.group(1))
+                except:
+                    scaf_num = None
             elif line != "}":
                 print("Error! Unexpected line in input dot file:", line)
                 sys.exit(1)
@@ -126,7 +136,7 @@ def read_scaffold_graph(in_graph_file):
     graph.es()["d"] = [edge_attributes[e]['d'] for e in sorted(edge_attributes.keys())]
     graph.es()["n"] = [edge_attributes[e]['n'] for e in sorted(edge_attributes.keys())]
 
-    return graph
+    return graph, scaf_num
 
 def find_valid_mx_regions(args, gap_re, graph, scaffolds):
     "Return a dictionary with scaffold -> [(start, end)], marking the valid overlap positions for minimizers on contigs"

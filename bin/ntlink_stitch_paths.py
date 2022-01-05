@@ -393,9 +393,9 @@ class NtLinkPath:
         return best_file
 
     @staticmethod
-    def print_paths(paths, out_filename):
+    def print_paths(paths, out_filename, scaf_num):
         "Print the contig paths"
-        path_id = 0
+        path_id = 0 if scaf_num is None else scaf_num + 1
         with open(out_filename, 'w') as fout:
             for path in paths:
                 path_list = []
@@ -418,13 +418,14 @@ class NtLinkPath:
 
         path_graph = self.read_paths(best_file)
 
+        scaffold_graph, scaf_num = ntlink_utils.read_scaffold_graph(self.args.g)
+
         if self.args.conservative:
             print("Printing paths for optimal N50, no stitching...\n", file=sys.stdout)
             paths = self.find_paths(path_graph)
-            self.print_paths(paths, self.args.o)
+            self.print_paths(paths, self.args.o, scaf_num)
             sys.exit(0)
 
-        scaffold_graph = ntlink_utils.read_scaffold_graph(self.args.g)
 
         self.read_alternate_pathfiles(path_graph, scaffold_graph, best_file)
 
@@ -439,7 +440,7 @@ class NtLinkPath:
 
         paths = self.find_paths(path_graph)
 
-        self.print_paths(paths, self.args.o)
+        self.print_paths(paths, self.args.o, scaf_num)
 
 
 

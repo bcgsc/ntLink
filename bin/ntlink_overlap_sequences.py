@@ -434,7 +434,7 @@ def main():
     args.outgap = args.outgap + 1 # Accounting for abyss-scaffold incrementing by one in path file
 
     scaffolds = read_fasta_file_trim_prep(args.fasta)
-    graph = ntlink_utils.read_scaffold_graph(args.d)
+    graph, _ = ntlink_utils.read_scaffold_graph(args.d)
 
     valid_mx_positions = ntlink_utils.find_valid_mx_regions(args, gap_re, graph, scaffolds)
 

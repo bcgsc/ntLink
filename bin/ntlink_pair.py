@@ -9,6 +9,7 @@ import datetime
 from collections import defaultdict
 from collections import namedtuple
 import itertools
+import re
 import sys
 import numpy as np
 import igraph as ig
@@ -102,13 +103,29 @@ class NtLink():
     "Represents an ntLink graph construction run"
 
     @staticmethod
-    def print_directed_graph(graph, out_prefix):
+    def get_largest_ntlink_scaffold_id(scaffolds):
+        "Detect if any headers adhere to ntLink_\d+ convention, and if so return the largest number"
+        header_re = re.compile(r"^ntLink_(\d+)$")
+        largest_num = None
+
+        for scaffold in scaffolds:
+            header_match = re.search(header_re, scaffold)
+            if header_match:
+                largest_num = int(header_match.group(1)) \
+                    if largest_num is None or int(header_match.group(1)) > largest_num \
+                    else largest_num
+
+        return largest_num
+
+    @staticmethod
+    def print_directed_graph(graph, out_prefix, scaffolds):
         "Prints the directed scaffold graph in dot format"
         out_graph = out_prefix + ".scaffold.dot"
         outfile = open(out_graph, 'w')
         print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
 
         outfile.write("digraph G {\n")
+        outfile.write("graph [scaf_num={}]\n".format(NtLink.get_largest_ntlink_scaffold_id(scaffolds)))
 
         for node in graph.vs():
             node_label = "\"{scaffold}\" [l={length}]\n".\
@@ -493,7 +510,7 @@ class NtLink():
         graph = self.filter_graph_global(graph, int(self.args.n))
 
         # Print out the directed graph
-        self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n))
+        self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds)
 
         print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
 
