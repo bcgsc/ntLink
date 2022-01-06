@@ -120,7 +120,7 @@ def read_scaffold_graph(in_graph_file):
             if scaf_num_match:
                 try:
                     scaf_num = int(scaf_num_match.group(1))
-                except:
+                except ValueError:
                     scaf_num = None
             elif line != "}":
                 print("Error! Unexpected line in input dot file:", line)

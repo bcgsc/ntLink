@@ -104,8 +104,8 @@ class NtLink():
 
     @staticmethod
     def get_largest_ntlink_scaffold_id(scaffolds):
-        "Detect if any headers adhere to ntLink_\d+ convention, and if so return the largest number"
-        header_re = re.compile(r"^ntLink_(\d+)$")
+        "Detect if any headers adhere to ntLink_{num} convention, and if so return the largest number"
+        header_re = re.compile(r'^ntLink_(\d+)$')
         largest_num = None
 
         for scaffold in scaffolds:
