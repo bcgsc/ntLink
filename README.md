@@ -22,7 +22,7 @@ Design and implementation: Lauren Coombe
 ## Citing ntLink
 If you use ntLink in your research, please cite:
 
-Coombe L, Li JX, Lo T, Wong J, Nikolic V, Warren RL and Birol I LongStitch: high-quality genome assembly correction and scaffolding using long reads. BMC Bioinformatics 22, 534 (2021). https://doi.org/10.1186/s12859-021-04451-7
+Coombe L, Li JX, Lo T, Wong J, Nikolic V, Warren RL and Birol I. LongStitch: high-quality genome assembly correction and scaffolding using long reads. BMC Bioinformatics 22, 534 (2021). https://doi.org/10.1186/s12859-021-04451-7
 
 ## Usage
 ```
