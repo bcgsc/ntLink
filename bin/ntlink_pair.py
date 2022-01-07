@@ -395,7 +395,9 @@ class NtLink():
                                                                                                 length_long_read)
                         if self.args.verbose and accepted_anchor_contigs:
                             for ctg_run in accepted_anchor_contigs:
-                                verbose_file.write("{}\t{}\n".format(line[0], ctg_run.contig))
+                                verbose_file.write("{}\t{}\n".format(line[0], accepted_anchor_contigs[ctg_run].contig))
+                            verbose_file.write("{}\t{}\n".format(line[0], [str(accepted_anchor_contigs[ctg_run])
+                                            for ctg_run in accepted_anchor_contigs]))
 
                         # Filter ordered minimizer list for accepted contigs, keep track of hashes for gap sizes
                         mx_pos_split = [mx_tup for mx_tup in mx_pos_split
