@@ -371,6 +371,7 @@ class NtLink():
         pairs = {} # source -> target -> [gap estimate]
 
         # Open file for outputting verbose logging if option specified
+        verbose_file = None
         if self.args.verbose:
             verbose_file = open(self.args.p + "verbose_mapping.tsv", 'w')
 
