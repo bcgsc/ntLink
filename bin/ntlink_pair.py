@@ -373,7 +373,7 @@ class NtLink():
         # Open file for outputting verbose logging if option specified
         verbose_file = None
         if self.args.verbose:
-            verbose_file = open(self.args.p + "verbose_mapping.tsv", 'w')
+            verbose_file = open(self.args.p + ".verbose_mapping.tsv", 'w')
 
         # Add the long read edges to the graph
         for mx_long_file in self.args.FILES:
