@@ -393,7 +393,7 @@ class NtLink():
                         length_long_read = int(mx_pos_split[-1][1])
                         accepted_anchor_contigs, contig_runs = self.get_accepted_anchor_contigs(mx_pos_split,
                                                                                                 length_long_read)
-                        if self.args.verbose and accepted_anchor_contigs and len(accepted_anchor_contigs) > 1:
+                        if self.args.verbose and accepted_anchor_contigs:
                             verbose_file.write("{}\t{}\n".format(line[0], [str(accepted_anchor_contigs[ctg_run])
                                             for ctg_run in accepted_anchor_contigs]))
 
