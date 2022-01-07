@@ -51,7 +51,7 @@ x=0
 conservative=True
 
 # Output verbose read mappings to contigs?
-verbose=True
+verbose=False
 
 # Prefix for output files
 prefix=$(target).k$(k).w$(w).z$(z)
@@ -164,7 +164,7 @@ ifeq ($(verbose), True)
 	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
 	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) --verbose -'
 else
-    $(ntLink_time)  sh -c '$(gzip) -cd $(reads) | \
+	$(ntLink_time)  sh -c '$(gzip) -cd $(reads) | \
 	$(ntlink_path)/src/indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) - | \
 	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
 	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) -'
