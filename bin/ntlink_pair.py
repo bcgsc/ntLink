@@ -370,6 +370,10 @@ class NtLink():
 
         pairs = {} # source -> target -> [gap estimate]
 
+        # Open file for outputting verbose logging if option specified
+        if self.args.verbose:
+            verbose_file = open(self.args.p + "verbose_mapping.tsv", 'w')
+
         # Add the long read edges to the graph
         for mx_long_file in self.args.FILES:
             mx_long_filename = "/dev/stdin" if mx_long_file == "-" else mx_long_file
@@ -389,8 +393,8 @@ class NtLink():
                         accepted_anchor_contigs, contig_runs = self.get_accepted_anchor_contigs(mx_pos_split,
                                                                                                 length_long_read)
                         if self.args.verbose and accepted_anchor_contigs and len(accepted_anchor_contigs) > 1:
-                            print(line[0], [str(accepted_anchor_contigs[ctg_run])
-                                            for ctg_run in accepted_anchor_contigs], file=sys.stdout)
+                            verbose_file.write("{}\t{}\n".format(line[0], [str(accepted_anchor_contigs[ctg_run])
+                                            for ctg_run in accepted_anchor_contigs]))
 
                         # Filter ordered minimizer list for accepted contigs, keep track of hashes for gap sizes
                         mx_pos_split = [mx_tup for mx_tup in mx_pos_split
@@ -422,6 +426,8 @@ class NtLink():
                             for ctg_i, ctg_j in zip(contig_runs_filter, contig_runs_filter[1:]):
                                 self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_long_read,
                                               check_added=added_pairs)
+
+        verbose_file.close()
 
         return pairs
 
