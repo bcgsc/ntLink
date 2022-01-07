@@ -50,6 +50,9 @@ x=0
 # Run ntLink in conservative mode?
 conservative=True
 
+# Output verbose read mappings to contigs?
+verbose=True
+
 # Prefix for output files
 prefix=$(target).k$(k).w$(w).z$(z)
 
@@ -125,6 +128,8 @@ abyss_scaffold: ntLink_graph \
 	$(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa \
 	$(target).k$(k).w$(w).z$(z).ntLink.scaffolds.fa
 
+pair: $(prefix).n$(n).scaffold.dot
+
 $(target).k$(k).w$(w).z$(z).ntLink.scaffolds.fa: $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa
 	ln -sf $< $@
 	echo "Done ntLink! Final post-ntLink scaffolds can be found in: $@"
@@ -142,7 +147,7 @@ version:
 	@echo "Written by Lauren Coombe (lcoombe@bcgsc.ca)"
 
 
-.PHONY: help scaffold version check_params clean
+.PHONY: help scaffold version check_params clean pair
 .DELETE_ON_ERROR:
 .SECONDARY:
 
@@ -153,10 +158,17 @@ version:
 	$(ntLink_time) $(gzip) $<
 
 $(prefix).n$(n).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
+ifeq ($(verbose), True)
 	$(ntLink_time)  sh -c '$(gzip) -cd $(reads) | \
 	$(ntlink_path)/src/indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) - | \
 	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
+	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) --verbose -'
+else
+    $(ntLink_time)  sh -c '$(gzip) -cd $(reads) | \
+	$(ntlink_path)/src/indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) - | \
+	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
 	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) -'
+endif
 
 # Run abyss-scaffold scaffolding layout
 $(prefix).n%.abyss-scaffold.path: $(prefix).n$(n).scaffold.dot
