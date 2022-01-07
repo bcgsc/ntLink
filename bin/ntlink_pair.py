@@ -427,8 +427,8 @@ class NtLink():
                             for ctg_i, ctg_j in zip(contig_runs_filter, contig_runs_filter[1:]):
                                 self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_long_read,
                                               check_added=added_pairs)
-
-        verbose_file.close()
+        if self.args.verbose:
+            verbose_file.close()
 
         return pairs
 
