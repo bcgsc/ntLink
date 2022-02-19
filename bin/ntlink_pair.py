@@ -78,6 +78,7 @@ class ContigRun:
         self.contig = contig
         self.index = index
         self.hit_count = hit_count
+        self.hits = []
         self._subsumed = False
         self.first_mx = None
         self.terminal_mx = None
@@ -323,16 +324,17 @@ class NtLink():
                     noisy_contigs.add(contig)
         contig_list = [contig for contig in contig_list if contig not in noisy_contigs]
 
-        contig_runs = [(ctg, len(list(hits))) for ctg, hits in itertools.groupby(contig_list)]
+        contig_runs = [(ctg, len(list(hits)), list(hits)) for ctg, hits in itertools.groupby(contig_list)]
         contigs_hits = {}
         for i, run_tup in enumerate(contig_runs):
-            ctg, cnt = run_tup
+            ctg, cnt, list_hits = run_tup
             if ctg in contigs_hits:
                 for j in range(contigs_hits[ctg].index + 1, i):
                     contigs_hits[contig_runs[j][0]].subsumed = True
-                contigs_hits[ctg].hit_count += cnt
+                contigs_hits[ctg].hits.extend(list_hits)
             else:
                 contigs_hits[ctg] = ContigRun(ctg, i, cnt)
+                contigs_hits[ctg].hits.extend(list_hits)
 
         return_contigs_hits = {ctg: contigs_hits[ctg] for ctg in contigs_hits if not contigs_hits[ctg].subsumed}
 
@@ -395,7 +397,9 @@ class NtLink():
                                                                                                 length_long_read)
                         if self.args.verbose and accepted_anchor_contigs:
                             for ctg_run in accepted_anchor_contigs:
-                                verbose_file.write("{}\t{}\n".format(line[0], accepted_anchor_contigs[ctg_run].contig))
+                                verbose_file.write("{}\t{}\n".format(line[0], accepted_anchor_contigs[ctg_run].contig,
+                                                                     accepted_anchor_contigs[ctg_run].hits,
+                                                                     accepted_anchor_contigs[ctg_run].hit_count))
 
 
                         # Filter ordered minimizer list for accepted contigs, keep track of hashes for gap sizes
