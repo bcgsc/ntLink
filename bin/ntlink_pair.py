@@ -338,8 +338,8 @@ class NtLink():
 
         return_contigs_hits = {ctg: contigs_hits[ctg] for ctg in contigs_hits if not contigs_hits[ctg].subsumed}
 
-        return_contig_runs_tmp = [ctg for ctg, hits in contig_runs if not contigs_hits[ctg].subsumed]
-        return_contig_runs = [ctg for ctg, hits in itertools.groupby(return_contig_runs_tmp)]
+        return_contig_runs_tmp = [ctg for ctg, hits, _ in contig_runs if not contigs_hits[ctg].subsumed]
+        return_contig_runs = [ctg for ctg, hits, _ in itertools.groupby(return_contig_runs_tmp)]
 
         return return_contigs_hits, return_contig_runs
 
