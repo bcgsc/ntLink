@@ -97,8 +97,8 @@ class ContigRun:
 
     def __str__(self):
         return "contig={contig}, hit_count={hit_count}, subsumed={subsumed}, " \
-               "index={index}".format(contig=self.contig, hit_count=self.hit_count,
-                                      subsumed=self.subsumed, index=self.index)
+               "index={index}, hits={hits}".format(contig=self.contig, hit_count=self.hit_count,
+                                      subsumed=self.subsumed, index=self.index, hits=self.hits)
 
 class NtLink():
     "Represents an ntLink graph construction run"
@@ -338,8 +338,11 @@ class NtLink():
 
         return_contigs_hits = {ctg: contigs_hits[ctg] for ctg in contigs_hits if not contigs_hits[ctg].subsumed}
 
-        return_contig_runs_tmp = [ctg for ctg, hits, _ in contig_runs if not contigs_hits[ctg].subsumed]
-        return_contig_runs = [ctg for ctg, hits, _ in itertools.groupby(return_contig_runs_tmp)]
+        return_contig_runs_tmp = [ctg for ctg, hits, list_hits in contig_runs if not contigs_hits[ctg].subsumed]
+        return_contig_runs = [ctg for ctg, hits in itertools.groupby(return_contig_runs_tmp)]
+
+        for ctg in contigs_hits:
+            contigs_hits[ctg].hits = contig_positions[ctg]
 
         return return_contigs_hits, return_contig_runs
 
@@ -397,9 +400,8 @@ class NtLink():
                                                                                                 length_long_read)
                         if self.args.verbose and accepted_anchor_contigs:
                             for ctg_run in accepted_anchor_contigs:
-                                verbose_file.write("{}\t{}\n".format(line[0], accepted_anchor_contigs[ctg_run].contig,
-                                                                     accepted_anchor_contigs[ctg_run].hits,
-                                                                     accepted_anchor_contigs[ctg_run].hit_count))
+                                verbose_file.write("{}\t{}\t{}\t{}\n".format(line[0], accepted_anchor_contigs[ctg_run].contig,
+                                                                     accepted_anchor_contigs[ctg_run].hit_count, accepted_anchor_contigs[ctg_run].hits))
 
 
                         # Filter ordered minimizer list for accepted contigs, keep track of hashes for gap sizes
