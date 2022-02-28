@@ -15,7 +15,7 @@ import numpy as np
 Scaffold = namedtuple("Scaffold", ["seq", "length"])
 
 MappedPathInfo = namedtuple("MappedPathInfo",
-                            ["mapped_region_length", "mid_mx", "median_length_from_end"])
+                            ["mapped_region_length", "mid_mx", "median_length_from_end", "num_nodes"])
 
 
 def read_fasta(fasta_filename: str) -> dict:
@@ -32,9 +32,9 @@ def assess_edge(source: str, target: str, sequences: dict, gap_estimate: int, ar
                                                                  sequences, gap_estimate, args, source=True)
     target_start, target_end = ntlink_utils.find_valid_mx_region(target.strip("+-"), target[-1],
                                                                  sequences, gap_estimate, args, source=False)
-    out_fasta = open("tmp.fa", 'r') # !! TODO: Right now, only printing the overlapping region segment
-    out_fasta.write(f"{source.strip('+-')}\n{sequences[source.strip('+-')].seq[source_start:source_end]}\n")
-    out_fasta.write(f"{target.strip('+-')}\n{sequences[target.strip('+-')].seq[target_start:target_end]}\n")
+    out_fasta = open("tmp.fa", 'w') # !! TODO: Right now, only printing the overlapping region segment
+    out_fasta.write(f">{source.strip('+-')}\n{sequences[source.strip('+-')].seq[source_start:source_end]}\n")
+    out_fasta.write(f">{target.strip('+-')}\n{sequences[target.strip('+-')].seq[target_start:target_end]}\n")
     out_fasta.close()
 
     mx_info = defaultdict(dict) # contig -> mx -> (contig, position)
@@ -56,9 +56,9 @@ def assess_edge(source: str, target: str, sequences: dict, gap_estimate: int, ar
 
     return_info = merge_overlapping(mxs, mx_info, source, target, sequences, args, 0)
     if not return_info:
-        print(source, target, gap_estimate, 0, 0, sep="\t")
+        print(source, target, gap_estimate, 0, 0, return_info, sep="\t")
     else:
-        print(source, target, gap_estimate, return_info[0].mapped_region_length, len(return_info), sep="\t")
+        print(source, target, gap_estimate, return_info[0].mapped_region_length*-1, len(return_info), return_info, sep="\t")
 
 def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, gap):
     "Find the cut points for overlapping adjacent contigs"
@@ -111,7 +111,7 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, g
                                                                                    target_align_len]),
                                                    mid_mx=mid_mx,
                                                    median_length_from_end=np.median(
-                                                       [mid_mx_dist_end_source, mid_mx_dist_end_target])))
+                                                       [mid_mx_dist_end_source, mid_mx_dist_end_target]), num_nodes=len(path)))
         elif singleton_nodes:
             assert len(singleton_nodes) == 1
             mid_mx = ntlink_utils.vertex_name(component_graph, singleton_nodes[0])
@@ -121,20 +121,20 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, g
                                                        scaffolds[target_noori].length, target=True)
             paths_components.append(MappedPathInfo(mapped_region_length=1, mid_mx=mid_mx,
                                                    median_length_from_end=np.median([mid_mx_dist_end_source,
-                                                                                     mid_mx_dist_end_target])))
+                                                                                     mid_mx_dist_end_target]), num_nodes=1))
         else:
             print("NOTE: non-singleton, {} source nodes".format(len(source_nodes)))
     if not paths_components:
         return False
-    paths = sorted(paths_components, key=lambda x: (x.mapped_region_length, x.median_length_from_end,
+    paths = sorted(paths_components, key=lambda x: (x.num_nodes, x.mapped_region_length, x.median_length_from_end,
                                                    x.mid_mx), reverse=True)
     return paths
 
 
 def assess_scaffold_graph_edges(args: argparse.Namespace, fasta_seqs: dict) -> None:
     "Assess each overlapping edge based on minimizer overlap, find mapping region length (and #)"
-    edge_re = re.compile(r'^\"(\S+)\" -> \"(\S+)\" \[d=(\d+) e=\d+ n=(\d+)')
-
+    edge_re = re.compile(r'^\"(\S+)\" -> \"(\S+)\"\s+\[d=([+-]?\d+)\s+e=\d+\s+n=(\d+)')
+    print("source", "target", "gap_estimate", "detected_overlap", "num_paths", "verbose_info", sep="\t")
     with open(args.g, 'r') as fin:
         for line in fin:
             line = line.strip()
@@ -155,6 +155,7 @@ def main() -> None:
     parser.add_argument("-n", help="Minimum edge weight to consider edge", required=False, default=2, type=int)
     parser.add_argument("-f", help="Fudge factor [0.5]", default=0.5, type=float, required=False)
     parser.add_argument("-k", help="K-mer size for indexlr", default=15, type=int, required=False)
+    parser.add_argument("-v", help="Verbose mode", action="store_true")
     args = parser.parse_args()
 
     sequences = read_fasta(args.fasta)
