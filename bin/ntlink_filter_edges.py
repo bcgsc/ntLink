@@ -135,6 +135,7 @@ def assess_scaffold_graph_edges(args: argparse.Namespace, fasta_seqs: dict) -> N
     "Assess each overlapping edge based on minimizer overlap, find mapping region length (and #)"
     edge_re = re.compile(r'^\"(\S+)\" -> \"(\S+)\"\s+\[d=([+-]?\d+)\s+e=\d+\s+n=(\d+)')
     print("source", "target", "gap_estimate", "detected_overlap", "num_paths", "verbose_info", sep="\t")
+    visited = set()
     with open(args.g, 'r') as fin:
         for line in fin:
             line = line.strip()
@@ -144,8 +145,18 @@ def assess_scaffold_graph_edges(args: argparse.Namespace, fasta_seqs: dict) -> N
                                              int(edge_match.group(3)), int(edge_match.group(4))
                 if gap_est >= 0 or n < args.n:
                     continue
+                if (reverse_orientation(target), reverse_orientation(source)) in visited:
+                    continue
                 assess_edge(source, target, fasta_seqs, gap_est, args)
+                visited.add((source, target))
 
+def reverse_orientation(node: str) -> str:
+    "Reverse the orientation of the given path node"
+    if node[-1] == "+":
+        return node[:-1] + "-"
+    if node[-1] == "-":
+        return node[:-1] + "+"
+    raise ValueError("Node must end in + or -")
 
 
 def main() -> None:
