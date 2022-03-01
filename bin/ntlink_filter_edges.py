@@ -15,7 +15,8 @@ import numpy as np
 Scaffold = namedtuple("Scaffold", ["seq", "length"])
 
 MappedPathInfo = namedtuple("MappedPathInfo",
-                            ["mapped_region_length", "mid_mx", "median_length_from_end", "num_nodes"])
+                            ["mapped_region_length", "mid_mx", "median_length_from_end", "num_nodes",
+                             "source_range", "target_range"])
 
 
 def read_fasta(fasta_filename: str) -> dict:
@@ -111,7 +112,9 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, g
                                                                                    target_align_len]),
                                                    mid_mx=mid_mx,
                                                    median_length_from_end=np.median(
-                                                       [mid_mx_dist_end_source, mid_mx_dist_end_target]), num_nodes=len(path)))
+                                                       [mid_mx_dist_end_source, mid_mx_dist_end_target]), num_nodes=len(path),
+                                                   source_range=(source_start, source_end),
+                                                   target_range=(target_start, target_end)))
         elif singleton_nodes:
             assert len(singleton_nodes) == 1
             mid_mx = ntlink_utils.vertex_name(component_graph, singleton_nodes[0])
@@ -121,7 +124,9 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, g
                                                        scaffolds[target_noori].length, target=True)
             paths_components.append(MappedPathInfo(mapped_region_length=1, mid_mx=mid_mx,
                                                    median_length_from_end=np.median([mid_mx_dist_end_source,
-                                                                                     mid_mx_dist_end_target]), num_nodes=1))
+                                                                                     mid_mx_dist_end_target]), num_nodes=1,
+                                                   source_range=(list_mx_info[source_noori][mid_mx][1], list_mx_info[source_noori][mid_mx][1]),
+                                                   target_range=(list_mx_info[target_noori][mid_mx][1], list_mx_info[target_noori][mid_mx][1])))
         else:
             print("NOTE: non-singleton, {} source nodes".format(len(source_nodes)))
     if not paths_components:
