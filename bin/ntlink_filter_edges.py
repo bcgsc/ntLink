@@ -176,13 +176,15 @@ def read_checkpoint_edges(checkpoint_filename: str) -> dict:
     edge_info = {}
     with open(checkpoint_filename, 'r') as fin:
         for line in fin:
-            line = line.strip.split("\t")
+            line = line.strip().split("\t")
             #"source", "target", "gap_estimate", "detected_overlap", "num_paths", "verbose_info"
             source, target, gap_est, detect_overlap, num_paths, verbose_info = line
-            edge_info[(source, target)] = OverlapEdgeInfo(source, target, gap_est, detect_overlap, num_paths, verbose_info)
+            if source == "source":
+                continue
+            edge_info[(source, target)] = OverlapEdgeInfo(source, target, float(gap_est), float(detect_overlap), int(num_paths), verbose_info)
     return edge_info
 
-def get_overlap_diff(edge_info: dict, source: int, target:int, graph: ig.Graph) -> int:
+def get_overlap_diff(edge_info: dict, source: int, target:int) -> int:
     "Get overlap (detected, estimated) difference for the edge"
     if (source, target) in edge_info:
         return abs(edge_info[(source, target)].detected_overlap - edge_info[(source, target)].gap_estimate)
@@ -193,26 +195,26 @@ def get_overlap_diff(edge_info: dict, source: int, target:int, graph: ig.Graph) 
 
 def choose_best_edge(in_edge_list: list, edge_info: dict, graph: ig.Graph) -> ig.Edge:
     "Choose 'best' edge - difference of estimated to detected"
-    diffs = sorted([(edge.index, get_overlap_diff(edge_info, edge.source, edge.target, graph)) for edge in in_edge_list],
+    diffs = sorted([(edge.index, get_overlap_diff(edge_info, ntlink_utils.vertex_name(graph, edge.source), ntlink_utils.vertex_name(graph, edge.target))) for edge in in_edge_list],
                    key=lambda x: x[1])
     return diffs[0][0]
 
 
 def filter_scaffold_graph_edges(edge_info: dict, args: argparse.Namespace, sequences: dict) -> None:
     "Filter the scaffold graph edges"
-    graph = ntlink_utils.read_scaffold_graph(args.g)
+    graph, _ = ntlink_utils.read_scaffold_graph(args.g)
     edges_to_remove = set()
     for node in graph.vs():
         in_edge_overlap = [edge for edge in node.in_edges() if edge['d'] < 0]
-        if in_edge_overlap > 1:
-            best_edge = choose_best_edge(in_edge_overlap, edge_info, args.g)
+        if len(in_edge_overlap) > 1:
+            best_edge = choose_best_edge(in_edge_overlap, edge_info, graph)
             for edge in in_edge_overlap:
                 if edge.index != best_edge:
                     edges_to_remove.add(edge.index)
 
         out_edge_overlap = [edge for edge in node.out_edges() if edge['d'] < 0]
-        if out_edge_overlap > 1:
-            best_edge = choose_best_edge(out_edge_overlap, edge_info, args.g)
+        if len(out_edge_overlap) > 1:
+            best_edge = choose_best_edge(out_edge_overlap, edge_info, graph)
             for edge in out_edge_overlap:
                 if edge.index != best_edge:
                     edges_to_remove.add(edge.index)
