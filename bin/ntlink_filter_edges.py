@@ -11,12 +11,17 @@ import ntlink_utils
 import ntjoin_utils
 import ntlink_overlap_sequences
 import numpy as np
+import igraph as ig
+import ntlink_pair
 
 Scaffold = namedtuple("Scaffold", ["seq", "length"])
 
 MappedPathInfo = namedtuple("MappedPathInfo",
                             ["mapped_region_length", "mid_mx", "median_length_from_end", "num_nodes",
                              "source_range", "target_range"])
+
+OverlapEdgeInfo = namedtuple("OverlapEdgeInfo", ["source", "target", "gap_estimate", "detected_overlap", "num_paths",
+                                                 "verbose_info"])
 
 
 def read_fasta(fasta_filename: str) -> dict:
@@ -27,7 +32,7 @@ def read_fasta(fasta_filename: str) -> dict:
             contigs[read.id] = Scaffold(read.seq, len(read.seq))
     return contigs
 
-def assess_edge(source: str, target: str, sequences: dict, gap_estimate: int, args: argparse.Namespace) -> None:
+def assess_edge(source: str, target: str, sequences: dict, gap_estimate: int, args: argparse.Namespace, edge_info: dict) -> None:
     "Assess the edge using the overlap code"
     source_start, source_end = ntlink_utils.find_valid_mx_region(source.strip("+-"), source[-1],
                                                                  sequences, gap_estimate, args, source=True)
@@ -57,9 +62,10 @@ def assess_edge(source: str, target: str, sequences: dict, gap_estimate: int, ar
 
     return_info = merge_overlapping(mxs, mx_info, source, target, sequences, args, 0)
     if not return_info:
-        print(source, target, gap_estimate, 0, 0, return_info, sep="\t")
+        edge_info[(source, target)] = OverlapEdgeInfo(source, target, gap_estimate, 0, 0, return_info)
     else:
-        print(source, target, gap_estimate, return_info[0].mapped_region_length*-1, len(return_info), return_info, sep="\t")
+        edge_info[(source, target)] = OverlapEdgeInfo(source, target, gap_estimate,
+                                                      return_info[0].mapped_region_length*-1, len(return_info), return_info)
 
 def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, gap):
     "Find the cut points for overlapping adjacent contigs"
@@ -136,11 +142,12 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, g
     return paths
 
 
-def assess_scaffold_graph_edges(args: argparse.Namespace, fasta_seqs: dict) -> None:
+def assess_scaffold_graph_edges(args: argparse.Namespace, fasta_seqs: dict) -> dict:
     "Assess each overlapping edge based on minimizer overlap, find mapping region length (and #)"
     edge_re = re.compile(r'^\"(\S+)\" -> \"(\S+)\"\s+\[d=([+-]?\d+)\s+e=\d+\s+n=(\d+)')
-    print("source", "target", "gap_estimate", "detected_overlap", "num_paths", "verbose_info", sep="\t")
+    #print("source", "target", "gap_estimate", "detected_overlap", "num_paths", "verbose_info", sep="\t")
     visited = set()
+    edge_info = {} # (source, target) -> EdgeInfo
     with open(args.g, 'r') as fin:
         for line in fin:
             line = line.strip()
@@ -152,8 +159,9 @@ def assess_scaffold_graph_edges(args: argparse.Namespace, fasta_seqs: dict) -> N
                     continue
                 if (reverse_orientation(target), reverse_orientation(source)) in visited:
                     continue
-                assess_edge(source, target, fasta_seqs, gap_est, args)
+                assess_edge(source, target, fasta_seqs, gap_est, args, edge_info)
                 visited.add((source, target))
+    return edge_info
 
 def reverse_orientation(node: str) -> str:
     "Reverse the orientation of the given path node"
@@ -163,6 +171,56 @@ def reverse_orientation(node: str) -> str:
         return node[:-1] + "+"
     raise ValueError("Node must end in + or -")
 
+def read_checkpoint_edges(checkpoint_filename: str) -> dict:
+    "Read checkpoint file into dictionary"
+    edge_info = {}
+    with open(checkpoint_filename, 'r') as fin:
+        for line in fin:
+            line = line.strip.split("\t")
+            #"source", "target", "gap_estimate", "detected_overlap", "num_paths", "verbose_info"
+            source, target, gap_est, detect_overlap, num_paths, verbose_info = line
+            edge_info[(source, target)] = OverlapEdgeInfo(source, target, gap_est, detect_overlap, num_paths, verbose_info)
+    return edge_info
+
+def get_overlap_diff(edge_info: dict, source: int, target:int, graph: ig.Graph) -> int:
+    "Get overlap (detected, estimated) difference for the edge"
+    if (source, target) in edge_info:
+        return abs(edge_info[(source, target)].detected_overlap - edge_info[(source, target)].gap_estimate)
+    elif (reverse_orientation(target), reverse_orientation(source)) in edge_info:
+        return abs(edge_info[(reverse_orientation(target), reverse_orientation(source))].detected_overlap -
+                   edge_info[(reverse_orientation(target), reverse_orientation(source))].gap_estimate)
+    raise ValueError("{}, {} edge not found in edge_info dict".format(source, target))
+
+def choose_best_edge(in_edge_list: list, edge_info: dict, graph: ig.Graph) -> ig.Edge:
+    "Choose 'best' edge - difference of estimated to detected"
+    diffs = sorted([(edge.index, get_overlap_diff(edge_info, edge.source, edge.target, graph)) for edge in in_edge_list],
+                   key=lambda x: x[1])
+    return diffs[0][0]
+
+
+def filter_scaffold_graph_edges(edge_info: dict, args: argparse.Namespace, sequences: dict) -> None:
+    "Filter the scaffold graph edges"
+    graph = ntlink_utils.read_scaffold_graph(args.g)
+    edges_to_remove = set()
+    for node in graph.vs():
+        in_edge_overlap = [edge for edge in node.in_edges() if edge['d'] < 0]
+        if in_edge_overlap > 1:
+            best_edge = choose_best_edge(in_edge_overlap, edge_info, args.g)
+            for edge in in_edge_overlap:
+                if edge.index != best_edge:
+                    edges_to_remove.add(edge.index)
+
+        out_edge_overlap = [edge for edge in node.out_edges() if edge['d'] < 0]
+        if out_edge_overlap > 1:
+            best_edge = choose_best_edge(out_edge_overlap, edge_info, args.g)
+            for edge in out_edge_overlap:
+                if edge.index != best_edge:
+                    edges_to_remove.add(edge.index)
+    graph_copy = graph.copy()
+    graph_copy.delete_edges(edges_to_remove)
+
+    ntlink_pair.NtLink.print_directed_graph(graph_copy, args.o, sequences)
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Classify edges based on minimzer overlap checks")
@@ -171,12 +229,19 @@ def main() -> None:
     parser.add_argument("-n", help="Minimum edge weight to consider edge", required=False, default=2, type=int)
     parser.add_argument("-f", help="Fudge factor [0.5]", default=0.5, type=float, required=False)
     parser.add_argument("-k", help="K-mer size for indexlr", default=15, type=int, required=False)
+    parser.add_argument("--checkpoint", help="Checkpoint file", required=False)
     parser.add_argument("-v", help="Verbose mode", action="store_true")
+    parser.add_argument("-o", help="Output filename", default="ntlink_scaffold_graph.dot", required=False, type=str)
     args = parser.parse_args()
 
     sequences = read_fasta(args.fasta)
 
-    assess_scaffold_graph_edges(args, sequences)
+    if not args.checkpoint:
+        edge_info = assess_scaffold_graph_edges(args, sequences)
+    else:
+        edge_info = read_checkpoint_edges(args.checkpoint)
+
+    filter_scaffold_graph_edges(edge_info, args, sequences)
 
 if __name__ == "__main__":
     main()
