@@ -95,7 +95,7 @@ def read_scaffold_graph(in_graph_file):
 
     scaf_num_re = re.compile(r'graph \[scaf_num=(\S+)\]')
     node_re = re.compile(r'\"(\S+[+-])\"\s+\[l\=\d+\]')
-    edge_re = re.compile(r'\"(\S+[+-])\"\s+\-\>\s+\"(\S+[+-])\"\s+\[d\=(\-?\d+)\s+e\=\d+\s+n\=(\d+)\]')
+    edge_re = re.compile(r'\"(\S+[+-])\"\s+\-\>\s+\"(\S+[+-])\"\s+\[d\=(\-?\d+)\s+e\=(\d+)\s+n\=(\d+)\]')
 
     past_header = False
 
@@ -112,9 +112,9 @@ def read_scaffold_graph(in_graph_file):
 
             edge_match = re.search(edge_re, line)
             if edge_match:
-                source, target, gap_est, num_links = edge_match.group(1), edge_match.group(2), \
-                                                     edge_match.group(3), edge_match.group(4)
-                edges[source][target] = (int(gap_est), int(num_links))
+                source, target, gap_est, e, num_links = edge_match.group(1), edge_match.group(2), \
+                                                     edge_match.group(3), edge_match.group(4), edge_match.group(5)
+                edges[source][target] = (int(gap_est), e, int(num_links))
                 continue
             scaf_num_match = re.search(scaf_num_re, line)
             if scaf_num_match:
@@ -131,10 +131,13 @@ def read_scaffold_graph(in_graph_file):
     graph.add_edges(formatted_edges)
 
     edge_attributes = {edge_index(graph, s, t): {'d': edges[s][t][0],
-                                                 "n": edges[s][t][1]}
+                                                 "e": edges[s][t][1],
+                                                 "n": edges[s][t][2]}
                        for s in edges for t in edges[s]}
     graph.es()["d"] = [edge_attributes[e]['d'] for e in sorted(edge_attributes.keys())]
     graph.es()["n"] = [edge_attributes[e]['n'] for e in sorted(edge_attributes.keys())]
+    graph.es()["2"] = [edge_attributes[e]['e'] for e in sorted(edge_attributes.keys())]
+
 
     return graph, scaf_num
 
