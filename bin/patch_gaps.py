@@ -12,7 +12,9 @@ import sys
 import ntlink_pair
 import ntlink_utils
 
-MinimizerEntry = namedtuple("MinimizerEntry", ["ctg_pos", "read_pos"])
+MinimizerPositions = namedtuple("MinimizerEntry", ["ctg_pos", "ctg_strand", "read_pos", "read_strand"])
+
+MinimizerMapping = namedtuple("MinimizerMapping", ["anchors", "minimizer_positions", "orientation"])
 
 class ScaffoldGaps:
     def __init__(self, seq):
@@ -24,8 +26,17 @@ class ScaffoldGaps:
     def __str__(self):
         return f"Length:{self.length} 5'cut:{self.five_prime_cut} 3'cut:{self.three_prime_cut}"
 
-    def get_cut_sequence(self):
-        return self.seq[self.five_prime_cut: self.three_prime_cut+1]
+    def get_cut_sequence(self, reverse_compl: str):
+        if reverse_compl == "-":
+            return self.reverse_complement(self.seq[self.five_prime_cut: self.three_prime_cut])
+        return self.seq[self.five_prime_cut: self.three_prime_cut]
+
+    def reverse_complement(self, sequence):
+        "Reverse complements a given sequence"
+        translation_table = str.maketrans(
+            "ACGTUNMRWSYKVHDBacgtunmrwsykvhdb",
+            "TGCAANKYWSRMBDHVtgcaankywsrmbdhv")
+        return sequence[::-1].translate(translation_table)
 
 class PairInfo:
     def __init__(self, gap_size):
@@ -37,12 +48,21 @@ class PairInfo:
         self.target_ctg_cut = None
         self.target_read_cut = None
 
+    def reverse_complement(self, sequence):
+        "Reverse complements a given sequence"
+        translation_table = str.maketrans(
+            "ACGTUNMRWSYKVHDBacgtunmrwsykvhdb",
+            "TGCAANKYWSRMBDHVtgcaankywsrmbdhv")
+        return sequence[::-1].translate(translation_table)
+
 
     def __str__(self):
         return f"Gap: {self.gap_size}; Chosen read: {self.chosen_read}; source ctg/read cuts: {self.source_ctg_cut}/{self.source_read_cut}" \
                f"target ctg/read cuts: {self.target_ctg_cut}/{self.target_read_cut}"
 
-    def get_cut_read_sequence(self, reads): # !!TODO consider orientation of read
+    def get_cut_read_sequence(self, reads, reverse_compl: str): # !!TODO consider orientation of read
+        if reverse_compl == "-":
+            return self.reverse_complement(reads[self.chosen_read][self.target_read_cut: self.source_read_cut])
         return reads[self.chosen_read][self.source_read_cut: self.target_read_cut]
 
 def read_path_file_pairs(path_filename: str) -> dict:
@@ -65,18 +85,20 @@ def read_path_file_pairs(path_filename: str) -> dict:
 
 def parse_minimizers(minimizer_positions: str) -> list:
     "Parse the minimizer positions string"
-    mx_pos_re = re.compile(f'MinimizerPositions\(ctg_pos=(\d+), read_pos=(\d+)\)')
+    mx_pos_re = re.compile(f"MinimizerPositions\(ctg_pos=(\d+),\s+ctg_strand=\'([+-])\',\s+read_pos=(\d+),\s+"
+                           f"read_strand=\'([+-])\'\)")
     return_mxs = []
     for match in re.findall(mx_pos_re, minimizer_positions):
-        return_mxs.append(MinimizerEntry(ctg_pos=int(match[0]), read_pos=int(match[1])))
+        return_mxs.append(MinimizerPositions(ctg_pos=int(match[0]), ctg_strand=match[1],
+                                             read_pos=int(match[2]), read_strand=match[3]))
     return return_mxs
 
 
 def find_orientation(mx_positions: list) -> str:
     "Infer orientation from minimizer positions"
-    if all(x < y for x, y in zip(mx_positions, mx_positions[1:])):
+    if all(x.ctg_strand == x.read_strand for x in mx_positions):
         return "+"
-    if all(x > y for x, y in zip(mx_positions, mx_positions[1:])):
+    if all(x.ctg_strand != x.read_strand for x in mx_positions):
         return "-"
     return "None"
 
@@ -109,7 +131,8 @@ def tally_contig_mapping_info(read_id: str, mappings: list, read_info: dict, pai
         orientation = find_orientation(minimizer_positions)
         if orientation not in ["+", "-"]:
             continue
-        read_info[read_id][ctg_id] = (int(anchors), minimizer_positions, orientation)
+        read_info[read_id][ctg_id] = MinimizerMapping(anchors=int(anchors), minimizer_positions=minimizer_positions,
+                                                      orientation=orientation)
         mapping_order.append(ctg_id + orientation)
 
     for i, j in itertools.combinations(mapping_order, 2):
@@ -140,7 +163,6 @@ def read_verbose_mappings(mappings_filename: str, pairs: dict) -> dict:
     if curr_read_id is not None:
         tally_contig_mapping_info(curr_read_id, curr_mappings, read_info, pairs)
 
-
     return read_info
 
 def read_scaffold_file(scaffold_filename: str) -> dict:
@@ -152,10 +174,10 @@ def read_scaffold_file(scaffold_filename: str) -> dict:
     return scaffolds
 
 def choose_best_read_per_pair(pairs: dict, mappings: dict) -> None:
-    "For each pair, choose the 'best' read to fill in the gap"
+    "For each pair, choose the 'best' read to fill in the gap - average anchors on each incident sequence"
     for source, target in pairs:
-        reads = [(read_id, mappings[read_id][source.strip("+-")][0],
-                  mappings[read_id][target.strip("+-")][0])
+        reads = [(read_id, mappings[read_id][source.strip("+-")].anchors,
+                  mappings[read_id][target.strip("+-")].anchors)
                  for read_id in pairs[(source, target)].mapping_reads]
         sorted_reads = sorted(reads, key=lambda x: numpy.mean([x[1], x[2]]), reverse=True)
         pairs[(source, target)].chosen_read = sorted_reads[0][0]
@@ -171,27 +193,53 @@ def get_gap_fill_reads(reads_filename: str, pairs: dict) -> dict:
                 reads[read.id] = read.seq
     return reads
 
-def find_cut_points(sequences: dict, pairs: dict, reads: dict, mappings: dict) -> None:
-    "Find the points for cuts for gap-filling"
+def assign_ctg_cut(position: int, read_est_orientation: str, ctg_orientation: str, k: int) -> int:
+    "Determine adjustments needed for the cut position (if any)"
+    if read_est_orientation == ctg_orientation:
+        #Means that read orientation is "+"
+        if ctg_orientation == "-":
+            return position + k
+        return position
+    return position
+
+def assign_read_cut(position: int, read_est_orientation: str, ctg_orientation: str, k: int) -> int:
+    "Determine adjustments needed for the read cut position (if any)"
+    if read_est_orientation != ctg_orientation:
+        # Read is in the "-" orientation
+        if ctg_orientation == "+":
+            return position + k
+        return position
+    return position
+
+
+def find_masking_cut_points(pairs: dict, mappings: dict, args: argparse.Namespace) -> None:
+    "Find the initial points for cuts for masking sequences for more precise cut point determination"
     for source, target in pairs:
         read_id = pairs[(source, target)].chosen_read
-        print(read_id)
-        source_read_mxs = mappings[read_id][source.strip("+-")][1]
-        source_ctg_pos, source_read_pos = source_read_mxs[-1] #!!TODO: change with orientation considered?
+        source_read_mxs = mappings[read_id][source.strip("+-")].minimizer_positions
+        source_ori = source[-1]
+        if mappings[read_id][source.strip("+-")].orientation == source_ori: # Read, ctg in same orientation
+            source_ctg_pos, source_read_pos = source_read_mxs[-1].ctg_pos, source_read_mxs[-1].read_pos
+        else:
+            source_ctg_pos, source_read_pos = source_read_mxs[0].ctg_pos, source_read_mxs[0].read_pos
 
-        target_read_mxs = mappings[read_id][target.strip("+-")][1]
-        target_ctg_pos, target_read_pos = target_read_mxs[0]
+        target_read_mxs = mappings[read_id][target.strip("+-")].minimizer_positions
+        target_ori = target[-1]
+        if mappings[read_id][target.strip("+-")][2] == target_ori:
+            target_ctg_pos, target_read_pos = target_read_mxs[0].ctg_pos, target_read_mxs[0].read_pos
+        else:
+            target_ctg_pos, target_read_pos = target_read_mxs[-1].ctg_pos, target_read_mxs[-1].read_pos
 
-        pairs[(source, target)].source_ctg_cut = source_ctg_pos
-        pairs[(source, target)].source_read_cut = source_read_pos
-        pairs[(source, target)].target_ctg_cut = target_ctg_pos
-        pairs[(source, target)].target_read_cut = target_read_pos
+        pairs[(source, target)].source_ctg_cut = assign_ctg_cut(source_ctg_pos, mappings[read_id][source.strip("+-")].orientation,
+                                                                source_ori, args.k)
+        pairs[(source, target)].source_read_cut = assign_read_cut(source_read_pos, mappings[read_id][source.strip("+-")].orientation,
+                                                                  source_ori, args.k)
+        pairs[(source, target)].target_ctg_cut = assign_ctg_cut(target_ctg_pos, mappings[read_id][target.strip("+-")].orientation,
+                                                                target_ori, args.k)
+        pairs[(source, target)].target_read_cut = assign_read_cut(target_read_pos, mappings[read_id][target.strip("+-")].orientation,
+                                                                  target_ori, args.k)
 
-        print((source, target), pairs[(source, target)])
 
-        #print(">source", sequences[source.strip("+-")].seq[:source_ctg_pos], file=sys.stderr, sep="\n")
-        #print(">target", sequences[target.strip("+-")].seq[target_ctg_pos:], file=sys.stderr, sep="\n")
-        #print(">read_fill", reads[read_id][source_read_pos:target_read_pos+1], file=sys.stderr, sep="\n")
 
 def print_masked_sequences(scaffolds: dict, reads: dict, pairs: dict, args: argparse.Namespace):
     "Print the masked sequences to a temp file"
@@ -223,13 +271,14 @@ def print_masked_sequences(scaffolds: dict, reads: dict, pairs: dict, args: argp
         elif target[-1] == "-":
             out_scaffolds.write(f">{target}_target\n"
                                 f"{'N'*target_cut}"
-                                f"{scaffolds[target_noori].seq[target_cut:]}")
+                                f"{scaffolds[target_noori].seq[target_cut:]}\n")
         else:
             raise ValueError(f"{target[-1]} must be + or -")
 
-        read_start, read_end = min(pair_info.source_read_cut, pair_info.target_read_cut), \
+        read_start, read_end = min(pair_info.source_read_cut, pair_info.target_read_cut),\
                                max(pair_info.source_read_cut, pair_info.target_read_cut)
-        out_reads.write(f">{pair_info.chosen_read}__{source}__{target}\n" #!! TODO: consider orientation of read?
+
+        out_reads.write(f">{pair_info.chosen_read}__{source}__{target}\n"
                         f"{'N'*read_start}{reads[pair_info.chosen_read][read_start:read_end]}"
                         f"{'N'*(len(reads[pair_info.chosen_read]) - read_end)}\n")
 
@@ -264,13 +313,13 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
     with btllib.Indexlr(args.s + ".masked_temp.fa", 15, 10, btllib.IndexlrFlag.LONG_MODE) as scaffolds_btllib: # !!TODO magic numbers
         with btllib.Indexlr(args.reads + ".masked_temp.fa", 15, 10, btllib.IndexlrFlag.LONG_MODE) as reads:
             for chosen_read in reads:
-                print(chosen_read.id)
                 read_id, source, target = re.search(read_header_re, chosen_read.id).groups()
 
                 # Read source scaffold
                 source_scaf = scaffolds_btllib.read()
                 source_id, label = re.search(scaffold_header_re, source_scaf.id).groups()
                 source_scaf.id = source_id.strip("+-")
+                source_ori = source_id[-1]
                 assert source_id == source
                 assert label == "source"
 
@@ -278,6 +327,7 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                 target_scaf = scaffolds_btllib.read()
                 target_id, label = re.search(scaffold_header_re, target_scaf.id).groups()
                 target_scaf.id = target_id.strip("+-")
+                target_ori = target_id[-1]
                 assert target_id == target
                 assert label == "target"
 
@@ -285,31 +335,53 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
 
                 mxs = [(str(mx.out_hash), mx.pos, convert_btllib_strand(mx.forward)) for mx in chosen_read.minimizers if str(mx.out_hash) in mx_info]
                 accepted_anchor_contigs, contig_runs = ntlink_utils.get_accepted_anchor_contigs(mxs, chosen_read.readlen,
-                                                                                    scaffolds, mx_info, args)
+                                                                                                scaffolds, mx_info, args)
+                source_terminal_mx, source_ctg_ori_read_based = None, None
+                target_terminal_mx, target_ctg_ori_read_based = None, None
                 assert len(accepted_anchor_contigs) == 2
                 for ctg_run in accepted_anchor_contigs:
                     ctg_run_entry = accepted_anchor_contigs[ctg_run]
+                    ctg_ori_read_based = find_orientation(ctg_run_entry.hits)
                     if ctg_run_entry.contig == source_scaf.id:
-                        terminal_mx = ctg_run_entry.hits[-1]
-                        pairs[(source, target)].source_ctg_cut = terminal_mx.ctg_pos
-                        pairs[(source, target)].source_read_cut = terminal_mx.read_pos
-                        if source[-1] == "+":
-                            scaffolds[source_scaf.id].three_prime_cut = terminal_mx.ctg_pos
+                        if source_ori == ctg_ori_read_based:  # Read, source in same ori
+                            source_terminal_mx = ctg_run_entry.hits[-1]
                         else:
-                            scaffolds[source_scaf.id].five_prime_cut = terminal_mx.ctg_pos
+                            source_terminal_mx = ctg_run_entry.hits[0]
+                        source_ctg_ori_read_based = ctg_ori_read_based
 
                     if ctg_run_entry.contig == target_scaf.id:
-                        terminal_mx = ctg_run_entry.hits[0]
-                        pairs[(source, target)].target_ctg_cut = terminal_mx.ctg_pos
-                        pairs[(source, target)].target_read_cut = terminal_mx.read_pos
-                        if target[-1] == "+":
-                            scaffolds[target_scaf.id].five_prime_cut = terminal_mx.ctg_pos
+                        if target_ori == ctg_ori_read_based:  # Read, target in same ori
+                            target_terminal_mx = ctg_run_entry.hits[0]
                         else:
-                            scaffolds[target_scaf.id].three_prime_cut = terminal_mx.ctg_pos
+                            target_terminal_mx = ctg_run_entry.hits[-1]
+                        target_ctg_ori_read_based = ctg_ori_read_based
 
-    print([str(pairs[pair]) for pair in pairs])
-    print(str(scaffolds[source.strip("+-")]))
-    print(str(scaffolds[target.strip("+-")]))
+                if source_ctg_ori_read_based is None or target_ctg_ori_read_based is None:
+                    pairs[(source, target)].source_read_cut = None
+                    pairs[(source, target)].target_read_cut = None
+                    continue
+
+                pairs[(source, target)].source_ctg_cut = source_terminal_mx.ctg_pos
+                pairs[(source, target)].source_read_cut = assign_read_cut(source_terminal_mx.read_pos, source_ctg_ori_read_based,
+                                                                          source_ori, args.k)
+                if source[-1] == "+":
+                    scaffolds[source_scaf.id].three_prime_cut = assign_ctg_cut(source_terminal_mx.ctg_pos, source_ctg_ori_read_based,
+                                                                               source_ori, args.k)
+                else:
+                    scaffolds[source_scaf.id].five_prime_cut = assign_ctg_cut(source_terminal_mx.ctg_pos, source_ctg_ori_read_based,
+                                                                              source_ori, args.k)
+
+                pairs[(source, target)].target_ctg_cut = target_terminal_mx.ctg_pos
+                pairs[(source, target)].target_read_cut = assign_read_cut(target_terminal_mx.read_pos, target_ctg_ori_read_based,
+                                                                          target_ori, args.k)
+                if target[-1] == "+":
+                    scaffolds[target_scaf.id].five_prime_cut = assign_ctg_cut(target_terminal_mx.ctg_pos, target_ctg_ori_read_based,
+                                                                              target_ori, args.k)
+                else:
+                    scaffolds[target_scaf.id].three_prime_cut = assign_ctg_cut(target_terminal_mx.ctg_pos, target_ctg_ori_read_based,
+                                                                               target_ori, args.k)
+
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Use minimizer mappings to fill gaps")
@@ -329,7 +401,7 @@ def main() -> None:
     # Read through verbose mappings read_id -> sequence_ori -> (anchor, minimizer_pos_list)
     mappings = read_verbose_mappings(args.mappings, pairs)
 
-    # Read scaffold sequences into memory sequence_id -> [sequence, start, end]
+    # Read scaffold sequences into memory sequence_id -> ScaffoldGaps
     print("Reading scaffolds..")
     sequences = read_scaffold_file(args.s)
 
@@ -338,21 +410,42 @@ def main() -> None:
     choose_best_read_per_pair(pairs, mappings)
 
     # Read in the reads that are needed
+    print("Collecting reads...")
     reads = get_gap_fill_reads(args.reads, pairs)
 
     # Find cut points
-    find_cut_points(sequences, pairs, reads, mappings)
+    print("Finding cut points..")
+    find_masking_cut_points(pairs, mappings, args)
 
     # Print masked sequences for assembly, reads for minimizer generation
+    print("Printing masked sequences..")
     print_masked_sequences(sequences, reads, pairs, args)
 
     # Compute minimizers, and map the long read to the sequences at a lower k/w
+    print("Mapping long reads..")
     map_long_reads(pairs, sequences, args)
 
+
     for source, target in pairs:
-        print(">source", sequences[source.strip("+-")].get_cut_sequence(), file=sys.stderr, sep="\n")
-        print(">target", sequences[target.strip("+-")].get_cut_sequence(), file=sys.stderr, sep="\n")
-        print(">read_fill", pairs[(source, target)].get_cut_read_sequence(reads), file=sys.stderr, sep="\n")
+        print(str(sequences[source.strip("+-")]))
+        print(str(sequences[target.strip("+-")]))
+        print(str(pairs[(source, target)]))
+        print(">source{}".format(source), sequences[source.strip("+-")].get_cut_sequence(source[-1]), file=sys.stderr, sep="\n")
+        print(">target{}".format(target), sequences[target.strip("+-")].get_cut_sequence(target[-1]), file=sys.stderr, sep="\n")
+        if mappings[pairs[(source, target)].chosen_read][source.strip("+-")][2] != source[-1]:
+            print(">read_fill_{}-{}".format(source, target), pairs[(source, target)].get_cut_read_sequence(reads, "-"), file=sys.stderr, sep="\n")
+            print(">{}_{}_filledfull\n{}{}{}".format(source, target,
+                                                     sequences[source.strip("+-")].get_cut_sequence(source[-1]),
+                                                     pairs[(source, target)].get_cut_read_sequence(reads, "-"),
+                                                     sequences[target.strip("+-")].get_cut_sequence(target[-1])), file=sys.stderr)
+        else:
+            print(">read_fill_{}-{}".format(source, target), pairs[(source, target)].get_cut_read_sequence(reads, "+"), file=sys.stderr, sep="\n")
+            print(">{}_{}_filledfull\n{}{}{}".format(source, target,
+                                                     sequences[source.strip("+-")].get_cut_sequence(source[-1]),
+                                                     pairs[(source, target)].get_cut_read_sequence(reads, "+"),
+                                                     sequences[target.strip("+-")].get_cut_sequence(target[-1])), file=sys.stderr)
+
+
 
 
 if __name__ == "__main__":

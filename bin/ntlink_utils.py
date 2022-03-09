@@ -197,17 +197,19 @@ def find_valid_mx_region(scaf_noori, scaf_ori, scaffolds, overlap, args, source=
 
 def get_accepted_anchor_contigs(mx_list, read_length, scaffolds, list_mx_info, args):
     "Returns dictionary of contigs of appropriate length, mx hits, whether subsumed"
-    MinimizerPositions = namedtuple("MinimizerPositions", ["ctg_pos", "read_pos"])
+    MinimizerPositions = namedtuple("MinimizerPositions", ["ctg_pos", "ctg_strand", "read_pos", "read_strand"])
     contig_list = []
     contig_positions = {}  # contig -> [mx positions]
-    for mx, pos, _ in mx_list:
+    for mx, pos, strand in mx_list:
         contig = list_mx_info[mx].contig
         if scaffolds[contig].length >= args.z:
             contig_list.append(contig)
             if contig not in contig_positions:
                 contig_positions[contig] = []
             contig_positions[contig].append(MinimizerPositions(ctg_pos=list_mx_info[mx].position,
-                                                               read_pos=int(pos)))
+                                                            ctg_strand=list_mx_info[mx].strand,
+                                                               read_pos=int(pos),
+                                                               read_strand=strand))
 
     # Filter out hits where mapped length on contig is greater than the read length
     noisy_contigs = set()
