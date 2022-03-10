@@ -65,7 +65,7 @@ class PairInfo:
             return self.reverse_complement(reads[self.chosen_read][self.target_read_cut: self.source_read_cut])
         return reads[self.chosen_read][self.source_read_cut: self.target_read_cut]
 
-def read_path_file_pairs(path_filename: str) -> dict:
+def read_path_file_pairs(path_filename: str, min_gap_size: int) -> dict:
     "Read through the path file, storing the found pairs: pair -> gap estimate"
     pairs = {}
     gap_re = re.compile('^(\d+)N$')
@@ -79,7 +79,7 @@ def read_path_file_pairs(path_filename: str) -> dict:
             for idx in range(len(path) - 2):
                 i, j, k = path[idx:idx+3]
                 gap_match = re.search(gap_re, j)
-                if gap_match:
+                if gap_match and int(gap_match.group(1)) > min_gap_size:
                     pairs[(i, k)] = PairInfo(gap_match.group(1))
     return pairs
 
@@ -355,7 +355,6 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                         else:
                             target_terminal_mx = ctg_run_entry.hits[-1]
                         target_ctg_ori_read_based = ctg_ori_read_based
-                print(source_ctg_ori_read_based, target_ctg_ori_read_based, source, target)
                 if source_ctg_ori_read_based is None or target_ctg_ori_read_based is None:
                     pairs[(source, target)].source_read_cut = None
                     pairs[(source, target)].target_read_cut = None
@@ -431,13 +430,14 @@ def main() -> None:
     parser.add_argument("-z", help="Minimum contig size (bp) [1000]", type=int, required=False, default=1000)
     parser.add_argument("-k", help="Kmer size used in minimizer step [15]", type=int, required=False, default=15)
     parser.add_argument("-x", help="Fudge factor", type=float, required=False, default=0)
-    parser.add_argument("-m", help="PLACEHOLDER", type=str)
+    parser.add_argument("--min_gap", help="Minimum gap size [20]", type=int, default=20)
     parser.add_argument("-o", help="Output file name", required=False, default="ntLink_patch_gaps_out.fa", type=str)
     parser.add_argument("--verbose", help="Verbose logging - print out trimmed scaffolds without gaps", action="store_true")
     args = parser.parse_args()
 
     # Read path file into pairs ((source, target) -> (gap_est, supporting reads)
-    pairs = read_path_file_pairs(args.path)
+    args.min_gap = args.min_gap + 1
+    pairs = read_path_file_pairs(args.path, args.min_gap)
 
     # Read through verbose mappings read_id -> sequence_ori -> (anchor, minimizer_pos_list)
     mappings = read_verbose_mappings(args.mappings, pairs)
