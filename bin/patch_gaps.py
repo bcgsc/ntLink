@@ -386,6 +386,8 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
     gap_re = re.compile('^(\d+)N$')
     outfile = open(args.o, 'w')
 
+    num_gaps, filled_gaps = 0, 0
+
     with open(args.path, 'r') as fin:
         for line in fin:
             line = line.strip().split("\t")
@@ -397,14 +399,17 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
             for idx in range(len(path)):
                 gap_match = re.search(gap_re, path[idx])
                 if gap_match:
+                    num_gaps += 1
                     source, target = path[idx-1], path[idx+1]
                     pair_entry = pairs[(source, target)]
                     if pair_entry.source_read_cut is None or pair_entry.target_read_cut is None:
                         sequence += "N"*pair_entry.gap_size
                     elif mappings[pair_entry.chosen_read][source.strip("+-")].orientation != source[-1]:
                         sequence += pair_entry.get_cut_read_sequence(reads, "-")
+                        filled_gaps += 1
                     else:
                         sequence += pair_entry.get_cut_read_sequence(reads, "+")
+                        filled_gaps += 1
                 else:
                     ctg = path[idx]
                     sequence += sequences[ctg.strip("+-")].get_cut_sequence(ctg[-1])
@@ -412,6 +417,9 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                         print(">{}\n{}".format(ctg, sequences[ctg.strip("+-")].get_cut_sequence(ctg[-1])), file=sys.stderr)
             outfile.write(">{}\n{}\n".format(ctg_id, sequence))
     outfile.close()
+
+    print("Number of detected gaps", num_gaps, sep="\t")
+    print("Number of filled gaps", filled_gaps, sep="\t")
 
 
 def main() -> None:
