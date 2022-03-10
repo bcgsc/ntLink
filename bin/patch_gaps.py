@@ -400,6 +400,9 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                 if gap_match:
                     num_gaps += 1
                     source, target = path[idx-1], path[idx+1]
+                    if (source, target) not in pairs:
+                        sequence += "N"*int(gap_match.group(1))
+                        continue
                     pair_entry = pairs[(source, target)]
                     if pair_entry.source_read_cut is None or pair_entry.target_read_cut is None:
                         sequence += "N"*pair_entry.gap_size
