@@ -100,7 +100,7 @@ def find_orientation(mx_positions: list) -> str:
         return "+"
     if all(x.ctg_strand != x.read_strand for x in mx_positions):
         return "-"
-    return "None"
+    return None
 
 
 def reverse_complement_pair(source: str, target: str) -> tuple:
@@ -355,7 +355,7 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                         else:
                             target_terminal_mx = ctg_run_entry.hits[-1]
                         target_ctg_ori_read_based = ctg_ori_read_based
-
+                print(source_ctg_ori_read_based, target_ctg_ori_read_based, source, target)
                 if source_ctg_ori_read_based is None or target_ctg_ori_read_based is None:
                     pairs[(source, target)].source_read_cut = None
                     pairs[(source, target)].target_read_cut = None
@@ -380,6 +380,34 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                 else:
                     scaffolds[target_scaf.id].three_prime_cut = assign_ctg_cut(target_terminal_mx.ctg_pos, target_ctg_ori_read_based,
                                                                                target_ori, args.k)
+
+def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, reads: dict, args: argparse.Namespace) -> None:
+    "Print out the gap-filled sequences"
+    gap_re = re.compile('^(\d+)N$')
+    print([str(pairs[pair]) for pair in pairs])
+    with open(args.path, 'r') as fin:
+        for line in fin:
+            line = line.strip().split("\t")
+            if len(line) < 2:
+                continue
+            ctg_id, path = line
+            sequence = ""
+            path = path.split(" ")
+            for idx in range(len(path)):
+                gap_match = re.search(gap_re, path[idx])
+                if gap_match:
+                    source, target = path[idx-1], path[idx+1]
+                    pair_entry = pairs[(source, target)]
+                    if pair_entry.source_read_cut is None or pair_entry.target_read_cut is None:
+                        sequence += "N"*pair_entry.gap_size
+                    elif mappings[pair_entry.chosen_read][source.strip("+-")].orientation != source[-1]:
+                        sequence += pair_entry.get_cut_read_sequence(reads, "-")
+                    else:
+                        sequence += pair_entry.get_cut_read_sequence(reads, "+")
+                else:
+                    ctg = path[idx]
+                    sequence += sequences[ctg.strip("+-")].get_cut_sequence(ctg[-1])
+            print(">{}\n{}".format(ctg_id, sequence), file=sys.stderr)
 
 
 
@@ -425,27 +453,9 @@ def main() -> None:
     print("Mapping long reads..")
     map_long_reads(pairs, sequences, args)
 
-
-    for source, target in pairs:
-        print(str(sequences[source.strip("+-")]))
-        print(str(sequences[target.strip("+-")]))
-        print(str(pairs[(source, target)]))
-        print(">source{}".format(source), sequences[source.strip("+-")].get_cut_sequence(source[-1]), file=sys.stderr, sep="\n")
-        print(">target{}".format(target), sequences[target.strip("+-")].get_cut_sequence(target[-1]), file=sys.stderr, sep="\n")
-        if mappings[pairs[(source, target)].chosen_read][source.strip("+-")][2] != source[-1]:
-            print(">read_fill_{}-{}".format(source, target), pairs[(source, target)].get_cut_read_sequence(reads, "-"), file=sys.stderr, sep="\n")
-            print(">{}_{}_filledfull\n{}{}{}".format(source, target,
-                                                     sequences[source.strip("+-")].get_cut_sequence(source[-1]),
-                                                     pairs[(source, target)].get_cut_read_sequence(reads, "-"),
-                                                     sequences[target.strip("+-")].get_cut_sequence(target[-1])), file=sys.stderr)
-        else:
-            print(">read_fill_{}-{}".format(source, target), pairs[(source, target)].get_cut_read_sequence(reads, "+"), file=sys.stderr, sep="\n")
-            print(">{}_{}_filledfull\n{}{}{}".format(source, target,
-                                                     sequences[source.strip("+-")].get_cut_sequence(source[-1]),
-                                                     pairs[(source, target)].get_cut_read_sequence(reads, "+"),
-                                                     sequences[target.strip("+-")].get_cut_sequence(target[-1])), file=sys.stderr)
-
-
+    # Print out the sequences
+    print("Printing output scaffolds..")
+    print_gap_filled_sequences(pairs, mappings, sequences, reads, args)
 
 
 if __name__ == "__main__":
