@@ -310,8 +310,8 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
     read_header_re = re.compile(r'^(\S+)__(\S+)__(\S+)$')
     scaffold_header_re = re.compile(r'^(\S+)_(source|target)$')
 
-    with btllib.Indexlr(args.s + ".masked_temp.fa", 15, 10, btllib.IndexlrFlag.LONG_MODE) as scaffolds_btllib: # !!TODO magic numbers
-        with btllib.Indexlr(args.reads + ".masked_temp.fa", 15, 10, btllib.IndexlrFlag.LONG_MODE) as reads:
+    with btllib.Indexlr(args.s + ".masked_temp.fa", args.k, 10, btllib.IndexlrFlag.LONG_MODE) as scaffolds_btllib: # !!TODO magic numbers
+        with btllib.Indexlr(args.reads + ".masked_temp.fa", args.k, 10, btllib.IndexlrFlag.LONG_MODE) as reads:
             for chosen_read in reads:
                 read_id, source, target = re.search(read_header_re, chosen_read.id).groups()
 
@@ -384,7 +384,8 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
 def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, reads: dict, args: argparse.Namespace) -> None:
     "Print out the gap-filled sequences"
     gap_re = re.compile('^(\d+)N$')
-    print([str(pairs[pair]) for pair in pairs])
+    outfile = open(args.o, 'w')
+
     with open(args.path, 'r') as fin:
         for line in fin:
             line = line.strip().split("\t")
@@ -407,8 +408,10 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                 else:
                     ctg = path[idx]
                     sequence += sequences[ctg.strip("+-")].get_cut_sequence(ctg[-1])
-            print(">{}\n{}".format(ctg_id, sequence), file=sys.stderr)
-
+                    if args.verbose:
+                        print(">{}\n{}".format(ctg, sequences[ctg.strip("+-")].get_cut_sequence(ctg[-1])), file=sys.stderr)
+            outfile.write(">{}\n{}\n".format(ctg_id, sequence))
+    outfile.close()
 
 
 def main() -> None:
@@ -421,6 +424,8 @@ def main() -> None:
     parser.add_argument("-k", help="Kmer size used in minimizer step [15]", type=int, required=False, default=15)
     parser.add_argument("-x", help="Fudge factor", type=float, required=False, default=0)
     parser.add_argument("-m", help="PLACEHOLDER", type=str)
+    parser.add_argument("-o", help="Output file name", required=False, default="ntLink_patch_gaps_out.fa", type=str)
+    parser.add_argument("--verbose", help="Verbose logging - print out trimmed scaffolds without gaps", action="store_true")
     args = parser.parse_args()
 
     # Read path file into pairs ((source, target) -> (gap_est, supporting reads)
