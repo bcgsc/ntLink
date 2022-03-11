@@ -344,17 +344,8 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                     if args.stringent:
                         pairs[(source, target)].source_read_cut = None
                         pairs[(source, target)].target_read_cut = None
-                        continue
-                    pairs[(source, target)].old_anchor_used = True
-                    if source[-1] == "+":
-                        scaffolds[source_scaf.id].three_prime_cut = pairs[(source, target)].source_ctg_cut
                     else:
-                        scaffolds[source_scaf.id].five_prime_cut = pairs[(source, target)].source_ctg_cut
-
-                    if target[-1] == "+":
-                        scaffolds[target_scaf.id].five_prime_cut = pairs[(source, target)].target_ctg_cut
-                    else:
-                        scaffolds[target_scaf.id].three_prime_cut = pairs[(source, target)].target_ctg_cut
+                        fallback_old_anchor_cuts(pairs, scaffolds, source, source_scaf, target, target_scaf)
                     continue
 
                 assert len(accepted_anchor_contigs) == 2
@@ -375,8 +366,11 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                             target_terminal_mx = ctg_run_entry.hits[-1]
                         target_ctg_ori_read_based = ctg_ori_read_based
                 if source_ctg_ori_read_based is None or target_ctg_ori_read_based is None:
-                    pairs[(source, target)].source_read_cut = None
-                    pairs[(source, target)].target_read_cut = None
+                    if args.stringent:
+                        pairs[(source, target)].source_read_cut = None
+                        pairs[(source, target)].target_read_cut = None
+                    else:
+                        fallback_old_anchor_cuts(pairs, scaffolds, source, source_scaf, target, target_scaf)
                     continue
 
                 pairs[(source, target)].source_ctg_cut = source_terminal_mx.ctg_pos
@@ -398,6 +392,19 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                 else:
                     scaffolds[target_scaf.id].three_prime_cut = assign_ctg_cut(target_terminal_mx.ctg_pos, target_ctg_ori_read_based,
                                                                                target_ori, args.k)
+
+
+def fallback_old_anchor_cuts(pairs, scaffolds, source, source_scaf, target, target_scaf):
+    pairs[(source, target)].old_anchor_used = True
+    if source[-1] == "+":
+        scaffolds[source_scaf.id].three_prime_cut = pairs[(source, target)].source_ctg_cut
+    else:
+        scaffolds[source_scaf.id].five_prime_cut = pairs[(source, target)].source_ctg_cut
+    if target[-1] == "+":
+        scaffolds[target_scaf.id].five_prime_cut = pairs[(source, target)].target_ctg_cut
+    else:
+        scaffolds[target_scaf.id].three_prime_cut = pairs[(source, target)].target_ctg_cut
+
 
 def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, reads: dict, args: argparse.Namespace) -> None:
     "Print out the gap-filled sequences"
