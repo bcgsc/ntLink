@@ -411,7 +411,7 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
     gap_re = re.compile('^(\d+)N$')
     outfile = open(args.o, 'w')
 
-    num_gaps, potential_fills, filled_gaps, old_anchor_used, new_anchor_used = 0, 0, 0, 0, 0
+    num_gaps, potential_fills, filled_gaps, old_anchor_used, new_anchor_used, small_gaps = 0, 0, 0, 0, 0, 0
 
     #for source, target in pairs:
     #    print(source, target, str(pairs[(source, target)]))
@@ -432,6 +432,8 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                     num_gaps += 1
                     source, target = path[idx-1], path[idx+1]
                     if (source, target) not in pairs:
+                        if int(gap_match.group(1)) <= args.min_gap:
+                            small_gaps += 1
                         sequence += "N"*int(gap_match.group(1))
                         continue
                     potential_fills += 1
@@ -462,6 +464,7 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
 
     print("\nGap filling summary:")
     print("Number of detected gaps", num_gaps, sep="\t")
+    print("Number of gaps smaller than threshold", small_gaps, sep="\t")
     print("Number of potentially fillable gaps", potential_fills, sep="\t")
     print("Number of filled gaps", filled_gaps, sep="\t")
     print("Number of new anchors used", new_anchor_used, sep="\t")
