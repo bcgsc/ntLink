@@ -181,7 +181,7 @@ def choose_best_read_per_pair(pairs: dict, mappings: dict) -> None:
         reads = [(read_id, mappings[read_id][source.strip("+-")].anchors,
                   mappings[read_id][target.strip("+-")].anchors)
                  for read_id in pairs[(source, target)].mapping_reads]
-        sorted_reads = sorted(reads, key=lambda x: numpy.mean([x[1], x[2]]), reverse=True)
+        sorted_reads = sorted(reads, key=lambda x: (numpy.mean([x[1], x[2]]), x[0]), reverse=True)
         pairs[(source, target)].chosen_read = sorted_reads[0][0]
 
 
@@ -406,8 +406,8 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
 
     num_gaps, potential_fills, filled_gaps, old_anchor_used, new_anchor_used = 0, 0, 0, 0, 0
 
-    for source, target in pairs:
-        print(source, target, str(pairs[(source, target)]))
+    #for source, target in pairs:
+    #    print(source, target, str(pairs[(source, target)]))
 
     printed_scaffolds = set()
 
