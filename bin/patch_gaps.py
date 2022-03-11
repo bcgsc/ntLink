@@ -95,7 +95,7 @@ def parse_minimizers(minimizer_positions: str) -> list:
     return return_mxs
 
 
-def find_orientation(mx_positions: list) -> str:
+def find_orientation(mx_positions: list):
     "Infer orientation from minimizer positions"
     if all(x.ctg_strand == x.read_strand for x in mx_positions):
         return "+"
@@ -339,6 +339,18 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                                                                                                 scaffolds, mx_info, args)
                 source_terminal_mx, source_ctg_ori_read_based = None, None
                 target_terminal_mx, target_ctg_ori_read_based = None, None
+                if len(accepted_anchor_contigs) != 2: # Fall back on previous anchors, if option specified
+                    if source[-1] == "+":
+                        scaffolds[source_scaf.id].three_prime_cut = pairs[(source, target)].source_ctg_cut
+                    else:
+                        scaffolds[source_scaf.id].five_prime_cut = pairs[(source, target)].source_ctg_cut
+
+                    if target[-1] == "+":
+                        scaffolds[target_scaf.id].five_prime_cut = pairs[(source, target)].target_ctg_cut
+                    else:
+                        scaffolds[target_scaf.id].three_prime_cut = pairs[(source, target)].target_ctg_cut
+                    continue
+                    
                 assert len(accepted_anchor_contigs) == 2
                 for ctg_run in accepted_anchor_contigs:
                     ctg_run_entry = accepted_anchor_contigs[ctg_run]
