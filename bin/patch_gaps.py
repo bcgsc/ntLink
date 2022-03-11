@@ -312,9 +312,6 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
     read_header_re = re.compile(r'^(\S+)__(\S+)__(\S+)$')
     scaffold_header_re = re.compile(r'^(\S+)_(source|target)$')
 
-    for source, target in pairs:
-        print(source, target, str(pairs[(source, target)]))
-
     with btllib.Indexlr(args.s + ".masked_temp.fa", args.k, 10, btllib.IndexlrFlag.LONG_MODE) as scaffolds_btllib: # !!TODO magic numbers
         with btllib.Indexlr(args.reads + ".masked_temp.fa", args.k, 10, btllib.IndexlrFlag.LONG_MODE) as reads:
             for chosen_read in reads:
@@ -404,6 +401,9 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
     outfile = open(args.o, 'w')
 
     num_gaps, potential_fills, filled_gaps, old_anchor_used, new_anchor_used = 0, 0, 0, 0, 0
+
+    for source, target in pairs:
+        print(source, target, str(pairs[(source, target)]))
 
     with open(args.path, 'r') as fin:
         for line in fin:
