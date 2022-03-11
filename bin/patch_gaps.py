@@ -48,6 +48,7 @@ class PairInfo:
         self.source_read_cut = None
         self.target_ctg_cut = None
         self.target_read_cut = None
+        self.old_anchor_used = False
 
     def reverse_complement(self, sequence):
         "Reverse complements a given sequence"
@@ -59,7 +60,7 @@ class PairInfo:
 
     def __str__(self):
         return f"Gap: {self.gap_size}; Chosen read: {self.chosen_read}; source ctg/read cuts: {self.source_ctg_cut}/{self.source_read_cut}" \
-               f"target ctg/read cuts: {self.target_ctg_cut}/{self.target_read_cut}"
+               f"target ctg/read cuts: {self.target_ctg_cut}/{self.target_read_cut}; Anchor used: {self.old_anchor_used}"
 
     def get_cut_read_sequence(self, reads, reverse_compl: str): # !!TODO consider orientation of read
         if reverse_compl == "-":
@@ -311,6 +312,9 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
     read_header_re = re.compile(r'^(\S+)__(\S+)__(\S+)$')
     scaffold_header_re = re.compile(r'^(\S+)_(source|target)$')
 
+    for source, target in pairs:
+        print(source, target, str(pairs[(source, target)]))
+
     with btllib.Indexlr(args.s + ".masked_temp.fa", args.k, 10, btllib.IndexlrFlag.LONG_MODE) as scaffolds_btllib: # !!TODO magic numbers
         with btllib.Indexlr(args.reads + ".masked_temp.fa", args.k, 10, btllib.IndexlrFlag.LONG_MODE) as reads:
             for chosen_read in reads:
@@ -340,6 +344,7 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                 source_terminal_mx, source_ctg_ori_read_based = None, None
                 target_terminal_mx, target_ctg_ori_read_based = None, None
                 if len(accepted_anchor_contigs) != 2: # Fall back on previous anchors, if option specified
+                    pairs[(source, target)].old_anchor_used = True
                     if source[-1] == "+":
                         scaffolds[source_scaf.id].three_prime_cut = pairs[(source, target)].source_ctg_cut
                     else:
@@ -350,7 +355,7 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                     else:
                         scaffolds[target_scaf.id].three_prime_cut = pairs[(source, target)].target_ctg_cut
                     continue
-                    
+
                 assert len(accepted_anchor_contigs) == 2
                 for ctg_run in accepted_anchor_contigs:
                     ctg_run_entry = accepted_anchor_contigs[ctg_run]
@@ -398,7 +403,7 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
     gap_re = re.compile('^(\d+)N$')
     outfile = open(args.o, 'w')
 
-    num_gaps, potential_fills, filled_gaps = 0, 0, 0
+    num_gaps, potential_fills, filled_gaps, old_anchor_used, new_anchor_used = 0, 0, 0, 0, 0
 
     with open(args.path, 'r') as fin:
         for line in fin:
@@ -423,9 +428,17 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                     elif mappings[pair_entry.chosen_read][source.strip("+-")].orientation != source[-1]:
                         sequence += pair_entry.get_cut_read_sequence(reads, "-")
                         filled_gaps += 1
+                        if pair_entry.old_anchor_used:
+                            old_anchor_used += 1
+                        else:
+                            new_anchor_used += 1
                     else:
                         sequence += pair_entry.get_cut_read_sequence(reads, "+")
                         filled_gaps += 1
+                        if pair_entry.old_anchor_used:
+                            old_anchor_used += 1
+                        else:
+                            new_anchor_used += 1
                 else:
                     ctg = path[idx]
                     sequence += sequences[ctg.strip("+-")].get_cut_sequence(ctg[-1])
@@ -438,6 +451,8 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
     print("Number of detected gaps", num_gaps, sep="\t")
     print("Number of potentially fillable gaps", potential_fills, sep="\t")
     print("Number of filled gaps", filled_gaps, sep="\t")
+    print("Number of new anchors used", new_anchor_used, sep="\t")
+    print("Number of old anchors used", old_anchor_used, sep="\t")
     print()
 
 def print_log_message(message: str) -> None:
