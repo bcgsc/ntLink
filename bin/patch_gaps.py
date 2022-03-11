@@ -233,13 +233,13 @@ def find_masking_cut_points(pairs: dict, mappings: dict, args: argparse.Namespac
             target_ctg_pos, target_read_pos = target_read_mxs[-1].ctg_pos, target_read_mxs[-1].read_pos
 
         pairs[(source, target)].source_ctg_cut = assign_ctg_cut(source_ctg_pos, mappings[read_id][source.strip("+-")].orientation,
-                                                                source_ori, args.k)
+                                                                source_ori, args.large_k)
         pairs[(source, target)].source_read_cut = assign_read_cut(source_read_pos, mappings[read_id][source.strip("+-")].orientation,
-                                                                  source_ori, args.k)
+                                                                  source_ori, args.large_k)
         pairs[(source, target)].target_ctg_cut = assign_ctg_cut(target_ctg_pos, mappings[read_id][target.strip("+-")].orientation,
-                                                                target_ori, args.k)
+                                                                target_ori, args.large_k)
         pairs[(source, target)].target_read_cut = assign_read_cut(target_read_pos, mappings[read_id][target.strip("+-")].orientation,
-                                                                  target_ori, args.k)
+                                                                  target_ori, args.large_k)
 
 
 
@@ -504,6 +504,7 @@ def main() -> None:
     parser.add_argument("--reads", help="Input reads", required=True, type=str)
     parser.add_argument("-z", help="Minimum contig size (bp) [1000]", type=int, required=False, default=1000)
     parser.add_argument("-k", help="Kmer size used in minimizer step [15]", type=int, required=False, default=15)
+    parser.add_argument("--large_k", help="K-mer size used in generating verbose mapping TSV", required=True, type=int)
     parser.add_argument("-x", help="Fudge factor", type=float, required=False, default=0)
     parser.add_argument("--min_gap", help="Minimum gap size [20]", type=int, default=20)
     parser.add_argument("-o", help="Output file name", required=False, default="ntLink_patch_gaps_out.fa", type=str)
