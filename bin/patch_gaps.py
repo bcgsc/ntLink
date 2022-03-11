@@ -341,6 +341,10 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                 source_terminal_mx, source_ctg_ori_read_based = None, None
                 target_terminal_mx, target_ctg_ori_read_based = None, None
                 if len(accepted_anchor_contigs) != 2: # Fall back on previous anchors, if option specified
+                    if args.stringent:
+                        pairs[(source, target)].source_read_cut = None
+                        pairs[(source, target)].target_read_cut = None
+                        continue
                     pairs[(source, target)].old_anchor_used = True
                     if source[-1] == "+":
                         scaffolds[source_scaf.id].three_prime_cut = pairs[(source, target)].source_ctg_cut
@@ -496,6 +500,8 @@ def main() -> None:
     parser.add_argument("-x", help="Fudge factor", type=float, required=False, default=0)
     parser.add_argument("--min_gap", help="Minimum gap size [20]", type=int, default=20)
     parser.add_argument("-o", help="Output file name", required=False, default="ntLink_patch_gaps_out.fa", type=str)
+    parser.add_argument("--stringent", help="If specified, will only use lower k/w used for re-mapping for filling gaps,"
+                                            " will not fall back on original anchors", action="store_true")
     parser.add_argument("--verbose", help="Verbose logging - print out trimmed scaffolds without gaps", action="store_true")
     args = parser.parse_args()
 
