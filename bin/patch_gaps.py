@@ -405,6 +405,8 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
     for source, target in pairs:
         print(source, target, str(pairs[(source, target)]))
 
+    printed_scaffolds = set()
+
     with open(args.path, 'r') as fin:
         for line in fin:
             line = line.strip().split("\t")
@@ -441,11 +443,11 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                             new_anchor_used += 1
                 else:
                     ctg = path[idx]
+                    printed_scaffolds.add(ctg.strip("+-"))
                     sequence += sequences[ctg.strip("+-")].get_cut_sequence(ctg[-1])
                     if args.verbose:
                         print(">{}\n{}".format(ctg, sequences[ctg.strip("+-")].get_cut_sequence(ctg[-1])), file=sys.stderr)
             outfile.write(">{}\n{}\n".format(ctg_id, sequence))
-    outfile.close()
 
     print("\nGap filling summary:")
     print("Number of detected gaps", num_gaps, sep="\t")
@@ -454,6 +456,15 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
     print("Number of new anchors used", new_anchor_used, sep="\t")
     print("Number of old anchors used", old_anchor_used, sep="\t")
     print()
+
+    # Print scaffolds NOT in paths
+    for ctg in sequences:
+        if ctg in printed_scaffolds:
+            continue
+        outfile.write(">{}\n{}".format(ctg, sequences[ctg].seq))
+
+    outfile.close()
+
 
 def print_log_message(message: str) -> None:
     "Print given log message with time"
