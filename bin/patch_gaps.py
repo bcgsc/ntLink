@@ -11,6 +11,7 @@ import numpy
 import sys
 import ntlink_pair
 import ntlink_utils
+import datetime
 
 MinimizerPositions = namedtuple("MinimizerEntry", ["ctg_pos", "ctg_strand", "read_pos", "read_strand"])
 
@@ -421,10 +422,29 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
             outfile.write(">{}\n{}\n".format(ctg_id, sequence))
     outfile.close()
 
+    print("\nGap filling summary:")
     print("Number of detected gaps", num_gaps, sep="\t")
     print("Number of potentially fillable gaps", potential_fills, sep="\t")
     print("Number of filled gaps", filled_gaps, sep="\t")
 
+def print_log_message(message: str) -> None:
+    "Print given log message with time"
+    print(datetime.datetime.today(), message, file=sys.stdout)
+
+def print_parameters(args: argparse.Namespace) -> None:
+    "Print set parameters for gap filling"
+    print("Parameters:")
+    print("\t--path", args.path)
+    print("\t--mappings", args.mappings)
+    print("\t-s", args.s)
+    print("\t--reads", args.reads)
+    print("\t-z", args.z)
+    print("\t-k", args.k)
+    print("\t-x", args.x)
+    print("\t--min_gap". args.min_gap)
+    print("\t-o", args.o)
+    if args.verbose:
+        print("\t--verbose")
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Use minimizer mappings to fill gaps")
@@ -448,32 +468,34 @@ def main() -> None:
     mappings = read_verbose_mappings(args.mappings, pairs)
 
     # Read scaffold sequences into memory sequence_id -> ScaffoldGaps
-    print("Reading scaffolds..")
+    print_log_message("Reading scaffolds..")
     sequences = read_scaffold_file(args.s)
 
     # Choose best read for patching each pair's gap (adjust pairs supporting reads)
-    print("Choosing best read..")
+    print_log_message("Choosing best read..")
     choose_best_read_per_pair(pairs, mappings)
 
     # Read in the reads that are needed
-    print("Collecting reads...")
+    print_log_message("Collecting reads...")
     reads = get_gap_fill_reads(args.reads, pairs)
 
     # Find cut points
-    print("Finding cut points..")
+    print_log_message("Finding cut points..")
     find_masking_cut_points(pairs, mappings, args)
 
     # Print masked sequences for assembly, reads for minimizer generation
-    print("Printing masked sequences..")
+    print_log_message("Printing masked sequences..")
     print_masked_sequences(sequences, reads, pairs, args)
 
     # Compute minimizers, and map the long read to the sequences at a lower k/w
-    print("Mapping long reads..")
+    print_log_message("Mapping long reads..")
     map_long_reads(pairs, sequences, args)
 
     # Print out the sequences
-    print("Printing output scaffolds..")
+    print_log_message("Printing output scaffolds..")
     print_gap_filled_sequences(pairs, mappings, sequences, reads, args)
+
+    print_log_message("DONE!")
 
 
 if __name__ == "__main__":
