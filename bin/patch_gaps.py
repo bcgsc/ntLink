@@ -253,14 +253,10 @@ def print_masked_sequences(scaffolds: dict, reads: dict, pairs: dict, args: argp
         source_cut = pair_info.source_ctg_cut
         source_noori = source.strip("+-")
         if source[-1] == "+":
-            if len(scaffolds[source_noori].seq) - source_cut < args.min_mask:
-                source_cut = len(scaffolds[source_noori].seq) - args.min_mask
             out_scaffolds.write(f">{source}_source\n"
                                 f"{'N'*source_cut}"
                                 f"{scaffolds[source_noori].seq[source_cut:]}\n")
         elif source[-1] == "-":
-            if source_cut < args.min_mask:
-                source_cut = args.min_mask
             out_scaffolds.write(f">{source}_source\n"
                                 f"{scaffolds[source_noori].seq[:source_cut]}"
                                 f"{'N'*(len(scaffolds[source_noori].seq) - source_cut)}\n")
@@ -270,14 +266,10 @@ def print_masked_sequences(scaffolds: dict, reads: dict, pairs: dict, args: argp
         target_cut = pair_info.target_ctg_cut
         target_noori = target.strip("+-")
         if target[-1] == "+":
-            if target_cut < args.min_mask:
-                target_cut = args.min_mask
             out_scaffolds.write(f">{target}_target\n"
                                 f"{scaffolds[target_noori].seq[:target_cut]}"
                                 f"{'N'*(len(scaffolds[target_noori].seq) - target_cut)}\n")
         elif target[-1] == "-":
-            if len(scaffolds[target_noori].seq) - target_cut < args.min_mask:
-                target_cut = args.min_mask
             out_scaffolds.write(f">{target}_target\n"
                                 f"{'N'*target_cut}"
                                 f"{scaffolds[target_noori].seq[target_cut:]}\n")
@@ -442,7 +434,7 @@ def print_log_message(message: str) -> None:
 
 def print_parameters(args: argparse.Namespace) -> None:
     "Print set parameters for gap filling"
-    print("\nParameters:")
+    print("Parameters:")
     print("\t--path", args.path)
     print("\t--mappings", args.mappings)
     print("\t-s", args.s)
@@ -454,7 +446,6 @@ def print_parameters(args: argparse.Namespace) -> None:
     print("\t-o", args.o)
     if args.verbose:
         print("\t--verbose")
-    print()
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Use minimizer mappings to fill gaps")
@@ -466,7 +457,6 @@ def main() -> None:
     parser.add_argument("-k", help="Kmer size used in minimizer step [15]", type=int, required=False, default=15)
     parser.add_argument("-x", help="Fudge factor", type=float, required=False, default=0)
     parser.add_argument("--min_gap", help="Minimum gap size [20]", type=int, default=20)
-    parser.add_argument("--min_mask", help="Minimum length of non-masked sequence", type=int, default=1000)
     parser.add_argument("-o", help="Output file name", required=False, default="ntLink_patch_gaps_out.fa", type=str)
     parser.add_argument("--verbose", help="Verbose logging - print out trimmed scaffolds without gaps", action="store_true")
     args = parser.parse_args()
