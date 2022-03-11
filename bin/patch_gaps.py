@@ -461,7 +461,7 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
     for ctg in sequences:
         if ctg in printed_scaffolds:
             continue
-        outfile.write(">{}\n{}".format(ctg, sequences[ctg].seq))
+        outfile.write(">{}\n{}\n".format(ctg, sequences[ctg].seq))
 
     outfile.close()
 
