@@ -442,7 +442,7 @@ def print_parameters(args: argparse.Namespace) -> None:
     print("\t-z", args.z)
     print("\t-k", args.k)
     print("\t-x", args.x)
-    print("\t--min_gap". args.min_gap)
+    print("\t--min_gap", args.min_gap)
     print("\t-o", args.o)
     if args.verbose:
         print("\t--verbose")
