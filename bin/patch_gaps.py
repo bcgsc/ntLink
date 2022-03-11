@@ -426,6 +426,7 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
     print("Number of detected gaps", num_gaps, sep="\t")
     print("Number of potentially fillable gaps", potential_fills, sep="\t")
     print("Number of filled gaps", filled_gaps, sep="\t")
+    print()
 
 def print_log_message(message: str) -> None:
     "Print given log message with time"
@@ -459,6 +460,8 @@ def main() -> None:
     parser.add_argument("-o", help="Output file name", required=False, default="ntLink_patch_gaps_out.fa", type=str)
     parser.add_argument("--verbose", help="Verbose logging - print out trimmed scaffolds without gaps", action="store_true")
     args = parser.parse_args()
+
+    print_parameters(args)
 
     # Read path file into pairs ((source, target) -> (gap_est, supporting reads)
     args.min_gap = args.min_gap + 1
