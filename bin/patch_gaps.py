@@ -385,7 +385,7 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
     gap_re = re.compile('^(\d+)N$')
     outfile = open(args.o, 'w')
 
-    num_gaps, filled_gaps = 0, 0
+    num_gaps, potential_fills, filled_gaps = 0, 0, 0
 
     with open(args.path, 'r') as fin:
         for line in fin:
@@ -403,6 +403,7 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                     if (source, target) not in pairs:
                         sequence += "N"*int(gap_match.group(1))
                         continue
+                    potential_fills += 1
                     pair_entry = pairs[(source, target)]
                     if pair_entry.source_read_cut is None or pair_entry.target_read_cut is None:
                         sequence += "N"*pair_entry.gap_size
@@ -421,6 +422,7 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
     outfile.close()
 
     print("Number of detected gaps", num_gaps, sep="\t")
+    print("Number of potentially fillable gaps", potential_fills, sep="\t")
     print("Number of filled gaps", filled_gaps, sep="\t")
 
 
