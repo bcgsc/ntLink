@@ -441,14 +441,20 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                     if pair_entry.source_read_cut is None or pair_entry.target_read_cut is None:
                         sequence += "N"*pair_entry.gap_size
                     elif mappings[pair_entry.chosen_read][source.strip("+-")].orientation != source[-1]:
-                        sequence += pair_entry.get_cut_read_sequence(reads, "-")
+                        if args.soft_mask:
+                            sequence += pair_entry.get_cut_read_sequence(reads, "-").lower()
+                        else:
+                            sequence += pair_entry.get_cut_read_sequence(reads, "-")
                         filled_gaps += 1
                         if pair_entry.old_anchor_used:
                             old_anchor_used += 1
                         else:
                             new_anchor_used += 1
                     else:
-                        sequence += pair_entry.get_cut_read_sequence(reads, "+")
+                        if args.soft_mask:
+                            sequence += pair_entry.get_cut_read_sequence(reads, "+").lower()
+                        else:
+                            sequence += pair_entry.get_cut_read_sequence(reads, "+")
                         filled_gaps += 1
                         if pair_entry.old_anchor_used:
                             old_anchor_used += 1
@@ -513,6 +519,7 @@ def main() -> None:
     parser.add_argument("-o", help="Output file name", required=False, default="ntLink_patch_gaps_out.fa", type=str)
     parser.add_argument("--stringent", help="If specified, will only use lower k/w used for re-mapping for filling gaps,"
                                             " will not fall back on original anchors", action="store_true")
+    parser.add_argument("--soft_mask", help="If specified, will soft mask the filled gap", action="store_true")
     parser.add_argument("--verbose", help="Verbose logging - print out trimmed scaffolds without gaps", action="store_true")
     args = parser.parse_args()
 
