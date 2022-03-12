@@ -23,14 +23,18 @@ class ScaffoldGaps:
         self.length = len(seq)
         self.five_prime_cut = 0
         self.three_prime_cut = self.length
+        self.five_prime_trim = 0
+        self.three_prime_trim = self.length
 
     def __str__(self):
         return f"Length:{self.length} 5'cut:{self.five_prime_cut} 3'cut:{self.three_prime_cut}"
 
     def get_cut_sequence(self, reverse_compl: str):
+        five_prime_cut_site = max(self.five_prime_trim, self.five_prime_cut)
+        three_prime_cut_site = min(self.three_prime_trim, self.three_prime_cut)
         if reverse_compl == "-":
-            return self.reverse_complement(self.seq[self.five_prime_cut: self.three_prime_cut])
-        return self.seq[self.five_prime_cut: self.three_prime_cut]
+            return self.reverse_complement(self.seq[five_prime_cut_site: three_prime_cut_site])
+        return self.seq[five_prime_cut_site: three_prime_cut_site]
 
     def reverse_complement(self, sequence):
         "Reverse complements a given sequence"
@@ -485,6 +489,13 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
 
     outfile.close()
 
+def read_trim_coordinates(sequences: dict, args: argparse.Namespace) -> None:
+    "Read in the trim coordinates from ntLink, tracking in the scaffold entry"
+    with open(args.trimmings, 'r') as fin:
+        for line in fin:
+            ctg, start, end = line.strip().split("\t")
+            sequences[ctg].five_prime_trim = start
+            sequences[ctg].three_prime_trim = end
 
 def print_log_message(message: str) -> None:
     "Print given log message with time"
@@ -509,6 +520,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Use minimizer mappings to fill gaps")
     parser.add_argument("--path", help="Input path file for gap patching", required=True, type=str)
     parser.add_argument("--mappings", help="ntLink verbose mapping TSV", required=True, type=str)
+    parser.add_argument("--trimmings", help="ntLink file listing trims made", required=True, type=str)
     parser.add_argument("-s", help="Input scaffolds", required=True, type=str)
     parser.add_argument("--reads", help="Input reads", required=True, type=str)
     parser.add_argument("-z", help="Minimum contig size (bp) [1000]", type=int, required=False, default=1000)
@@ -535,6 +547,10 @@ def main() -> None:
     # Read scaffold sequences into memory sequence_id -> ScaffoldGaps
     print_log_message("Reading scaffolds..")
     sequences = read_scaffold_file(args.s)
+
+    # Read in trim coordinates - used when printing sequences for adjusting as needed
+    print_log_message("Reading trim coordinates..")
+    read_trim_coordinates(sequences, args)
 
     # Choose best read for patching each pair's gap (adjust pairs supporting reads)
     print_log_message("Choosing best read..")
