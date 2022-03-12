@@ -494,8 +494,8 @@ def read_trim_coordinates(sequences: dict, args: argparse.Namespace) -> None:
     with open(args.trimmings, 'r') as fin:
         for line in fin:
             ctg, start, end = line.strip().split("\t")
-            sequences[ctg].five_prime_trim = start
-            sequences[ctg].three_prime_trim = end
+            sequences[ctg].five_prime_trim = int(start)
+            sequences[ctg].three_prime_trim = int(end)
 
 def print_log_message(message: str) -> None:
     "Print given log message with time"
