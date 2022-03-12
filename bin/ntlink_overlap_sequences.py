@@ -71,6 +71,16 @@ class ScaffoldCut:
             raise AssertionError("Target cut is already set")
         self._target_cut = pos
 
+    def get_trim_coordinates(self, k):
+        if self.ori == "+":
+            return self.target_cut, self.source_cut
+        if self.ori == "-":
+            return self.source_cut + k, self.target_cut + k
+        if self.ori is None:
+            return 0, self.length
+        raise ValueError("Orientation should be +, - or None")
+
+
     def __str__(self):
         return f"{self.ctg_id}{self._ori} {self.length} - s:{self._source_cut} t:{self._target_cut}"
 
@@ -398,9 +408,8 @@ def print_trim_coordinates(args, scaffolds):
     with open(args.p + ".trimmed_scafs.tsv", 'w') as tsvfile:
         for scaffold in scaffolds:
             scaffold_entry = scaffolds[scaffold]
-            out_str = "{}\t{}\t{}\n".format(scaffold_entry.ctg_id,
-                                          min(scaffold_entry.source_cut, scaffold_entry.target_cut),
-                                          max(scaffold_entry.source_cut, scaffold_entry.target_cut), sep="\t")
+            start, end = scaffold_entry.get_trim_coordinates(args.k)
+            out_str = "{}\t{}\t{}\n".format(scaffold_entry.ctg_id, start, end, sep="\t")
             tsvfile.write(out_str)
 
 def parse_arguments():
