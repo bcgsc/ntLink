@@ -86,7 +86,7 @@ def read_path_file_pairs(path_filename: str, min_gap_size: int) -> dict:
                 i, j, k = path[idx:idx+3]
                 gap_match = re.search(gap_re, j)
                 if gap_match and int(gap_match.group(1)) > min_gap_size:
-                    pairs[(i, k)] = PairInfo(gap_match.group(1))
+                    pairs[(i, k)] = PairInfo(int(gap_match.group(1)) - 1) # Accounting for abyss-scaffold adding 1 to gaps in path file
     return pairs
 
 def parse_minimizers(minimizer_positions: str) -> list:
@@ -417,10 +417,9 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
 
     num_gaps, potential_fills, filled_gaps, old_anchor_used, new_anchor_used, small_gaps = 0, 0, 0, 0, 0, 0
 
-    #for source, target in pairs:
-    #    print(source, target, str(pairs[(source, target)]))
-
     printed_scaffolds = set()
+
+    overlap_gap = False
 
     with open(args.path, 'r') as fin:
         for line in fin:
@@ -433,12 +432,15 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
             for idx in range(len(path)):
                 gap_match = re.search(gap_re, path[idx])
                 if gap_match:
+                    gap_size = int(gap_match.group(1))
                     num_gaps += 1
+                    if gap_size == 1: # Indicates gap size of 0 for path file
+                        overlap_gap = True
                     source, target = path[idx-1], path[idx+1]
                     if (source, target) not in pairs:
                         if int(gap_match.group(1)) <= args.min_gap:
                             small_gaps += 1
-                        sequence += "N"*int(gap_match.group(1))
+                        sequence += "N"*(gap_size - 1) # Accounting for gaps being one larger in abyss-scaffold path file
                         continue
                     potential_fills += 1
                     pair_entry = pairs[(source, target)]
@@ -467,7 +469,11 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                 else:
                     ctg = path[idx]
                     printed_scaffolds.add(ctg.strip("+-"))
-                    sequence += sequences[ctg.strip("+-")].get_cut_sequence(ctg[-1])
+                    new_sequence = sequences[ctg.strip("+-")].get_cut_sequence(ctg[-1])
+                    if overlap_gap:
+                        new_sequence = new_sequence[:1].lower() + new_sequence[1:]
+                        overlap_gap = False
+                    sequence += new_sequence
                     if args.verbose:
                         print(">{}\n{}".format(ctg, sequences[ctg.strip("+-")].get_cut_sequence(ctg[-1])), file=sys.stderr)
             outfile.write(">{}\n{}\n".format(ctg_id, sequence))
