@@ -194,7 +194,7 @@ $(prefix).trimmed_scafs.fa: $(prefix).stitch.path $(prefix).n$(n).scaffold.dot $
 	--dot $(prefix).n$(n).scaffold.dot --path $< -k $(small_k) -f $g |\
 	$(ntlink_path)/src/indexlr --long --pos -k $(small_k) -w $(small_w) -t $(t) - |\
 	$(ntlink_path)/bin/ntlink_overlap_sequences.py -m -  --path $< \
-	-s $(target) -d $(prefix).n$(n).scaffold.dot -p $(prefix) -g $(g) -k $(small_k) --outgap $(merge_gap)'
+	-s $(target) -d $(prefix).n$(n).scaffold.dot -p $(prefix) -g $(g) -k $(small_k) --outgap $(merge_gap) --trim_info'
 
 ifeq ($(overlap), True)
 $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa: $(prefix).trimmed_scafs.fa
