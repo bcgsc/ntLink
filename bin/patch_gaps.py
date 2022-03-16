@@ -171,10 +171,10 @@ def read_verbose_mappings(mappings_filename: str, pairs: dict) -> dict:
 
     return read_info
 
-def read_scaffold_file(scaffold_filename: str) -> dict:
+def read_scaffold_file(args: argparse.Namespace) -> dict:
     "Read the scaffolds into memory"
     scaffolds = {}
-    with btllib.SeqReader(scaffold_filename, btllib.SeqReaderFlag.LONG_MODE) as reads:
+    with btllib.SeqReader(args.s, btllib.SeqReaderFlag.LONG_MODE, args.t) as reads:
         for read in reads:
             scaffolds[read.id] = ScaffoldGaps(read.seq)
     return scaffolds
@@ -189,11 +189,11 @@ def choose_best_read_per_pair(pairs: dict, mappings: dict) -> None:
         pairs[(source, target)].chosen_read = sorted_reads[0][0]
 
 
-def get_gap_fill_reads(reads_filename: str, pairs: dict) -> dict:
+def get_gap_fill_reads(reads_filename: str, pairs: dict, args: argparse.Namespace) -> dict:
     "Collect the reads needed for gap-filling"
     reads = {} # read_id -> sequence
     target_reads = {pairs[pair].chosen_read for pair in pairs}
-    with btllib.SeqReader(reads_filename, btllib.SeqReaderFlag.LONG_MODE) as reads_in:
+    with btllib.SeqReader(reads_filename, btllib.SeqReaderFlag.LONG_MODE, args.t) as reads_in:
         for read in reads_in:
             if read.id in target_reads:
                 reads[read.id] = read.seq
@@ -316,8 +316,8 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
     read_header_re = re.compile(r'^(\S+)__(\S+)__(\S+)$')
     scaffold_header_re = re.compile(r'^(\S+)_(source|target)$')
 
-    with btllib.Indexlr(args.s + ".masked_temp.fa", args.k, 10, btllib.IndexlrFlag.LONG_MODE) as scaffolds_btllib: # !!TODO magic numbers
-        with btllib.Indexlr(args.reads + ".masked_temp.fa", args.k, 10, btllib.IndexlrFlag.LONG_MODE) as reads:
+    with btllib.Indexlr(args.s + ".masked_temp.fa", args.k, args.w, btllib.IndexlrFlag.LONG_MODE, args.t) as scaffolds_btllib:
+        with btllib.Indexlr(args.reads + ".masked_temp.fa", args.k, args.w, btllib.IndexlrFlag.LONG_MODE, args.t) as reads:
             for chosen_read in reads:
                 read_id, source, target = re.search(read_header_re, chosen_read.id).groups()
 
@@ -533,6 +533,8 @@ def main() -> None:
     parser.add_argument("--reads", help="Input reads", required=True, type=str)
     parser.add_argument("-z", help="Minimum contig size (bp) [1000]", type=int, required=False, default=1000)
     parser.add_argument("-k", help="Kmer size used in minimizer step [15]", type=int, required=False, default=15)
+    parser.add_argument("-w", help="Window size used in minimizer step [10]", type=int, required=False, default=10)
+    parser.add_argument("-t", help="Number of threads [4]", type=int, required=False, default=4)
     parser.add_argument("--large_k", help="K-mer size used in generating verbose mapping TSV", required=True, type=int)
     parser.add_argument("-x", help="Fudge factor", type=float, required=False, default=0)
     parser.add_argument("--min_gap", help="Minimum gap size [20]", type=int, default=20)
@@ -554,7 +556,7 @@ def main() -> None:
 
     # Read scaffold sequences into memory sequence_id -> ScaffoldGaps
     print_log_message("Reading scaffolds..")
-    sequences = read_scaffold_file(args.s)
+    sequences = read_scaffold_file(args)
 
     # Read in trim coordinates - used when printing sequences for adjusting as needed
     print_log_message("Reading trim coordinates..")
@@ -566,7 +568,7 @@ def main() -> None:
 
     # Read in the reads that are needed
     print_log_message("Collecting reads...")
-    reads = get_gap_fill_reads(args.reads, pairs)
+    reads = get_gap_fill_reads(args.reads, pairs, args)
 
     # Find cut points
     print_log_message("Finding cut points..")
