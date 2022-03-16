@@ -6,18 +6,19 @@ import argparse
 import re
 from collections import namedtuple
 import itertools
+import datetime
+import sys
 import btllib
 import numpy
-import sys
 import ntlink_pair
 import ntlink_utils
-import datetime
 
 MinimizerPositions = namedtuple("MinimizerEntry", ["ctg_pos", "ctg_strand", "read_pos", "read_strand"])
 
 MinimizerMapping = namedtuple("MinimizerMapping", ["anchors", "minimizer_positions", "orientation"])
 
 class ScaffoldGaps:
+    "Representing a scaffold, adjusting for gap-filling coordinates"
     def __init__(self, seq):
         self.seq = seq
         self.length = len(seq)
@@ -37,7 +38,8 @@ class ScaffoldGaps:
             return self.reverse_complement(self.seq[five_prime_cut_site: three_prime_cut_site])
         return self.seq[five_prime_cut_site: three_prime_cut_site]
 
-    def reverse_complement(self, sequence):
+    @staticmethod
+    def reverse_complement(sequence):
         "Reverse complements a given sequence"
         translation_table = str.maketrans(
             "ACGTUNMRWSYKVHDBacgtunmrwsykvhdb",
@@ -45,6 +47,7 @@ class ScaffoldGaps:
         return sequence[::-1].translate(translation_table)
 
 class PairInfo:
+    "Information about a pair in the path file"
     def __init__(self, gap_size):
         self.gap_size = int(gap_size)
         self.mapping_reads = set()
@@ -55,7 +58,8 @@ class PairInfo:
         self.target_read_cut = None
         self.old_anchor_used = False
 
-    def reverse_complement(self, sequence):
+    @staticmethod
+    def reverse_complement(sequence):
         "Reverse complements a given sequence"
         translation_table = str.maketrans(
             "ACGTUNMRWSYKVHDBacgtunmrwsykvhdb",
@@ -64,8 +68,10 @@ class PairInfo:
 
 
     def __str__(self):
-        return f"Gap: {self.gap_size}; Chosen read: {self.chosen_read}; source ctg/read cuts: {self.source_ctg_cut}/{self.source_read_cut}" \
-               f"target ctg/read cuts: {self.target_ctg_cut}/{self.target_read_cut}; Anchor used: {self.old_anchor_used}"
+        return f"Gap: {self.gap_size}; Chosen read: {self.chosen_read}; " \
+               f"source ctg/read cuts: {self.source_ctg_cut}/{self.source_read_cut}" \
+               f" target ctg/read cuts: {self.target_ctg_cut}/{self.target_read_cut}; " \
+               f"Anchor used: {self.old_anchor_used}"
 
     def get_cut_read_sequence(self, reads, reverse_compl: str):
         "Get the cut sequence, reverse complementing if indicated"
@@ -76,25 +82,26 @@ class PairInfo:
 def read_path_file_pairs(path_filename: str, min_gap_size: int) -> dict:
     "Read through the path file, storing the found pairs: pair -> gap estimate"
     pairs = {}
-    gap_re = re.compile('^(\d+)N$')
+    gap_re = re.compile(r'^(\d+)N$')
     with open(path_filename, 'r') as fin:
         for line in fin:
             line = line.strip().split("\t")
             if len(line) < 2:
                 continue
-            ctg_id, path = line
+            _, path = line
             path = path.split(" ")
             for idx in range(len(path) - 2):
                 i, j, k = path[idx:idx+3]
                 gap_match = re.search(gap_re, j)
                 if gap_match and int(gap_match.group(1)) > min_gap_size:
-                    pairs[(i, k)] = PairInfo(int(gap_match.group(1)) - 1) # Accounting for abyss-scaffold adding 1 to gaps in path file
+                    # Accounting for abyss-scaffold adding 1 to gaps in path file
+                    pairs[(i, k)] = PairInfo(int(gap_match.group(1)) - 1)
     return pairs
 
 def parse_minimizers(minimizer_positions: str) -> list:
     "Parse the minimizer positions string"
-    mx_pos_re = re.compile(f"MinimizerPositions\(ctg_pos=(\d+),\s+ctg_strand=\'([+-])\',\s+read_pos=(\d+),\s+"
-                           f"read_strand=\'([+-])\'\)")
+    mx_pos_re = re.compile(r"MinimizerPositions\(ctg_pos=(\d+),\s+ctg_strand=\'([+-])\',\s+read_pos=(\d+),\s+"
+                           r"read_strand=\'([+-])\'\)")
     return_mxs = []
     for match in re.findall(mx_pos_re, minimizer_positions):
         return_mxs.append(MinimizerPositions(ctg_pos=int(match[0]), ctg_strand=match[1],
@@ -118,14 +125,14 @@ def reverse_complement_pair(source: str, target: str) -> tuple:
     elif source[-1] == "-":
         source_new_ori = "+"
     else:
-        raise(ValueError("+ or - needed for last character of node, found" + source[-1]))
+        raise ValueError("+ or - needed for last character of node, found" + source[-1])
 
     if target[-1] == "+":
         target_new_ori = "-"
     elif target[-1] == "-":
         target_new_ori = "+"
     else:
-        raise(ValueError("+ or - needed for last character of node, found" + target[-1]))
+        raise ValueError("+ or - needed for last character of node, found" + target[-1])
 
     return target[:-1] + target_new_ori, source[:-1] + source_new_ori
 
@@ -200,20 +207,21 @@ def get_gap_fill_reads(reads_filename: str, pairs: dict, args: argparse.Namespac
                 reads[read.id] = read.seq
     return reads
 
-'''Cut positions explanations
-Situation A: ctg+ read+
-    Read orientation relative to ctg is +
-    No adjustments in cuts needed - positions in minimizers already line up
-Situation B: ctg+ read-
-    Read orientation relative to ctg is -
-    Therefore, make adjustment relative to + orientation, adjust read by k
-Situation C: ctg- read+
-    Read orientation relative to ctg is -. Given that ctg is -, means read in +ve orientation
-    Therefore, adjust relative to +ve ori read, adjust ctg cut by k
-Situation D: ctg- read-
-    Read orientation relative to ctg is +
-    No adjustments in cuts needed - positions in minimizers already line up
-'''
+
+# Cut positions explanations
+# Situation A: ctg+ read+
+#     Read orientation relative to ctg is +
+#     No adjustments in cuts needed - positions in minimizers already line up
+# Situation B: ctg+ read-
+#     Read orientation relative to ctg is -
+#     Therefore, make adjustment relative to + orientation, adjust read by k
+# Situation C: ctg- read+
+#     Read orientation relative to ctg is -. Given that ctg is -, means read in +ve orientation
+#     Therefore, adjust relative to +ve ori read, adjust ctg cut by k
+# Situation D: ctg- read-
+#     Read orientation relative to ctg is +
+#     No adjustments in cuts needed - positions in minimizers already line up
+
 
 def assign_ctg_cut(position: int, read_est_orientation: str, ctg_orientation: str, k: int) -> int:
     "Determine adjustments needed for the cut position (if any)"
@@ -253,13 +261,17 @@ def find_masking_cut_points(pairs: dict, mappings: dict, args: argparse.Namespac
         else:
             target_ctg_pos, target_read_pos = target_read_mxs[-1].ctg_pos, target_read_mxs[-1].read_pos
 
-        pairs[(source, target)].source_ctg_cut = assign_ctg_cut(source_ctg_pos, mappings[read_id][source.strip("+-")].orientation,
+        pairs[(source, target)].source_ctg_cut = assign_ctg_cut(source_ctg_pos,
+                                                                mappings[read_id][source.strip("+-")].orientation,
                                                                 source_ori, args.large_k)
-        pairs[(source, target)].source_read_cut = assign_read_cut(source_read_pos, mappings[read_id][source.strip("+-")].orientation,
+        pairs[(source, target)].source_read_cut = assign_read_cut(source_read_pos,
+                                                                  mappings[read_id][source.strip("+-")].orientation,
                                                                   source_ori, args.large_k)
-        pairs[(source, target)].target_ctg_cut = assign_ctg_cut(target_ctg_pos, mappings[read_id][target.strip("+-")].orientation,
+        pairs[(source, target)].target_ctg_cut = assign_ctg_cut(target_ctg_pos,
+                                                                mappings[read_id][target.strip("+-")].orientation,
                                                                 target_ori, args.large_k)
-        pairs[(source, target)].target_read_cut = assign_read_cut(target_read_pos, mappings[read_id][target.strip("+-")].orientation,
+        pairs[(source, target)].target_read_cut = assign_read_cut(target_read_pos,
+                                                                  mappings[read_id][target.strip("+-")].orientation,
                                                                   target_ori, args.large_k)
 
 
@@ -323,7 +335,8 @@ def read_btllib_minimizers(minimizer_entries: list) -> dict:
             if mx_hash in mx_info:
                 dup_mxs.add(mx_hash)
             else:
-                mx_info[mx_hash] = ntlink_pair.Minimizer(entry.id, minimizer.pos, convert_btllib_strand(minimizer.forward))
+                mx_info[mx_hash] = ntlink_pair.Minimizer(entry.id, minimizer.pos,
+                                                         convert_btllib_strand(minimizer.forward))
     mx_info = {mx: mx_info[mx] for mx in mx_info if mx not in dup_mxs}
     return mx_info
 
@@ -332,10 +345,12 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
     read_header_re = re.compile(r'^(\S+)__(\S+)__(\S+)$')
     scaffold_header_re = re.compile(r'^(\S+)_(source|target)$')
 
-    with btllib.Indexlr(args.s + ".masked_temp.fa", args.k, args.w, btllib.IndexlrFlag.LONG_MODE, args.t) as scaffolds_btllib:
-        with btllib.Indexlr(args.reads + ".masked_temp.fa", args.k, args.w, btllib.IndexlrFlag.LONG_MODE, args.t) as reads:
+    with btllib.Indexlr(args.s + ".masked_temp.fa", args.k, args.w, btllib.IndexlrFlag.LONG_MODE,
+                        args.t) as scaffolds_btllib:
+        with btllib.Indexlr(args.reads + ".masked_temp.fa", args.k, args.w, btllib.IndexlrFlag.LONG_MODE,
+                            args.t) as reads:
             for chosen_read in reads:
-                read_id, source, target = re.search(read_header_re, chosen_read.id).groups()
+                _, source, target = re.search(read_header_re, chosen_read.id).groups()
 
                 # Read source scaffold
                 source_scaf = scaffolds_btllib.read()
@@ -353,7 +368,7 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
 
                 mxs = [(str(mx.out_hash), mx.pos, convert_btllib_strand(mx.forward))
                        for mx in chosen_read.minimizers if str(mx.out_hash) in mx_info]
-                accepted_anchor_contigs, contig_runs = \
+                accepted_anchor_contigs, _ = \
                     ntlink_utils.get_accepted_anchor_contigs(mxs, chosen_read.readlen,
                                                              scaffolds, mx_info, args)
                 source_terminal_mx, source_ctg_ori_read_based = None, None
@@ -392,27 +407,34 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                     continue
 
                 pairs[(source, target)].source_ctg_cut = source_terminal_mx.ctg_pos
-                pairs[(source, target)].source_read_cut = assign_read_cut(source_terminal_mx.read_pos, source_ctg_ori_read_based,
+                pairs[(source, target)].source_read_cut = assign_read_cut(source_terminal_mx.read_pos,
+                                                                          source_ctg_ori_read_based,
                                                                           source_ori, args.k)
                 if source[-1] == "+":
-                    scaffolds[source_scaf.id].three_prime_cut = assign_ctg_cut(source_terminal_mx.ctg_pos, source_ctg_ori_read_based,
+                    scaffolds[source_scaf.id].three_prime_cut = assign_ctg_cut(source_terminal_mx.ctg_pos,
+                                                                               source_ctg_ori_read_based,
                                                                                source_ori, args.k)
                 else:
-                    scaffolds[source_scaf.id].five_prime_cut = assign_ctg_cut(source_terminal_mx.ctg_pos, source_ctg_ori_read_based,
+                    scaffolds[source_scaf.id].five_prime_cut = assign_ctg_cut(source_terminal_mx.ctg_pos,
+                                                                              source_ctg_ori_read_based,
                                                                               source_ori, args.k)
 
                 pairs[(source, target)].target_ctg_cut = target_terminal_mx.ctg_pos
-                pairs[(source, target)].target_read_cut = assign_read_cut(target_terminal_mx.read_pos, target_ctg_ori_read_based,
+                pairs[(source, target)].target_read_cut = assign_read_cut(target_terminal_mx.read_pos,
+                                                                          target_ctg_ori_read_based,
                                                                           target_ori, args.k)
                 if target[-1] == "+":
-                    scaffolds[target_scaf.id].five_prime_cut = assign_ctg_cut(target_terminal_mx.ctg_pos, target_ctg_ori_read_based,
+                    scaffolds[target_scaf.id].five_prime_cut = assign_ctg_cut(target_terminal_mx.ctg_pos,
+                                                                              target_ctg_ori_read_based,
                                                                               target_ori, args.k)
                 else:
-                    scaffolds[target_scaf.id].three_prime_cut = assign_ctg_cut(target_terminal_mx.ctg_pos, target_ctg_ori_read_based,
+                    scaffolds[target_scaf.id].three_prime_cut = assign_ctg_cut(target_terminal_mx.ctg_pos,
+                                                                               target_ctg_ori_read_based,
                                                                                target_ori, args.k)
 
 
 def fallback_old_anchor_cuts(pairs, scaffolds, source, source_scaf, target, target_scaf):
+    "Adjust cuts to fallback to the higher k/w anchors"
     pairs[(source, target)].old_anchor_used = True
     if source[-1] == "+":
         scaffolds[source_scaf.id].three_prime_cut = pairs[(source, target)].source_ctg_cut
@@ -424,12 +446,14 @@ def fallback_old_anchor_cuts(pairs, scaffolds, source, source_scaf, target, targ
         scaffolds[target_scaf.id].three_prime_cut = pairs[(source, target)].target_ctg_cut
 
 
-def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, reads: dict, args: argparse.Namespace) -> None:
+def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, reads: dict,
+                               args: argparse.Namespace) -> None:
     "Print out the gap-filled sequences"
-    gap_re = re.compile('^(\d+)N$')
+    gap_re = re.compile(r'^(\d+)N$')
     outfile = open(args.o, 'w')
 
-    num_gaps, potential_fills, filled_gaps, old_anchor_used, new_anchor_used, small_gaps, overlap_pts = 0, 0, 0, 0, 0, 0, 0
+    num_gaps, potential_fills, filled_gaps, old_anchor_used, new_anchor_used, small_gaps, overlap_pts =\
+        0, 0, 0, 0, 0, 0, 0
 
     printed_scaffolds = set()
 
@@ -448,11 +472,12 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                 if gap_match:
                     gap_size = int(gap_match.group(1))
                     num_gaps += 1
-                    overlap_gap, overlap_pts, small_gaps = tally_small_gaps(args, gap_size, overlap_gap, overlap_pts,
-                                                                            small_gaps)
+                    overlap_gap, overlap_pts, small_gaps = tally_small_gaps(args, gap_size, overlap_gap,
+                                                                            overlap_pts, small_gaps)
                     source, target = path[idx-1], path[idx+1]
                     if (source, target) not in pairs:
-                        sequence += "N"*(gap_size - 1)  # Accounting for gaps being one larger in abyss-scaffold path file
+                        # Accounting for gaps being one larger in abyss-scaffold path file
+                        sequence += "N"*(gap_size - 1)
                         continue
                     potential_fills += 1
                     pair_entry = pairs[(source, target)]
@@ -465,14 +490,16 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                         else:
                             sequence += pair_entry.get_cut_read_sequence(reads, "-")
                         filled_gaps += 1
-                        new_anchor_used, old_anchor_used = tally_anchors(new_anchor_used, old_anchor_used, pair_entry)
+                        new_anchor_used, old_anchor_used = tally_anchors(new_anchor_used, old_anchor_used,
+                                                                         pair_entry)
                     else:
                         if args.soft_mask:
                             sequence += pair_entry.get_cut_read_sequence(reads, "+").lower()
                         else:
                             sequence += pair_entry.get_cut_read_sequence(reads, "+")
                         filled_gaps += 1
-                        new_anchor_used, old_anchor_used = tally_anchors(new_anchor_used, old_anchor_used, pair_entry)
+                        new_anchor_used, old_anchor_used = tally_anchors(new_anchor_used, old_anchor_used,
+                                                                         pair_entry)
                 else:
                     ctg = path[idx]
                     printed_scaffolds.add(ctg.strip("+-"))
@@ -482,7 +509,8 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                         overlap_gap = False
                     sequence += new_sequence
                     if args.verbose:
-                        print(">{}\n{}".format(ctg, sequences[ctg.strip("+-")].get_cut_sequence(ctg[-1])), file=sys.stderr)
+                        print(">{}\n{}".format(ctg, sequences[ctg.strip("+-")].get_cut_sequence(ctg[-1])),
+                              file=sys.stderr)
             outfile.write(">{}\n{}\n".format(ctg_id, sequence))
 
     print_filling_stats(filled_gaps, new_anchor_used, num_gaps, old_anchor_used, overlap_pts, potential_fills,
@@ -508,7 +536,7 @@ def print_filling_stats(filled_gaps, new_anchor_used, num_gaps, old_anchor_used,
 
 
 def print_unassigned_contigs(outfile, printed_scaffolds, sequences):
-    # Print scaffolds NOT in paths
+    "Print scaffolds NOT in paths"
     for ctg in sequences:
         if ctg in printed_scaffolds:
             continue
@@ -529,7 +557,7 @@ def tally_small_gaps(args, gap_size, overlap_gap, overlap_pts, small_gaps):
     if gap_size == 1:  # Indicates gap size of 0 for path file
         overlap_gap = True
         overlap_pts += 1
-    if gap_size <= args.min_gap and gap_size > 1:
+    if args.min_gap >= gap_size > 1:
         small_gaps += 1
     return overlap_gap, overlap_pts, small_gaps
 
@@ -564,6 +592,7 @@ def print_parameters(args: argparse.Namespace) -> None:
     print()
 
 def main() -> None:
+    "Run ntLink-style gap-filling"
     parser = argparse.ArgumentParser(description="Use minimizer mappings to fill gaps")
     parser.add_argument("--path", help="Input path file for gap patching", required=True, type=str)
     parser.add_argument("--mappings", help="ntLink verbose mapping TSV", required=True, type=str)
@@ -575,13 +604,15 @@ def main() -> None:
     parser.add_argument("-w", help="Window size used in minimizer step [10]", type=int, required=False, default=10)
     parser.add_argument("-t", help="Number of threads [4]", type=int, required=False, default=4)
     parser.add_argument("--large_k", help="K-mer size used in generating verbose mapping TSV", required=True, type=int)
-    parser.add_argument("-x", help="Fudge factor allowed between mapping block lengths on read and assembly for re-mapping reads", type=float, required=False, default=0)
+    parser.add_argument("-x", help="Fudge factor allowed between mapping block lengths on read and assembly "
+                                   "for re-mapping reads", type=float, required=False, default=0)
     parser.add_argument("--min_gap", help="Minimum gap size [20]", type=int, default=20)
     parser.add_argument("-o", help="Output file name", required=False, default="ntLink_patch_gaps_out.fa", type=str)
-    parser.add_argument("--stringent", help="If specified, will only use lower k/w used for re-mapping for filling gaps,"
+    parser.add_argument("--stringent", help="If specified, will only use lower k/w re-mapping for filling gaps,"
                                             " will not fall back on original anchors", action="store_true")
     parser.add_argument("--soft_mask", help="If specified, will soft mask the filled gap", action="store_true")
-    parser.add_argument("--verbose", help="Verbose logging - print out trimmed scaffolds without gaps", action="store_true")
+    parser.add_argument("--verbose", help="Verbose logging - print out trimmed scaffolds without gaps",
+                        action="store_true")
     args = parser.parse_args()
 
     print_parameters(args)
