@@ -30,6 +30,7 @@ class ScaffoldGaps:
         return f"Length:{self.length} 5'cut:{self.five_prime_cut} 3'cut:{self.three_prime_cut}"
 
     def get_cut_sequence(self, reverse_compl: str):
+        "Get the cut sequence, reverse complementing if indicated"
         five_prime_cut_site = max(self.five_prime_trim, self.five_prime_cut)
         three_prime_cut_site = min(self.three_prime_trim, self.three_prime_cut)
         if reverse_compl == "-":
@@ -66,7 +67,8 @@ class PairInfo:
         return f"Gap: {self.gap_size}; Chosen read: {self.chosen_read}; source ctg/read cuts: {self.source_ctg_cut}/{self.source_read_cut}" \
                f"target ctg/read cuts: {self.target_ctg_cut}/{self.target_read_cut}; Anchor used: {self.old_anchor_used}"
 
-    def get_cut_read_sequence(self, reads, reverse_compl: str): # !!TODO consider orientation of read
+    def get_cut_read_sequence(self, reads, reverse_compl: str):
+        "Get the cut sequence, reverse complementing if indicated"
         if reverse_compl == "-":
             return self.reverse_complement(reads[self.chosen_read][self.target_read_cut: self.source_read_cut])
         return reads[self.chosen_read][self.source_read_cut: self.target_read_cut]
@@ -101,7 +103,7 @@ def parse_minimizers(minimizer_positions: str) -> list:
 
 
 def find_orientation(mx_positions: list):
-    "Infer orientation from minimizer positions"
+    "Infer orientation relative to contig from minimizer positions"
     if all(x.ctg_strand == x.read_strand for x in mx_positions):
         return "+"
     if all(x.ctg_strand != x.read_strand for x in mx_positions):
@@ -146,7 +148,6 @@ def tally_contig_mapping_info(read_id: str, mappings: list, read_info: dict, pai
             pairs[(i, j)].mapping_reads.add(read_id)
         if reverse_complement_pair(i, j) in pairs:
             pairs[reverse_complement_pair(i, j)].mapping_reads.add(read_id)
-
 
 
 def read_verbose_mappings(mappings_filename: str, pairs: dict) -> dict:
@@ -199,11 +200,27 @@ def get_gap_fill_reads(reads_filename: str, pairs: dict, args: argparse.Namespac
                 reads[read.id] = read.seq
     return reads
 
+'''Cut positions explanations
+Situation A: ctg+ read+
+    Read orientation relative to ctg is +
+    No adjustments in cuts needed - positions in minimizers already line up
+Situation B: ctg+ read-
+    Read orientation relative to ctg is -
+    Therefore, make adjustment relative to + orientation, adjust read by k
+Situation C: ctg- read+
+    Read orientation relative to ctg is -. Given that ctg is -, means read in +ve orientation
+    Therefore, adjust relative to +ve ori read, adjust ctg cut by k
+Situation D: ctg- read-
+    Read orientation relative to ctg is +
+    No adjustments in cuts needed - positions in minimizers already line up
+'''
+
 def assign_ctg_cut(position: int, read_est_orientation: str, ctg_orientation: str, k: int) -> int:
     "Determine adjustments needed for the cut position (if any)"
     if read_est_orientation == ctg_orientation:
-        #Means that read orientation is "+"
         if ctg_orientation == "-":
+            # Read orientation is relative to source - so read ori different from ctg, therefore "+"
+            # Adjust relative to +ve orientation read
             return position + k
         return position
     return position
@@ -211,8 +228,8 @@ def assign_ctg_cut(position: int, read_est_orientation: str, ctg_orientation: st
 def assign_read_cut(position: int, read_est_orientation: str, ctg_orientation: str, k: int) -> int:
     "Determine adjustments needed for the read cut position (if any)"
     if read_est_orientation != ctg_orientation:
-        # Read is in the "-" orientation
         if ctg_orientation == "+":
+            # Read is in the "-" orientation
             return position + k
         return position
     return position
@@ -231,7 +248,7 @@ def find_masking_cut_points(pairs: dict, mappings: dict, args: argparse.Namespac
 
         target_read_mxs = mappings[read_id][target.strip("+-")].minimizer_positions
         target_ori = target[-1]
-        if mappings[read_id][target.strip("+-")][2] == target_ori:
+        if mappings[read_id][target.strip("+-")].orientation == target_ori:
             target_ctg_pos, target_read_pos = target_read_mxs[0].ctg_pos, target_read_mxs[0].read_pos
         else:
             target_ctg_pos, target_read_pos = target_read_mxs[-1].ctg_pos, target_read_mxs[-1].read_pos
@@ -254,7 +271,6 @@ def print_masked_sequences(scaffolds: dict, reads: dict, pairs: dict, args: argp
 
     for source, target in pairs:
         pair_info = pairs[(source, target)]
-        ## !! TODO allow fudge factor with sequences printed out?
         source_cut = pair_info.source_ctg_cut
         source_noori = source.strip("+-")
         if source[-1] == "+":
@@ -324,24 +340,22 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                 # Read source scaffold
                 source_scaf = scaffolds_btllib.read()
                 source_id, label = re.search(scaffold_header_re, source_scaf.id).groups()
-                source_scaf.id = source_id.strip("+-")
-                source_ori = source_id[-1]
-                assert source_id == source
-                assert label == "source"
+                source_scaf.id, source_ori = source_id.strip("+-"), source_id[-1]
+                assert source_id == source and label == "source"
 
                 # Read target scaffold
                 target_scaf = scaffolds_btllib.read()
                 target_id, label = re.search(scaffold_header_re, target_scaf.id).groups()
-                target_scaf.id = target_id.strip("+-")
-                target_ori = target_id[-1]
-                assert target_id == target
-                assert label == "target"
+                target_scaf.id, target_ori = target_id.strip("+-"), target_id[-1]
+                assert target_id == target and label == "target"
 
                 mx_info = read_btllib_minimizers([source_scaf, target_scaf])
 
-                mxs = [(str(mx.out_hash), mx.pos, convert_btllib_strand(mx.forward)) for mx in chosen_read.minimizers if str(mx.out_hash) in mx_info]
-                accepted_anchor_contigs, contig_runs = ntlink_utils.get_accepted_anchor_contigs(mxs, chosen_read.readlen,
-                                                                                                scaffolds, mx_info, args)
+                mxs = [(str(mx.out_hash), mx.pos, convert_btllib_strand(mx.forward))
+                       for mx in chosen_read.minimizers if str(mx.out_hash) in mx_info]
+                accepted_anchor_contigs, contig_runs = \
+                    ntlink_utils.get_accepted_anchor_contigs(mxs, chosen_read.readlen,
+                                                             scaffolds, mx_info, args)
                 source_terminal_mx, source_ctg_ori_read_based = None, None
                 target_terminal_mx, target_ctg_ori_read_based = None, None
                 if len(accepted_anchor_contigs) != 2: # Fall back on previous anchors, if option specified
@@ -434,17 +448,15 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                 if gap_match:
                     gap_size = int(gap_match.group(1))
                     num_gaps += 1
-                    if gap_size == 1:  # Indicates gap size of 0 for path file
-                        overlap_gap = True
-                        overlap_pts += 1
-                    if gap_size <= args.min_gap and gap_size > 1:
-                        small_gaps += 1
+                    overlap_gap, overlap_pts, small_gaps = tally_small_gaps(args, gap_size, overlap_gap, overlap_pts,
+                                                                            small_gaps)
                     source, target = path[idx-1], path[idx+1]
                     if (source, target) not in pairs:
-                        sequence += "N"*(gap_size - 1) # Accounting for gaps being one larger in abyss-scaffold path file
+                        sequence += "N"*(gap_size - 1)  # Accounting for gaps being one larger in abyss-scaffold path file
                         continue
                     potential_fills += 1
                     pair_entry = pairs[(source, target)]
+
                     if pair_entry.source_read_cut is None or pair_entry.target_read_cut is None:
                         sequence += "N"*pair_entry.gap_size
                     elif mappings[pair_entry.chosen_read][source.strip("+-")].orientation != source[-1]:
@@ -453,20 +465,14 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                         else:
                             sequence += pair_entry.get_cut_read_sequence(reads, "-")
                         filled_gaps += 1
-                        if pair_entry.old_anchor_used:
-                            old_anchor_used += 1
-                        else:
-                            new_anchor_used += 1
+                        new_anchor_used, old_anchor_used = tally_anchors(new_anchor_used, old_anchor_used, pair_entry)
                     else:
                         if args.soft_mask:
                             sequence += pair_entry.get_cut_read_sequence(reads, "+").lower()
                         else:
                             sequence += pair_entry.get_cut_read_sequence(reads, "+")
                         filled_gaps += 1
-                        if pair_entry.old_anchor_used:
-                            old_anchor_used += 1
-                        else:
-                            new_anchor_used += 1
+                        new_anchor_used, old_anchor_used = tally_anchors(new_anchor_used, old_anchor_used, pair_entry)
                 else:
                     ctg = path[idx]
                     printed_scaffolds.add(ctg.strip("+-"))
@@ -479,6 +485,17 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                         print(">{}\n{}".format(ctg, sequences[ctg.strip("+-")].get_cut_sequence(ctg[-1])), file=sys.stderr)
             outfile.write(">{}\n{}\n".format(ctg_id, sequence))
 
+    print_filling_stats(filled_gaps, new_anchor_used, num_gaps, old_anchor_used, overlap_pts, potential_fills,
+                        small_gaps)
+
+    print_unassigned_contigs(outfile, printed_scaffolds, sequences)
+
+    outfile.close()
+
+
+def print_filling_stats(filled_gaps, new_anchor_used, num_gaps, old_anchor_used, overlap_pts, potential_fills,
+                        small_gaps):
+    "Print statistics about gap filling"
     print("\nGap filling summary:")
     print("Number of detected sequence joins", num_gaps, sep="\t")
     print("Number of overlap sequence joins", overlap_pts, sep="\t")
@@ -489,13 +506,33 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
     print("Number of old anchors used", old_anchor_used, sep="\t")
     print()
 
+
+def print_unassigned_contigs(outfile, printed_scaffolds, sequences):
     # Print scaffolds NOT in paths
     for ctg in sequences:
         if ctg in printed_scaffolds:
             continue
         outfile.write(">{}\n{}\n".format(ctg, sequences[ctg].seq))
 
-    outfile.close()
+
+def tally_anchors(new_anchor_used, old_anchor_used, pair_entry):
+    "Tally anchors used"
+    if pair_entry.old_anchor_used:
+        old_anchor_used += 1
+    else:
+        new_anchor_used += 1
+    return new_anchor_used, old_anchor_used
+
+
+def tally_small_gaps(args, gap_size, overlap_gap, overlap_pts, small_gaps):
+    "Tally info for small gaps"
+    if gap_size == 1:  # Indicates gap size of 0 for path file
+        overlap_gap = True
+        overlap_pts += 1
+    if gap_size <= args.min_gap and gap_size > 1:
+        small_gaps += 1
+    return overlap_gap, overlap_pts, small_gaps
+
 
 def read_trim_coordinates(sequences: dict, args: argparse.Namespace) -> None:
     "Read in the trim coordinates from ntLink, tracking in the scaffold entry"
@@ -511,6 +548,7 @@ def print_log_message(message: str) -> None:
 
 def print_parameters(args: argparse.Namespace) -> None:
     "Print set parameters for gap filling"
+    print("Running ntLink gap-filling...\n")
     print("Parameters:")
     print("\t--path", args.path)
     print("\t--mappings", args.mappings)
@@ -523,6 +561,7 @@ def print_parameters(args: argparse.Namespace) -> None:
     print("\t-o", args.o)
     if args.verbose:
         print("\t--verbose")
+    print()
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Use minimizer mappings to fill gaps")
@@ -536,7 +575,7 @@ def main() -> None:
     parser.add_argument("-w", help="Window size used in minimizer step [10]", type=int, required=False, default=10)
     parser.add_argument("-t", help="Number of threads [4]", type=int, required=False, default=4)
     parser.add_argument("--large_k", help="K-mer size used in generating verbose mapping TSV", required=True, type=int)
-    parser.add_argument("-x", help="Fudge factor", type=float, required=False, default=0)
+    parser.add_argument("-x", help="Fudge factor allowed between mapping block lengths on read and assembly for re-mapping reads", type=float, required=False, default=0)
     parser.add_argument("--min_gap", help="Minimum gap size [20]", type=int, default=20)
     parser.add_argument("-o", help="Output file name", required=False, default="ntLink_patch_gaps_out.fa", type=str)
     parser.add_argument("--stringent", help="If specified, will only use lower k/w used for re-mapping for filling gaps,"
@@ -552,6 +591,7 @@ def main() -> None:
     pairs = read_path_file_pairs(args.path, args.min_gap)
 
     # Read through verbose mappings read_id -> sequence_ori -> (anchor, minimizer_pos_list)
+    print_log_message("Reading ntLink read mappings..")
     mappings = read_verbose_mappings(args.mappings, pairs)
 
     # Read scaffold sequences into memory sequence_id -> ScaffoldGaps
@@ -571,7 +611,7 @@ def main() -> None:
     reads = get_gap_fill_reads(args.reads, pairs, args)
 
     # Find cut points
-    print_log_message("Finding cut points..")
+    print_log_message("Finding masking points..")
     find_masking_cut_points(pairs, mappings, args)
 
     # Print masked sequences for assembly, reads for minimizer generation
