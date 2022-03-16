@@ -7,6 +7,8 @@ import re
 from collections import namedtuple
 import itertools
 import datetime
+import shlex
+import subprocess
 import sys
 import btllib
 import numpy
@@ -570,6 +572,20 @@ def read_trim_coordinates(sequences: dict, args: argparse.Namespace) -> None:
             sequences[ctg].five_prime_trim = int(start)
             sequences[ctg].three_prime_trim = int(end)
 
+def remove_temp_masked_sequences(args: argparse.Namespace) -> None:
+    "Remove temporary masked sequence files"
+    out_scaffolds = args.s + ".masked_temp.fa"
+    out_reads = args.reads + ".masked_temp.fa"
+
+    shlex_cmd = shlex.split(f"rm {out_scaffolds}")
+    return_code = subprocess.call(shlex_cmd)
+    assert return_code == 0
+
+    shlex_cmd = shlex.split(f"rm {out_reads}")
+    return_code = subprocess.call(shlex_cmd)
+    assert return_code == 0
+
+
 def print_log_message(message: str) -> None:
     "Print given log message with time"
     print(datetime.datetime.today(), message, file=sys.stdout)
@@ -656,6 +672,10 @@ def main() -> None:
     # Print out the sequences
     print_log_message("Printing output scaffolds..")
     print_gap_filled_sequences(pairs, mappings, sequences, reads, args)
+
+    # Clean up masked tmp files
+    print_log_message("Cleaning up..")
+    remove_temp_masked_sequences(args)
 
     print_log_message("DONE!")
 
