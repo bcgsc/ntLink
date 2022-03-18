@@ -119,6 +119,14 @@ def find_orientation(mx_positions: list):
         return "-"
     return None
 
+def check_position_consistency(mx_positions: list):
+    "Check that all positions in mapping are monotonically increasing or decreasing"
+    if all(i.ctg_pos < j.ctg_pos for i, j in zip(mx_positions, mx_positions[1:])):
+        return True
+    if all(i.ctg_pos > j.ctg_pos for i, j in zip(mx_positions, mx_positions[1:])):
+        return True
+    return False
+
 
 def reverse_complement_pair(source: str, target: str) -> tuple:
     "Reverse complement the given contig pair"
@@ -147,6 +155,8 @@ def tally_contig_mapping_info(read_id: str, mappings: list, read_info: dict, pai
         minimizer_positions = parse_minimizers(minimizer_positions)
         orientation = find_orientation(minimizer_positions)
         if orientation not in ["+", "-"]:
+            continue
+        if not check_position_consistency(minimizer_positions):
             continue
         read_info[read_id][ctg_id] = MinimizerMapping(anchors=int(anchors), minimizer_positions=minimizer_positions,
                                                       orientation=orientation)
@@ -393,6 +403,7 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                         else:
                             source_terminal_mx = ctg_run_entry.hits[0]
                         source_ctg_ori_read_based = ctg_ori_read_based
+                        source_pos_consistency = check_position_consistency(ctg_run_entry.hits)
 
                     if ctg_run_entry.contig == target_scaf.id:
                         if target_ori == ctg_ori_read_based:  # Read, target in same ori
@@ -400,7 +411,9 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                         else:
                             target_terminal_mx = ctg_run_entry.hits[-1]
                         target_ctg_ori_read_based = ctg_ori_read_based
-                if source_ctg_ori_read_based is None or target_ctg_ori_read_based is None:
+                        target_pos_consistency = check_position_consistency(ctg_run_entry.hits)
+                if source_ctg_ori_read_based is None or target_ctg_ori_read_based is None or \
+                        not source_pos_consistency or not target_pos_consistency:
                     if args.stringent:
                         pairs[(source, target)].source_read_cut = None
                         pairs[(source, target)].target_read_cut = None
