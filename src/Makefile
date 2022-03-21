@@ -1,6 +1,8 @@
-CXXFLAGS=-O3 -Wall -Wextra -Werror -Wno-unknown-pragmas -std=c++11 -pthread -Ibtllib/include
-
 all: indexlr
+
+indexlr:
+	btllib/compile
+	cp btllib/bin/indexlr .
 
 clean:
 	rm -f indexlr

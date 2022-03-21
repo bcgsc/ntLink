@@ -122,7 +122,7 @@ SeqReaderSamModule::buffer_valid(const char* buffer, const size_t size)
           }
           break;
         case TLEN:
-          if (!bool(std::isdigit(c))) {
+          if (!(bool(std::isdigit(c)) || c == '-')) {
             return false;
           }
           break;
