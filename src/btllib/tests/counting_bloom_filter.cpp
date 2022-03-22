@@ -23,6 +23,7 @@ main()
   auto filename = get_random_name(64);
   cbf.save(filename);
 
+  btllib::CountingBloomFilter8::is_bloom_file(filename);
   btllib::CountingBloomFilter8 cbf2(filename);
 
   TEST_ASSERT_EQ(cbf2.contains({ 1, 10, 100 }), 2);
