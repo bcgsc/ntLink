@@ -18,10 +18,10 @@
 
 namespace btllib {
 
-static const char* const COUNTING_BLOOM_FILTER_MAGIC_HEADER =
-  "BTLCountingBloomFilter_v5";
-static const char* const KMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER =
-  "BTLKmerCountingBloomFilter_v5";
+static const char* const COUNTING_BLOOM_FILTER_SIGNATURE =
+  "[BTLCountingBloomFilter_v5]";
+static const char* const KMER_COUNTING_BLOOM_FILTER_SIGNATURE =
+  "[BTLKmerCountingBloomFilter_v5]";
 
 template<typename T>
 class KmerCountingBloomFilter;
@@ -141,6 +141,17 @@ public:
    * @param path Filepath to store filter at.
    */
   void save(const std::string& path);
+
+  /**
+   * Check whether the file at the given path is a saved Counting Bloom filter.
+   *
+   * @param path Filepath to check.
+   */
+  static bool is_bloom_file(const std::string& path)
+  {
+    return btllib::BloomFilter::check_file_signature(
+      path, COUNTING_BLOOM_FILTER_SIGNATURE);
+  }
 
 private:
   CountingBloomFilter(const std::shared_ptr<BloomFilterInitializer>& bfi);
@@ -346,6 +357,18 @@ public:
    */
   void save(const std::string& path);
 
+  /**
+   * Check whether the file at the given path is a saved Kmer Counting Bloom
+   * filter.
+   *
+   * @param path Filepath to check.
+   */
+  static bool is_bloom_file(const std::string& path)
+  {
+    return btllib::BloomFilter::check_file_signature(
+      path, KMER_COUNTING_BLOOM_FILTER_SIGNATURE);
+  }
+
 private:
   KmerCountingBloomFilter(const std::shared_ptr<BloomFilterInitializer>& bfi);
 
@@ -468,9 +491,8 @@ CountingBloomFilter<T>::get_fpr() const
 template<typename T>
 inline CountingBloomFilter<T>::CountingBloomFilter(const std::string& path)
   : CountingBloomFilter<T>::CountingBloomFilter(
-      std::make_shared<BloomFilterInitializer>(
-        path,
-        COUNTING_BLOOM_FILTER_MAGIC_HEADER))
+      std::make_shared<BloomFilterInitializer>(path,
+                                               COUNTING_BLOOM_FILTER_SIGNATURE))
 {}
 
 template<typename T>
@@ -518,7 +540,10 @@ CountingBloomFilter<T>::save(const std::string& path)
     header->insert("hash_fn", hash_fn);
   }
   header->insert("counter_bits", size_t(sizeof(array[0]) * CHAR_BIT));
-  root->insert(COUNTING_BLOOM_FILTER_MAGIC_HEADER, header);
+  std::string header_string = COUNTING_BLOOM_FILTER_SIGNATURE;
+  header_string =
+    header_string.substr(1, header_string.size() - 2); // Remove [ ]
+  root->insert(header_string, header);
 
   BloomFilter::save(
     path, *root, (char*)array.get(), array_size * sizeof(array[0]));
@@ -569,7 +594,7 @@ inline KmerCountingBloomFilter<T>::KmerCountingBloomFilter(
   : KmerCountingBloomFilter<T>::KmerCountingBloomFilter(
       std::make_shared<BloomFilterInitializer>(
         path,
-        KMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER))
+        KMER_COUNTING_BLOOM_FILTER_SIGNATURE))
 {}
 
 template<typename T>
@@ -604,7 +629,10 @@ KmerCountingBloomFilter<T>::save(const std::string& path)
   header->insert("counter_bits",
                  size_t(sizeof(counting_bloom_filter.array[0]) * CHAR_BIT));
   header->insert("k", k);
-  root->insert(KMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER, header);
+  std::string header_string = KMER_COUNTING_BLOOM_FILTER_SIGNATURE;
+  header_string =
+    header_string.substr(1, header_string.size() - 2); // Remove [ ]
+  root->insert(header_string, header);
 
   BloomFilter::save(path,
                     *root,

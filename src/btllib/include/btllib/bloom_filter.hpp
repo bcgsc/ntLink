@@ -23,12 +23,12 @@ static const uint8_t BIT_MASKS[CHAR_BIT] = {
   0x10, 0x20, 0x40, 0x80  // NOLINT
 };
 
-static const char* const BLOOM_FILTER_MAGIC_HEADER = "BTLBloomFilter_v6";
-static const char* const KMER_BLOOM_FILTER_MAGIC_HEADER =
-  "BTLKmerBloomFilter_v6";
-static const char* const SEED_BLOOM_FILTER_MAGIC_HEADER =
-  "BTLSeedBloomFilter_v6";
-static const char* const HASH_FN = "ntHash_v1";
+static const char* const BLOOM_FILTER_SIGNATURE = "[BTLBloomFilter_v6]";
+static const char* const KMER_BLOOM_FILTER_SIGNATURE =
+  "[BTLKmerBloomFilter_v6]";
+static const char* const SEED_BLOOM_FILTER_SIGNATURE =
+  "[BTLSeedBloomFilter_v6]";
+static const char* const HASH_FN = NTHASH_FN_NAME;
 
 static const unsigned MAX_HASH_VALUES = 1024;
 static const unsigned PLACEHOLDER_NEWLINES = 50;
@@ -42,21 +42,25 @@ pop_cnt_byte(uint8_t x)
          0xf;                                                          // NOLINT
 }
 
+/// @cond HIDDEN_SYMBOLS
 class BloomFilterInitializer
 {
 
 public:
-  BloomFilterInitializer(const std::string& path,
-                         const std::string& magic_string)
+  BloomFilterInitializer(const std::string& path, const std::string& signature)
     : ifs(path)
-    , table(parse_header(ifs, magic_string))
+    , table(parse_header(ifs, signature))
   {}
+
+  static bool check_file_signature(std::ifstream& ifs,
+                                   std::string& file_signature,
+                                   const std::string& expected_signature);
 
   /** Parse a Bloom filter file header. Useful for implementing Bloom filter
    * variants. */
   static std::shared_ptr<cpptoml::table> parse_header(
     std::ifstream& file,
-    const std::string& magic_string);
+    const std::string& signature);
 
   std::ifstream ifs;
   std::shared_ptr<cpptoml::table> table;
@@ -67,6 +71,7 @@ public:
   BloomFilterInitializer& operator=(const BloomFilterInitializer&) = delete;
   BloomFilterInitializer& operator=(BloomFilterInitializer&&) = default;
 };
+/// @endcond
 
 class BloomFilter
 {
@@ -180,6 +185,19 @@ public:
                    const cpptoml::table& table,
                    const char* data,
                    size_t n);
+
+  /**
+   * Check whether the file at the given path is a saved Bloom filter.
+   *
+   * @param path Filepath to check.
+   */
+  static bool is_bloom_file(const std::string& path)
+  {
+    return check_file_signature(path, BLOOM_FILTER_SIGNATURE);
+  }
+
+  static bool check_file_signature(const std::string& path,
+                                   const std::string& signature);
 
 private:
   BloomFilter(const std::shared_ptr<BloomFilterInitializer>& bfi);
@@ -374,6 +392,17 @@ public:
    * @param path Filepath to store filter at.
    */
   void save(const std::string& path);
+
+  /**
+   * Check whether the file at the given path is a saved Kmer Bloom filter.
+   *
+   * @param path Filepath to check.
+   */
+  static bool is_bloom_file(const std::string& path)
+  {
+    return btllib::BloomFilter::check_file_signature(
+      path, KMER_BLOOM_FILTER_SIGNATURE);
+  }
 
 private:
   KmerBloomFilter(const std::shared_ptr<BloomFilterInitializer>& bfi);
@@ -606,6 +635,17 @@ public:
    */
   void save(const std::string& path);
 
+  /**
+   * Check whether the file at the given path is a saved Seed Bloom filter.
+   *
+   * @param path Filepath to check.
+   */
+  static bool is_bloom_file(const std::string& path)
+  {
+    return btllib::BloomFilter::check_file_signature(
+      path, SEED_BLOOM_FILTER_SIGNATURE);
+  }
+
 private:
   SeedBloomFilter(const std::shared_ptr<BloomFilterInitializer>& bfi);
 
@@ -694,26 +734,34 @@ BloomFilter::get_fpr() const
   return std::pow(get_occupancy(), double(hash_num));
 }
 
+inline bool
+BloomFilterInitializer::check_file_signature(
+  std::ifstream& ifs,
+  std::string& file_signature,
+  const std::string& expected_signature)
+{
+  std::getline(ifs, file_signature);
+  return file_signature == expected_signature;
+}
+
 inline std::shared_ptr<cpptoml::table>
 BloomFilterInitializer::parse_header(std::ifstream& file,
-                                     const std::string& magic_string)
+                                     const std::string& expected_signature)
 {
-  const std::string magic_with_brackets = std::string("[") + magic_string + "]";
-
-  std::string line;
-  std::getline(file, line);
-  if (line != magic_with_brackets) {
-    log_error(
-      std::string("Magic string does not match (likely version mismatch)\n") +
-      "File magic string:\t" + line + "\n" + "Loader magic string:\t" +
-      magic_with_brackets);
+  std::string file_signature;
+  if (!check_file_signature(file, file_signature, expected_signature)) {
+    log_error(std::string(
+                "File signature does not match (possibly version mismatch)\n") +
+              "File signature:   \t" + file_signature + "\n" +
+              "Expected signature:\t" + expected_signature);
     std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
   }
 
   /* Read bloom filter line by line until it sees "[HeaderEnd]"
   which is used to mark the end of the header section and
   assigns the header to a char array*/
-  std::string toml_buffer(line + '\n');
+  std::string toml_buffer(file_signature + '\n');
+  std::string line;
   bool header_end_found = false;
   while (bool(std::getline(file, line))) {
     toml_buffer.append(line + '\n');
@@ -736,12 +784,14 @@ BloomFilterInitializer::parse_header(std::ifstream& file,
   const auto header_config = toml_parser.parse();
 
   // Obtain header values from toml parser and assign them to class members
-  return header_config->get_table(magic_string);
+  const auto header_string =
+    file_signature.substr(1, file_signature.size() - 2); // Remove [ ]
+  return header_config->get_table(header_string);
 }
 
 inline BloomFilter::BloomFilter(const std::string& path)
   : BloomFilter::BloomFilter(
-      std::make_shared<BloomFilterInitializer>(path, BLOOM_FILTER_MAGIC_HEADER))
+      std::make_shared<BloomFilterInitializer>(path, BLOOM_FILTER_SIGNATURE))
 {}
 
 inline BloomFilter::BloomFilter(
@@ -782,6 +832,16 @@ BloomFilter::save(const std::string& path,
   ofs.write(data, std::streamsize(n));
 }
 
+inline bool
+BloomFilter::check_file_signature(const std::string& path,
+                                  const std::string& signature)
+{
+  std::ifstream ifs(path);
+  std::string file_signature;
+  return BloomFilterInitializer::check_file_signature(
+    ifs, file_signature, signature);
+}
+
 inline void
 BloomFilter::save(const std::string& path)
 {
@@ -799,8 +859,10 @@ BloomFilter::save(const std::string& path)
   if (!hash_fn.empty()) {
     header->insert("hash_fn", get_hash_fn());
   }
-  root->insert(BLOOM_FILTER_MAGIC_HEADER, header);
-
+  std::string header_string = BLOOM_FILTER_SIGNATURE;
+  header_string =
+    header_string.substr(1, header_string.size() - 2); // Remove [ ]
+  root->insert(header_string, header);
   save(path, *root, (char*)array.get(), array_size * sizeof(array[0]));
 }
 
@@ -849,7 +911,7 @@ KmerBloomFilter::contains_insert(const char* seq, size_t seq_len)
 inline KmerBloomFilter::KmerBloomFilter(const std::string& path)
   : KmerBloomFilter::KmerBloomFilter(
       std::make_shared<BloomFilterInitializer>(path,
-                                               KMER_BLOOM_FILTER_MAGIC_HEADER))
+                                               KMER_BLOOM_FILTER_SIGNATURE))
 {}
 
 inline KmerBloomFilter::KmerBloomFilter(
@@ -879,7 +941,10 @@ KmerBloomFilter::save(const std::string& path)
   header->insert("hash_num", get_hash_num());
   header->insert("hash_fn", get_hash_fn());
   header->insert("k", get_k());
-  root->insert(KMER_BLOOM_FILTER_MAGIC_HEADER, header);
+  std::string header_string = KMER_BLOOM_FILTER_SIGNATURE;
+  header_string =
+    header_string.substr(1, header_string.size() - 2); // Remove [ ]
+  root->insert(header_string, header);
 
   BloomFilter::save(path,
                     *root,
@@ -963,7 +1028,7 @@ SeedBloomFilter::get_fpr() const
 inline SeedBloomFilter::SeedBloomFilter(const std::string& path)
   : SeedBloomFilter::SeedBloomFilter(
       std::make_shared<BloomFilterInitializer>(path,
-                                               SEED_BLOOM_FILTER_MAGIC_HEADER))
+                                               SEED_BLOOM_FILTER_SIGNATURE))
 {}
 
 inline SeedBloomFilter::SeedBloomFilter(
@@ -994,7 +1059,10 @@ SeedBloomFilter::save(const std::string& path)
     seeds_array->push_back(seed);
   }
   header->insert("seeds", seeds_array);
-  root->insert(SEED_BLOOM_FILTER_MAGIC_HEADER, header);
+  std::string header_string = SEED_BLOOM_FILTER_SIGNATURE;
+  header_string =
+    header_string.substr(1, header_string.size() - 2); // Remove [ ]
+  root->insert(header_string, header);
 
   BloomFilter::save(path,
                     *root,

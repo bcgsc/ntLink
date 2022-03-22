@@ -1,6 +1,8 @@
-CXXFLAGS=-O3 -Wall -Wextra -Werror -Wno-unknown-pragmas -std=c++11 -pthread -Ibtllib/include
-
 all: indexlr
+
+indexlr:
+	btllib/compile
+	cp btllib/bin/indexlr .
 
 clean:
 	rm -f indexlr
@@ -8,15 +10,6 @@ clean:
 # Check the C++ source code for errors.
 lint: clang-format clang-tidy
 
-# Check the C++ source code for errors with clang-tidy.
-clang-tidy:
-	clang-tidy -warnings-as-errors='*' *.cpp -- -std=c++11 -x c++ -Ibtllib/include
-
-# Check the C++ source code for white-space errors with clang-format.
-clang-format:
-	for i in *.cpp; do clang-format -style=file $$i >$$i.fixed; done
-	for i in *.cpp; do diff -su $$i $$i.fixed && rm -f $$i.fixed; done
-	if ls *.fixed; then exit 1; fi
 
 # Fix white-space errors with clang-format.
 fix:
