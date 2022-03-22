@@ -579,7 +579,7 @@ def tally_small_gaps(args, gap_size, overlap_gap, overlap_pts, small_gaps):
 
 def read_trim_coordinates(sequences: dict, args: argparse.Namespace) -> None:
     "Read in the trim coordinates from ntLink, tracking in the scaffold entry"
-    with open(args.trimmings, 'r') as fin:
+    with open(args.trims, 'r') as fin:
         for line in fin:
             ctg, start, end = line.strip().split("\t")
             sequences[ctg].five_prime_trim = int(start)
@@ -609,15 +609,25 @@ def print_parameters(args: argparse.Namespace) -> None:
     print("Parameters:")
     print("\t--path", args.path)
     print("\t--mappings", args.mappings)
+    print("\t--trims", args.trims)
     print("\t-s", args.s)
     print("\t--reads", args.reads)
+    print()
     print("\t-z", args.z)
     print("\t-k", args.k)
+    print("\t-w", args.w)
+    print("\t-t", args.t)
+    print("\t--large_k", args.large_k)
     print("\t-x", args.x)
     print("\t--min_gap", args.min_gap)
     print("\t-o", args.o)
     if args.verbose:
         print("\t--verbose")
+    if args.stringent:
+        print("\t--stringent")
+    if args.soft_mask:
+        print("\t--soft_mask")
+
     print()
 
 def main() -> None:
@@ -625,7 +635,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Use minimizer mappings to fill gaps")
     parser.add_argument("--path", help="Input path file for gap patching", required=True, type=str)
     parser.add_argument("--mappings", help="ntLink verbose mapping TSV", required=True, type=str)
-    parser.add_argument("--trimmings", help="ntLink file listing trims made", required=True, type=str)
+    parser.add_argument("--trims", help="ntLink file listing trims made", required=True, type=str)
     parser.add_argument("-s", help="Input scaffolds", required=True, type=str)
     parser.add_argument("--reads", help="Input reads", required=True, type=str)
     parser.add_argument("-z", help="Minimum contig size (bp) [1000]", type=int, required=False, default=1000)
