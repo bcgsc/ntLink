@@ -14,8 +14,7 @@ import btllib
 import numpy
 import ntlink_pair
 import ntlink_utils
-
-MinimizerPositions = namedtuple("MinimizerEntry", ["ctg_pos", "ctg_strand", "read_pos", "read_strand"])
+from ntlink_utils import MinimizerPositions
 
 MinimizerMapping = namedtuple("MinimizerMapping", ["anchors", "minimizer_positions", "orientation"])
 
