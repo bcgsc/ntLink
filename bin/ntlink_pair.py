@@ -348,6 +348,15 @@ class NtLink():
 
         return return_contigs_hits, return_contig_runs
 
+    @staticmethod
+    def print_minimizer_positions(list_minimizers):
+        "Print information about minimizer positions/strands on ctg/read in brief format"
+        return_list = []
+        for mx in list_minimizers:
+            return_list.append("(c_p={} c_s={} r_p={} r_s={})".format(mx.ctg_pos, mx.ctg_strand,
+                                                                      mx.read_pos, mx.read_strand))
+        return return_list
+
     def add_pair(self, accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_read, check_added=None):
         "Add pair to dictionary of pairs"
         mx_i = accepted_anchor_contigs[ctg_i].terminal_mx
@@ -402,8 +411,10 @@ class NtLink():
                                                                                                 length_long_read)
                         if self.args.verbose and accepted_anchor_contigs:
                             for ctg_run in accepted_anchor_contigs:
-                                verbose_file.write("{}\t{}\t{}\t{}\n".format(line[0], accepted_anchor_contigs[ctg_run].contig,
-                                                                     accepted_anchor_contigs[ctg_run].hit_count, accepted_anchor_contigs[ctg_run].hits))
+                                verbose_file.write("{}\t{}\t{}\t{}\n".
+                                                   format(line[0], accepted_anchor_contigs[ctg_run].contig,
+                                                          accepted_anchor_contigs[ctg_run].hit_count,
+                                                          self.print_minimizer_positions(accepted_anchor_contigs[ctg_run].hits)))
 
 
                         # Filter ordered minimizer list for accepted contigs, keep track of hashes for gap sizes

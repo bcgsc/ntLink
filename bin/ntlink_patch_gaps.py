@@ -102,8 +102,8 @@ def read_path_file_pairs(path_filename: str, min_gap_size: int) -> dict:
 
 def parse_minimizers(minimizer_positions: str) -> list:
     "Parse the minimizer positions string"
-    mx_pos_re = re.compile(r"MinimizerPositions\(ctg_pos=(\d+),\s+ctg_strand=\'([+-])\',\s+read_pos=(\d+),\s+"
-                           r"read_strand=\'([+-])\'\)")
+    mx_pos_re = re.compile(r"\(c_p=(\d+)\s+c_s=\'([+-])\'\s+r_p=(\d+)\s+"
+                           r"r_s=\'([+-])\'\)")
     return_mxs = []
     for match in re.findall(mx_pos_re, minimizer_positions):
         return_mxs.append(MinimizerPositions(ctg_pos=int(match[0]), ctg_strand=match[1],
