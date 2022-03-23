@@ -88,6 +88,9 @@ else
 gzip=gzip -f
 endif
 
+# Set-up PYTHON PATH
+PYTHONPATH=$(ntlink_path)/src/btllib/python/
+
 help:
 	@echo ""
 	@echo "ntLink: Scaffolding assemblies using long reads"
@@ -130,6 +133,8 @@ abyss_scaffold: ntLink_graph \
 
 pair: $(prefix).n$(n).scaffold.dot
 
+gap_fill: $(target).k$(k).w$(w).z$(z).ntLink.scaffolds.gap_fill.fa
+
 $(target).k$(k).w$(w).z$(z).ntLink.scaffolds.fa: $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa
 	ln -sf $< $@
 	echo "Done ntLink! Final post-ntLink scaffolds can be found in: $@"
@@ -147,7 +152,7 @@ version:
 	@echo "Written by Lauren Coombe (lcoombe@bcgsc.ca)"
 
 
-.PHONY: help scaffold version check_params clean pair
+.PHONY: help scaffold version check_params clean pair gap_fill
 .DELETE_ON_ERROR:
 .SECONDARY:
 
@@ -206,3 +211,8 @@ endif
 
 clean: abyss_scaffold
 	rm -f $(prefix).n*.abyss-scaffold.path $(prefix).n*.abyss-scaffold.path.sterr
+
+$(target).k$(k).w$(w).z$(z).ntLink.scaffolds.gap_fill.fa: $(target) $(prefix).n$(n).scaffold.dot $(prefix).trimmed_scafs.fa
+	PYTHONPATH=$(PYTHONPATH) $(ntLink_time) $(ntlink_path)/bin/ntlink_patch_gaps.py --path $(prefix).trimmed_scafs.path \
+	 --mappings $(prefix).verbose_mapping.tsv -s $< --reads $(reads) -o $@ --large_k $(k) --min_gap 1 \
+	 --trimmings $(prefix).trimmed_scafs.tsv -k $(small_k) -w $(small_w)
