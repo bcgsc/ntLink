@@ -1,6 +1,6 @@
 all: indexlr
 
-indexlr:
+indexlr: btllib/recipes/indexlr.cpp
 	btllib/compile
 	cp btllib/bin/indexlr .
 
