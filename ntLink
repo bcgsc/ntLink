@@ -60,6 +60,10 @@ prefix=$(target).k$(k).w$(w).z$(z)
 small_k=15
 small_w=5
 
+# Indexlr parameters for gap-filling
+gap_k=35
+gap_w=10
+
 SHELL=bash -e -o pipefail
 ifeq ($(shell zsh -e -o pipefail -c 'true' 2>/dev/null; echo $$?), 0)
 # Set pipefail to ensure that all commands of a pipe succeed.
@@ -215,4 +219,4 @@ clean: abyss_scaffold
 $(target).k$(k).w$(w).z$(z).ntLink.scaffolds.gap_fill.fa: $(target) $(prefix).n$(n).scaffold.dot $(prefix).trimmed_scafs.fa
 	PYTHONPATH=$(PYTHONPATH) $(ntLink_time) $(ntlink_path)/bin/ntlink_patch_gaps.py --path $(prefix).trimmed_scafs.path \
 	 --mappings $(prefix).verbose_mapping.tsv -s $< --reads $(reads) -o $@ --large_k $(k) --min_gap 1 \
-	 --trims $(prefix).trimmed_scafs.tsv -k $(small_k) -w $(small_w)
+	 --trims $(prefix).trimmed_scafs.tsv -k $(gap_k) -w $(gap_w)
