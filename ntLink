@@ -51,7 +51,7 @@ x=0
 conservative=True
 
 # Output verbose read mappings to contigs?
-verbose=False
+verbose=True
 
 # Prefix for output files
 prefix=$(target).k$(k).w$(w).z$(z)
