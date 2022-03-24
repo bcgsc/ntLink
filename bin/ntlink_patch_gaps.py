@@ -204,6 +204,8 @@ def choose_best_read_per_pair(pairs: dict, mappings: dict) -> None:
         reads = [(read_id, mappings[read_id][source.strip("+-")].anchors,
                   mappings[read_id][target.strip("+-")].anchors)
                  for read_id in pairs[(source, target)].mapping_reads]
+        if not reads:
+            continue
         sorted_reads = sorted(reads, key=lambda x: (numpy.mean([x[1], x[2]]), x[0]), reverse=True)
         pairs[(source, target)].chosen_read = sorted_reads[0][0]
 
@@ -211,7 +213,7 @@ def choose_best_read_per_pair(pairs: dict, mappings: dict) -> None:
 def get_gap_fill_reads(reads_filename: str, pairs: dict, args: argparse.Namespace) -> dict:
     "Collect the reads needed for gap-filling"
     reads = {} # read_id -> sequence
-    target_reads = {pairs[pair].chosen_read for pair in pairs}
+    target_reads = {pairs[pair].chosen_read for pair in pairs if pairs[pair].chosen_read is not None}
     with btllib.SeqReader(reads_filename, btllib.SeqReaderFlag.LONG_MODE, args.t) as reads_in:
         for read in reads_in:
             if read.id in target_reads:
@@ -258,6 +260,8 @@ def find_masking_cut_points(pairs: dict, mappings: dict, args: argparse.Namespac
     "Find the initial points for cuts for masking sequences for more precise cut point determination"
     for source, target in pairs:
         read_id = pairs[(source, target)].chosen_read
+        if read_id is None:
+            continue
         source_read_mxs = mappings[read_id][source.strip("+-")].minimizer_positions
         source_ori = source[-1]
         if mappings[read_id][source.strip("+-")].orientation == source_ori: # Read, ctg in same orientation
