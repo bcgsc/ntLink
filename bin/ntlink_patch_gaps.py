@@ -4,7 +4,7 @@ Use minimizer anchors to patch gaps in scaffolds
 '''
 import argparse
 import re
-from collections import namedtuple
+from collections import namedtuple, Counter
 import itertools
 import datetime
 import shlex
@@ -470,8 +470,7 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
     gap_re = re.compile(r'^(\d+)N$')
     outfile = open(args.o, 'w')
 
-    num_gaps, potential_fills, filled_gaps, old_anchor_used, new_anchor_used, small_gaps, overlap_pts =\
-        0, 0, 0, 0, 0, 0, 0
+    gaps_counter = Counter()
 
     printed_scaffolds = set()
 
@@ -489,15 +488,14 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                 gap_match = re.search(gap_re, path[idx])
                 if gap_match:
                     gap_size = int(gap_match.group(1))
-                    num_gaps += 1
-                    overlap_gap, overlap_pts, small_gaps = tally_small_gaps(args, gap_size, overlap_gap,
-                                                                            overlap_pts, small_gaps)
+                    gaps_counter["num_gaps"] += 1
+                    overlap_gap = tally_small_gaps(args, gap_size, overlap_gap, gaps_counter)
                     source, target = path[idx-1], path[idx+1]
                     if (source, target) not in pairs:
                         # Accounting for gaps being one larger in abyss-scaffold path file
                         sequence += "N"*(gap_size - 1)
                         continue
-                    potential_fills += 1
+                    gaps_counter["potential_fills"] += 1
                     pair_entry = pairs[(source, target)]
 
                     if pair_entry.source_read_cut is None or pair_entry.target_read_cut is None:
@@ -507,17 +505,15 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                             sequence += pair_entry.get_cut_read_sequence(reads, "-").lower()
                         else:
                             sequence += pair_entry.get_cut_read_sequence(reads, "-")
-                        filled_gaps += 1
-                        new_anchor_used, old_anchor_used = tally_anchors(new_anchor_used, old_anchor_used,
-                                                                         pair_entry)
+                        gaps_counter["filled_gaps"] += 1
+                        tally_anchors(pair_entry, gaps_counter)
                     else:
                         if args.soft_mask:
                             sequence += pair_entry.get_cut_read_sequence(reads, "+").lower()
                         else:
                             sequence += pair_entry.get_cut_read_sequence(reads, "+")
-                        filled_gaps += 1
-                        new_anchor_used, old_anchor_used = tally_anchors(new_anchor_used, old_anchor_used,
-                                                                         pair_entry)
+                        gaps_counter["filled_gaps"] += 1
+                        tally_anchors(pair_entry, gaps_counter)
                 else:
                     ctg = path[idx]
                     printed_scaffolds.add(ctg.strip("+-"))
@@ -531,25 +527,23 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                               file=sys.stderr)
             outfile.write(">{}\n{}\n".format(ctg_id, sequence))
 
-    print_filling_stats(filled_gaps, new_anchor_used, num_gaps, old_anchor_used, overlap_pts, potential_fills,
-                        small_gaps)
+    print_filling_stats(gaps_counter)
 
     print_unassigned_contigs(outfile, printed_scaffolds, sequences)
 
     outfile.close()
 
 
-def print_filling_stats(filled_gaps, new_anchor_used, num_gaps, old_anchor_used, overlap_pts, potential_fills,
-                        small_gaps):
+def print_filling_stats(counter: Counter) -> None:
     "Print statistics about gap filling"
     print("\nGap filling summary:")
-    print("Number of detected sequence joins", num_gaps, sep="\t")
-    print("Number of overlap sequence joins", overlap_pts, sep="\t")
-    print("Number of gaps smaller than threshold", small_gaps, sep="\t")
-    print("Number of potentially fillable gaps", potential_fills, sep="\t")
-    print("Number of filled gaps", filled_gaps, sep="\t")
-    print("Number of new anchors used", new_anchor_used, sep="\t")
-    print("Number of old anchors used", old_anchor_used, sep="\t")
+    print("Number of detected sequence joins", counter["num_gaps"], sep="\t")
+    print("Number of overlap sequence joins", counter["overlap_pts"], sep="\t")
+    print("Number of gaps smaller than threshold", counter["small_gaps"], sep="\t")
+    print("Number of potentially fillable gaps", counter["potential_fills"], sep="\t")
+    print("Number of filled gaps", counter["filled_gaps"], sep="\t")
+    print("Number of new anchors used", counter["new_anchor_used"], sep="\t")
+    print("Number of old anchors used", counter["old_anchor_used"], sep="\t")
     print()
 
 
@@ -561,23 +555,22 @@ def print_unassigned_contigs(outfile, printed_scaffolds, sequences):
         outfile.write(">{}\n{}\n".format(ctg, sequences[ctg].seq))
 
 
-def tally_anchors(new_anchor_used, old_anchor_used, pair_entry):
+def tally_anchors(pair_entry: PairInfo, counter: Counter) -> None:
     "Tally anchors used"
     if pair_entry.old_anchor_used:
-        old_anchor_used += 1
+        counter["old_anchor_used"] += 1
     else:
-        new_anchor_used += 1
-    return new_anchor_used, old_anchor_used
+        counter["new_anchor_used"] += 1
 
 
-def tally_small_gaps(args, gap_size, overlap_gap, overlap_pts, small_gaps):
+def tally_small_gaps(args: argparse.Namespace, gap_size: int, overlap_gap: bool, counter: Counter) -> bool:
     "Tally info for small gaps"
     if gap_size == 1:  # Indicates gap size of 0 for path file
         overlap_gap = True
-        overlap_pts += 1
+        counter["overlap_pts"] += 1
     if args.min_gap >= gap_size > 1:
-        small_gaps += 1
-    return overlap_gap, overlap_pts, small_gaps
+        counter["small_gaps"] += 1
+    return overlap_gap
 
 
 def read_trim_coordinates(sequences: dict, args: argparse.Namespace) -> None:
