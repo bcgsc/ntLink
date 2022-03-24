@@ -298,6 +298,8 @@ def print_masked_sequences(scaffolds: dict, reads: dict, pairs: dict, args: argp
 
     for source, target in pairs:
         pair_info = pairs[(source, target)]
+        if pair_info.chosen_read is None:
+            continue
         source_cut = pair_info.source_ctg_cut
         source_noori = source.strip("+-")
         if source[-1] == "+":
