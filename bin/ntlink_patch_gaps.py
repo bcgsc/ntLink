@@ -212,8 +212,12 @@ def calculate_est_gap_size(source_mx: MinimizerMapping, source: str,
     else:
         b = sequences[target_ctg].length - target_mx.ctg_pos - k
 
-    assert a >= 0
-    assert b >= 0
+    try:
+        assert a >= 0
+        assert b >= 0
+    except:
+        print(a, b, source, sequences[source_ctg].length, target, sequences[target_ctg].length, source_mx, target_mx)
+        raise ValueError()
 
     gap_size = target_mx.read_pos - source_mx.read_pos - a - b
     return gap_size
@@ -229,7 +233,7 @@ def is_valid_supporting_read(source: str, target:str, read_id: str, mappings: di
     target_terminal_mx = mappings[read_id][target[:-1]].minimizer_positions[0]
 
     gap_est = calculate_est_gap_size(source_terminal_mx, source, target_terminal_mx, target,
-                                     sequences, args.k)
+                                     sequences, args.large_k)
     if abs(gap_est) > mappings[read_id]["length"]:
         return False
 
