@@ -160,6 +160,7 @@ def tally_contig_mapping_info(read_id: str, mappings: list, read_info: dict, pai
         read_info[read_id][ctg_id] = MinimizerMapping(anchors=int(anchors), minimizer_positions=minimizer_positions,
                                                       orientation=orientation)
         mapping_order.append(ctg_id + orientation)
+        read_info[read_id]["length"] = minimizer_positions[-1].read_pos
 
     for i, j in itertools.combinations(mapping_order, 2):
         if (i, j) in pairs:
@@ -198,7 +199,44 @@ def read_scaffold_file(args: argparse.Namespace) -> dict:
             scaffolds[read.id] = ScaffoldGaps(read.seq)
     return scaffolds
 
-def choose_best_read_per_pair(pairs: dict, mappings: dict) -> None:
+def calculate_est_gap_size(source_mx: MinimizerMapping, source: str,
+                           target_mx: MinimizerMapping, target: str, sequences: dict, k: int) -> int:
+    "Calculate the estimated gap size from the given minimizer coordinates"
+    source_ctg, source_ori, target_ctg, target_ori = source[:-1], source[-1], target[:-1], target[-1]
+    if source_ori == "+":
+        a = sequences[source_ctg].length - source_mx.ctg_pos - k
+    else:
+        a = source_mx.ctg_pos
+    if target_ori == "+":
+        b = target_mx.ctg_pos
+    else:
+        b = sequences[target_ctg].length - target_mx.ctg_pos - k
+
+    assert a >= 0
+    assert b >= 0
+
+    gap_size = target_mx.read_pos - source_mx.read_pos - a - b
+    return gap_size
+
+
+def is_valid_supporting_read(source: str, target:str, read_id: str, mappings: dict,
+                             sequences: dict, args: argparse.Namespace) -> bool:
+    "Return true if the support read is valid. That is, infers a gao estimate < the read length"
+    if source[-1] != mappings[read_id][source[:-1]].orientation:
+        assert target[-1] != mappings[read_id][target[:-1]].orientation
+        source, target = reverse_complement_pair(source, target)
+    source_terminal_mx = mappings[read_id][source[:-1]].minimizer_positions[-1]
+    target_terminal_mx = mappings[read_id][target[:-1]].minimizer_positions[0]
+
+    gap_est = calculate_est_gap_size(source_terminal_mx, source, target_terminal_mx, target,
+                                     sequences, args.k)
+    if abs(gap_est) > mappings[read_id]["length"]:
+        return False
+
+    return True
+
+
+def choose_best_read_per_pair(pairs: dict, mappings: dict, sequences: dict, args: argparse.Namespace) -> None:
     "For each pair, choose the 'best' read to fill in the gap - average anchors on each incident sequence"
     for source, target in pairs:
         reads = [(read_id, mappings[read_id][source.strip("+-")].anchors,
@@ -207,7 +245,10 @@ def choose_best_read_per_pair(pairs: dict, mappings: dict) -> None:
         if not reads:
             continue
         sorted_reads = sorted(reads, key=lambda x: (numpy.mean([x[1], x[2]]), x[0]), reverse=True)
-        pairs[(source, target)].chosen_read = sorted_reads[0][0]
+        for read_id, _, _ in sorted_reads:
+            if is_valid_supporting_read(source, target, read_id, mappings, sequences, args):
+                pairs[(source, target)].chosen_read = read_id
+                break
 
 
 def get_gap_fill_reads(reads_filename: str, pairs: dict, args: argparse.Namespace) -> dict:
@@ -672,7 +713,7 @@ def main() -> None:
 
     # Choose best read for patching each pair's gap (adjust pairs supporting reads)
     print_log_message("Choosing best read..")
-    choose_best_read_per_pair(pairs, mappings)
+    choose_best_read_per_pair(pairs, mappings, sequences, args)
 
     # Read in the reads that are needed
     print_log_message("Collecting reads...")
