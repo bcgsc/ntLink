@@ -589,8 +589,8 @@ def print_filling_stats(counter: Counter) -> None:
     print("Number of gaps smaller than threshold", counter["small_gaps"], sep="\t")
     print("Number of potentially fillable gaps", counter["potential_fills"], sep="\t")
     print("Number of filled gaps", counter["filled_gaps"], sep="\t")
-    print("Number of new anchors used", counter["new_anchor_used"], sep="\t")
-    print("Number of old anchors used", counter["old_anchor_used"], sep="\t")
+    print("Number of pass 1 anchors used", counter["new_anchor_used"], sep="\t")
+    print("Number of pass 2 anchors used", counter["old_anchor_used"], sep="\t")
     print()
 
 
@@ -682,7 +682,7 @@ def main() -> None:
     parser.add_argument("-s", help="Input scaffolds", required=True, type=str)
     parser.add_argument("--reads", help="Input reads", required=True, type=str)
     parser.add_argument("-z", help="Minimum contig size (bp) [1000]", type=int, required=False, default=1000)
-    parser.add_argument("-k", help="Kmer size used in minimizer step [15]", type=int, required=False, default=15)
+    parser.add_argument("-k", help="Kmer size used in minimizer step [20]", type=int, required=False, default=20)
     parser.add_argument("-w", help="Window size used in minimizer step [10]", type=int, required=False, default=10)
     parser.add_argument("-t", help="Number of threads [4]", type=int, required=False, default=4)
     parser.add_argument("--large_k", help="K-mer size used in generating verbose mapping TSV", required=True, type=int)

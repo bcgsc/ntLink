@@ -61,7 +61,7 @@ small_k=15
 small_w=5
 
 # Indexlr parameters for gap-filling
-gap_k=35
+gap_k=20
 gap_w=10
 
 SHELL=bash -e -o pipefail
