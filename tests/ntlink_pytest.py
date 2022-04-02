@@ -141,7 +141,7 @@ def test_4():
 
 def test_5():
     "Testing gap-filling target"
-    test_paths = run_ntLink("scaffolds_1.fa", "long_reads_1.fa", "test1", gap_fill=True, w=250)
+    test_paths = run_ntLink("scaffolds_1.fa", "long_reads_1.fa", "test1", gap_fill=True, w=250, gap_k=35)
 
     # Compare with expected output
     cmd = "cmp {} {}".format("scaffolds_1.fa.k32.w250.z1000.ntLink.scaffolds.gap_fill.fa",

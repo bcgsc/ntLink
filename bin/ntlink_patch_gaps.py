@@ -589,8 +589,8 @@ def print_filling_stats(counter: Counter) -> None:
     print("Number of gaps smaller than threshold", counter["small_gaps"], sep="\t")
     print("Number of potentially fillable gaps", counter["potential_fills"], sep="\t")
     print("Number of filled gaps", counter["filled_gaps"], sep="\t")
-    print("Number of pass 1 anchors used", counter["new_anchor_used"], sep="\t")
-    print("Number of pass 2 anchors used", counter["old_anchor_used"], sep="\t")
+    print("Number of pass 2 anchors used", counter["new_anchor_used"], sep="\t")
+    print("Number of pass 1 anchors used", counter["old_anchor_used"], sep="\t")
     print()
 
 
