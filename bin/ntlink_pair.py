@@ -295,9 +295,9 @@ class NtLink():
         "Print information about minimizer positions/strands on ctg/read in brief format"
         return_list = []
         for mx in list_minimizers:
-            return_list.append("(c_p={} c_s={} r_p={} r_s={})".format(mx.ctg_pos, mx.ctg_strand,
+            return_list.append("{}:{}_{}:{})".format(mx.ctg_pos, mx.ctg_strand,
                                                                       mx.read_pos, mx.read_strand))
-        return return_list
+        return " ".join(return_list)
 
     def add_pair(self, accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_read, check_added=None):
         "Add pair to dictionary of pairs"

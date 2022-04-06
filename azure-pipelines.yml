@@ -21,7 +21,7 @@ jobs:
     displayName: Install clang-format and clang-tidy
   - script: |
       source activate ntlink_CI
-      conda install --yes --quiet --name ntlink_CI python pylint pytest pandas
+      conda install --yes --quiet --name ntlink_CI python pylint pytest pandas abyss=2.3.1
       conda install --yes --quiet --name ntlink_CI -c conda-forge -c bioconda --file requirements.txt
     displayName: Install Anaconda packages
   - script: |
@@ -36,7 +36,6 @@ jobs:
     displayName: Test C++ executables
   - script: |
       source activate ntlink_CI
-      conda install --yes --quiet --name ntlink_CI -c conda-forge -c bioconda abyss=2.3.1
       cd tests
       pytest -vs ntlink_pytest.py
     displayName: Run pytests

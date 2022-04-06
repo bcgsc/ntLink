@@ -103,10 +103,14 @@ def parse_minimizers(minimizer_positions: str) -> list:
     "Parse the minimizer positions string"
     mx_pos_re = re.compile(r"\(c_p=(\d+)\s+c_s=([+-])\s+r_p=(\d+)\s+"
                            r"r_s=([+-])\)")
+    minimizer_positions = minimizer_positions.split(" ")
     return_mxs = []
-    for match in re.findall(mx_pos_re, minimizer_positions):
-        return_mxs.append(MinimizerPositions(ctg_pos=int(match[0]), ctg_strand=match[1],
-                                             read_pos=int(match[2]), read_strand=match[3]))
+    for mx_str in minimizer_positions:
+        ctg, read = mx_str.split("_")
+        ctg_pos, ctg_strand = ctg.split(":")
+        read_pos, read_strand = read.split(":")
+        return_mxs.append(MinimizerPositions(ctg_pos=int(ctg_pos), ctg_strand=ctg_strand,
+                                             read_pos=int(read_pos), read_strand=read_strand))
     return return_mxs
 
 
