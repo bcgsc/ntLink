@@ -295,7 +295,7 @@ class NtLink():
         "Print information about minimizer positions/strands on ctg/read in brief format"
         return_list = []
         for mx in list_minimizers:
-            return_list.append("{}:{}_{}:{})".format(mx.ctg_pos, mx.ctg_strand,
+            return_list.append("{}:{}_{}:{}".format(mx.ctg_pos, mx.ctg_strand,
                                                                       mx.read_pos, mx.read_strand))
         return " ".join(return_list)
 
