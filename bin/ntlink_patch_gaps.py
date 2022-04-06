@@ -215,9 +215,9 @@ def calculate_est_gap_size(source_mx: MinimizerMapping, source: str,
     try:
         assert a >= 0
         assert b >= 0
-    except:
+    except ValueError as e:
         print(a, b, source, sequences[source_ctg].length, target, sequences[target_ctg].length, source_mx, target_mx)
-        raise ValueError()
+        raise ValueError(e) from e
 
     gap_size = target_mx.read_pos - source_mx.read_pos - a - b
     return gap_size
@@ -433,8 +433,6 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                 accepted_anchor_contigs, _ = \
                     ntlink_utils.get_accepted_anchor_contigs(mxs, chosen_read.readlen,
                                                              scaffolds, mx_info, args)
-                source_terminal_mx, source_ctg_ori_read_based = None, None
-                target_terminal_mx, target_ctg_ori_read_based = None, None
                 if len(accepted_anchor_contigs) != 2: # Fall back on previous anchors, if option specified
                     if args.stringent:
                         pairs[(source, target)].source_read_cut = None
@@ -444,24 +442,10 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                     continue
 
                 assert len(accepted_anchor_contigs) == 2
-                for ctg_run in accepted_anchor_contigs:
-                    ctg_run_entry = accepted_anchor_contigs[ctg_run]
-                    ctg_ori_read_based = find_orientation(ctg_run_entry.hits)
-                    if ctg_run_entry.contig == source_scaf.id:
-                        if source_ori == ctg_ori_read_based:  # Read, source in same ori
-                            source_terminal_mx = ctg_run_entry.hits[-1]
-                        else:
-                            source_terminal_mx = ctg_run_entry.hits[0]
-                        source_ctg_ori_read_based = ctg_ori_read_based
-                        source_pos_consistency = check_position_consistency(ctg_run_entry.hits)
-
-                    if ctg_run_entry.contig == target_scaf.id:
-                        if target_ori == ctg_ori_read_based:  # Read, target in same ori
-                            target_terminal_mx = ctg_run_entry.hits[0]
-                        else:
-                            target_terminal_mx = ctg_run_entry.hits[-1]
-                        target_ctg_ori_read_based = ctg_ori_read_based
-                        target_pos_consistency = check_position_consistency(ctg_run_entry.hits)
+                source_ctg_ori_read_based, source_pos_consistency, source_terminal_mx, \
+                target_ctg_ori_read_based, target_pos_consistency, target_terminal_mx = \
+                    assess_accepted_anchor_contigs(accepted_anchor_contigs, source_ori, source_scaf,
+                                                   target_ori, target_scaf)
                 if source_ctg_ori_read_based is None or target_ctg_ori_read_based is None or \
                         not source_pos_consistency or not target_pos_consistency:
                     if args.stringent:
@@ -498,6 +482,34 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
                                                                                target_ori, args.k)
 
 
+def assess_accepted_anchor_contigs(accepted_anchor_contigs, source_ori, source_scaf,
+                                   target_ori, target_scaf):
+    "Assess the accepted anchor contigs for orientation, consistency, and terminal mx"
+    source_ctg_ori_read_based, source_terminal_mx = None, None
+    target_terminal_mx, target_ctg_ori_read_based = None, None
+    source_pos_consistency, target_pos_consistency = False, False
+    for ctg_run in accepted_anchor_contigs:
+        ctg_run_entry = accepted_anchor_contigs[ctg_run]
+        ctg_ori_read_based = find_orientation(ctg_run_entry.hits)
+        if ctg_run_entry.contig == source_scaf.id:
+            if source_ori == ctg_ori_read_based:  # Read, source in same ori
+                source_terminal_mx = ctg_run_entry.hits[-1]
+            else:
+                source_terminal_mx = ctg_run_entry.hits[0]
+            source_ctg_ori_read_based = ctg_ori_read_based
+            source_pos_consistency = check_position_consistency(ctg_run_entry.hits)
+
+        if ctg_run_entry.contig == target_scaf.id:
+            if target_ori == ctg_ori_read_based:  # Read, target in same ori
+                target_terminal_mx = ctg_run_entry.hits[0]
+            else:
+                target_terminal_mx = ctg_run_entry.hits[-1]
+            target_ctg_ori_read_based = ctg_ori_read_based
+            target_pos_consistency = check_position_consistency(ctg_run_entry.hits)
+    return source_ctg_ori_read_based, source_pos_consistency, source_terminal_mx, target_ctg_ori_read_based,\
+           target_pos_consistency, target_terminal_mx
+
+
 def fallback_old_anchor_cuts(pairs, scaffolds, source, source_scaf, target, target_scaf):
     "Adjust cuts to fallback to the higher k/w anchors"
     pairs[(source, target)].old_anchor_used = True
@@ -518,9 +530,7 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
     outfile = open(args.o, 'w')
 
     gaps_counter = Counter()
-
     printed_scaffolds = set()
-
     overlap_gap = False
 
     with open(args.path, 'r') as fin:
@@ -531,8 +541,8 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
             ctg_id, path = line
             sequence = ""
             path = path.split(" ")
-            for idx in range(len(path)):
-                gap_match = re.search(gap_re, path[idx])
+            for idx, node in enumerate(path):
+                gap_match = re.search(gap_re, node)
                 if gap_match:
                     gap_size = int(gap_match.group(1))
                     gaps_counter["num_gaps"] += 1
@@ -562,7 +572,7 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
                         gaps_counter["filled_gaps"] += 1
                         tally_anchors(pair_entry, gaps_counter)
                 else:
-                    ctg = path[idx]
+                    ctg = node
                     printed_scaffolds.add(ctg.strip("+-"))
                     new_sequence = sequences[ctg.strip("+-")].get_cut_sequence(ctg[-1])
                     if overlap_gap:
