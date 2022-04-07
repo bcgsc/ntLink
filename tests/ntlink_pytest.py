@@ -121,7 +121,7 @@ def test_3():
 
 def test_4():
     "Testing multiple output paths, long reads in gzipped fasta format, sequences overlap"
-    test_paths = run_ntLink("scaffolds_4.fa", "long_reads_4.fa.gz", "test4", k=40, w=100)
+    test_paths = run_ntLink("scaffolds_4.fa", "long_reads_4.fa.gz", "test4", k=40, w=100, merge_gap=20)
 
     expected_paths = ["scaf1+ 21N scaf2+", "scaf3- 21N scaf4+"]
 
