@@ -33,7 +33,7 @@ max_n=10
 g=20
 
 # Gap size between overlapping trimmed scaffolds
-merge_gap?=$g
+merge_gap=0
 
 # Minimum # anchoring ONT reads for an edge
 a=1
