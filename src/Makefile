@@ -2,7 +2,7 @@ all: indexlr
 
 indexlr: btllib/recipes/indexlr.cpp
 	btllib/compile
-	cp btllib/bin/indexlr .
+	cp btllib/install/bin/indexlr .
 
 clean:
 	rm -f indexlr

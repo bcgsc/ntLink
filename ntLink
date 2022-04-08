@@ -93,7 +93,7 @@ gzip=gzip -f
 endif
 
 # Set-up PYTHON PATH
-PYTHONPATH=$(ntlink_path)/src/btllib/python/
+PYTHONPATH=$(ntlink_path)/src/btllib/install/python/
 
 help:
 	@echo ""
