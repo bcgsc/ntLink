@@ -43,7 +43,7 @@ def cleanup_files(target, prefix, k=32, w=100, n=2, **kwargs):
         return_code = subprocess.call(command_shlex)
 
 
-def run_ntLink(target, reads, prefix, k=32, w=100, n=2, gap_fill=False, **kwargs):
+def run_ntLink(target, reads, prefix, k=32, w=100, n=1, gap_fill=False, **kwargs):
     "Run ntLink, return paths"
     args_str = " ".join(f"{k}={v}" for k, v in kwargs.items())
     if gap_fill:
@@ -73,7 +73,7 @@ def test_1():
     "Testing two sequences together, long reads in fasta format"
     test_paths = run_ntLink("scaffolds_1.fa", "long_reads_1.fa", "test1", w=250)
 
-    expected_paths = ["188266+ 4529N 189231-"]
+    expected_paths = ["188266+ 4542N 189231-"]
     for path in test_paths:
         assert path in expected_paths
 
@@ -90,7 +90,7 @@ def test_2():
     "Testing 4 sequences together, long reads in gzipped fastq format"
     test_paths = run_ntLink("scaffolds_2.fa", "long_reads_2.fq.gz", "test2", k=32, w=100, overlap=False)
 
-    expected_paths = ["189459+ 73N 183836- 448N 182169- 1311N 190964+", '190964- 1311N 182169+ 448N 183836+ 73N 189459-']
+    expected_paths = ["189459+ 90N 183836- 449N 182169- 1294N 190964+", '190964- 1294N 182169+ 449N 183836+ 90N 189459-']
     for path in test_paths:
         assert path in expected_paths
 
@@ -106,8 +106,8 @@ def test_3():
     "Testing multiple output paths, long reads in gzipped fasta format"
     test_paths = run_ntLink("scaffolds_3.fa", "long_reads_3.fa.gz", "test3", k=24, w=250)
 
-    expected_paths = ["189459+ 77N 183836- 434N 182169- 1294N 190964+",
-                      "188266+ 4566N 189231-"]
+    expected_paths = ["189459+ 71N 183836- 433N 182169- 1315N 190964+",
+                      "188266+ 4579N 189231-"]
     for path in test_paths:
         assert path in expected_paths
 
