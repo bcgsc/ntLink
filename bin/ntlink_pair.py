@@ -78,6 +78,7 @@ class ContigRun:
         self.contig = contig
         self.index = index
         self.hit_count = hit_count
+        self.hits = []
         self._subsumed = False
         self.first_mx = None
         self.terminal_mx = None
@@ -96,8 +97,8 @@ class ContigRun:
 
     def __str__(self):
         return "contig={contig}, hit_count={hit_count}, subsumed={subsumed}, " \
-               "index={index}".format(contig=self.contig, hit_count=self.hit_count,
-                                      subsumed=self.subsumed, index=self.index)
+               "index={index}, hits={hits}".format(contig=self.contig, hit_count=self.hit_count,
+                                      subsumed=self.subsumed, index=self.index, hits=self.hits)
 
 class NtLink():
     "Represents an ntLink graph construction run"
@@ -289,57 +290,14 @@ class NtLink():
 
         return graph
 
-    def get_accepted_anchor_contigs(self, mx_list, read_length):
-        "Returns dictionary of contigs of appropriate length, mx hits, whether subsumed"
-        MinimizerPositions = namedtuple("MinimizerPositions", ["ctg_pos", "read_pos"])
-        contig_list = []
-        contig_positions = {} # contig -> [mx positions]
-        for mx, pos, _ in mx_list:
-            contig = NtLink.list_mx_info[mx].contig
-            if NtLink.scaffolds[contig].length >= self.args.z:
-                contig_list.append(contig)
-                if contig not in contig_positions:
-                    contig_positions[contig] = []
-                contig_positions[contig].append(MinimizerPositions(ctg_pos=NtLink.list_mx_info[mx].position,
-                                                                   read_pos=int(pos)))
-
-        # Filter out hits where mapped length on contig is greater than the read length
-        noisy_contigs = set()
-        for contig in contig_positions:
-            positions = contig_positions[contig]
-            if len(positions) < 2:
-                continue
-            ctg_positions = [position.ctg_pos for position in positions]
-            start_idx, end_idx = np.argmin(ctg_positions), np.argmax(ctg_positions)
-            start_positions = positions[start_idx]
-            end_positions = positions[end_idx]
-            if self.args.x == 0:
-                if abs(end_positions.ctg_pos - start_positions.ctg_pos) > read_length + self.args.k:
-                    noisy_contigs.add(contig)
-            else:
-                threshold = min(read_length + self.args.k,
-                                (self.args.x * abs(end_positions.read_pos - start_positions.read_pos)) + self.args.k)
-                if abs(end_positions.ctg_pos - start_positions.ctg_pos) > threshold:
-                    noisy_contigs.add(contig)
-        contig_list = [contig for contig in contig_list if contig not in noisy_contigs]
-
-        contig_runs = [(ctg, len(list(hits))) for ctg, hits in itertools.groupby(contig_list)]
-        contigs_hits = {}
-        for i, run_tup in enumerate(contig_runs):
-            ctg, cnt = run_tup
-            if ctg in contigs_hits:
-                for j in range(contigs_hits[ctg].index + 1, i):
-                    contigs_hits[contig_runs[j][0]].subsumed = True
-                contigs_hits[ctg].hit_count += cnt
-            else:
-                contigs_hits[ctg] = ContigRun(ctg, i, cnt)
-
-        return_contigs_hits = {ctg: contigs_hits[ctg] for ctg in contigs_hits if not contigs_hits[ctg].subsumed}
-
-        return_contig_runs_tmp = [ctg for ctg, hits in contig_runs if not contigs_hits[ctg].subsumed]
-        return_contig_runs = [ctg for ctg, hits in itertools.groupby(return_contig_runs_tmp)]
-
-        return return_contigs_hits, return_contig_runs
+    @staticmethod
+    def print_minimizer_positions(list_minimizers):
+        "Print information about minimizer positions/strands on ctg/read in brief format"
+        return_list = []
+        for mx in list_minimizers:
+            return_list.append("{}:{}_{}:{}".format(mx.ctg_pos, mx.ctg_strand,
+                                                                      mx.read_pos, mx.read_strand))
+        return " ".join(return_list)
 
     def add_pair(self, accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_read, check_added=None):
         "Add pair to dictionary of pairs"
@@ -370,6 +328,11 @@ class NtLink():
 
         pairs = {} # source -> target -> [gap estimate]
 
+        # Open file for outputting verbose logging if option specified
+        verbose_file = None
+        if self.args.verbose:
+            verbose_file = open(self.args.p + ".verbose_mapping.tsv", 'w')
+
         # Add the long read edges to the graph
         for mx_long_file in self.args.FILES:
             mx_long_filename = "/dev/stdin" if mx_long_file == "-" else mx_long_file
@@ -386,11 +349,18 @@ class NtLink():
                         if not mx_pos_split:
                             continue
                         length_long_read = int(mx_pos_split[-1][1])
-                        accepted_anchor_contigs, contig_runs = self.get_accepted_anchor_contigs(mx_pos_split,
-                                                                                                length_long_read)
-                        if self.args.verbose and accepted_anchor_contigs and len(accepted_anchor_contigs) > 1:
-                            print(line[0], [str(accepted_anchor_contigs[ctg_run])
-                                            for ctg_run in accepted_anchor_contigs], file=sys.stdout)
+                        accepted_anchor_contigs, contig_runs = ntlink_utils.get_accepted_anchor_contigs(mx_pos_split,
+                                                                                                        length_long_read,
+                                                                                                        NtLink.scaffolds,
+                                                                                                        NtLink.list_mx_info,
+                                                                                                        self.args)
+                        if self.args.verbose and accepted_anchor_contigs:
+                            for ctg_run in accepted_anchor_contigs:
+                                verbose_file.write("{}\t{}\t{}\t{}\n".
+                                                   format(line[0], accepted_anchor_contigs[ctg_run].contig,
+                                                          accepted_anchor_contigs[ctg_run].hit_count,
+                                                          self.print_minimizer_positions(accepted_anchor_contigs[ctg_run].hits)))
+
 
                         # Filter ordered minimizer list for accepted contigs, keep track of hashes for gap sizes
                         mx_pos_split = [mx_tup for mx_tup in mx_pos_split
@@ -422,6 +392,8 @@ class NtLink():
                             for ctg_i, ctg_j in zip(contig_runs_filter, contig_runs_filter[1:]):
                                 self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_long_read,
                                               check_added=added_pairs)
+        if self.args.verbose:
+            verbose_file.close()
 
         return pairs
 

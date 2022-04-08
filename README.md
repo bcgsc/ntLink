@@ -31,6 +31,9 @@ Coombe L, Li JX, Lo T, Wong J, Nikolic V, Warren RL and Birol I. LongStitch: hig
 ntLink: Scaffolding assemblies using long reads
 Usage: ntLink scaffold target=<target scaffolds> reads='List of long read files'
 
+To additionally run gap-filling (fill gap regions with raw read sequence):
+Usage: ntLink scaffold gap_fill target=<target scaffolds> reads='List of long read files'
+
 Options:
 target			Target assembly to be scaffolded in fasta format
 reads		        List of long read files (separated by a space)
@@ -66,6 +69,11 @@ ntLink scaffold target=my_assembly.fa reads=long_reads.fq.gz k=32 w=250
 ```
 
 The post-ntLink scaffolds file will have the suffix `*ntLink.scaffolds.fa`
+
+### Gap-filling
+As of ntLink v1.2.0, ntLink can also run gap-filling after the scaffolding stage. This mode is enabled by adding the `gap_fill` target to the `ntLink` command. `overlap=True` is required when using the `gap_fill` feature.
+
+Note that the gaps will be filled with raw read sequence, so subsequent polishing is a good idea. See the wiki page for more details.
 
 **For more information about the ntLink algorithm and tips for running ntLink see our [wiki](https://github.com/bcgsc/ntLink/wiki)**
 

@@ -41,11 +41,13 @@ def cleanup_files(target, prefix, k=32, w=100, n=2, **kwargs):
         command = "rm {0}".format(out_file)
         command_shlex = shlex.split(command)
         return_code = subprocess.call(command_shlex)
-        assert return_code == 0
 
-def run_ntLink(target, reads, prefix, k=32, w=100, n=2, **kwargs):
+
+def run_ntLink(target, reads, prefix, k=32, w=100, n=2, gap_fill=False, **kwargs):
     "Run ntLink, return paths"
     args_str = " ".join(f"{k}={v}" for k, v in kwargs.items())
+    if gap_fill:
+        args_str += " gap_fill"
     command = "../ntLink scaffold -B target={target} reads={reads} prefix={prefix} k={k} w={w} z=1000 n={n} {extra_args}".format(target=target,
                                                                                                                    reads=reads,
                                                                                                                    prefix=prefix,
@@ -119,7 +121,7 @@ def test_3():
 
 def test_4():
     "Testing multiple output paths, long reads in gzipped fasta format, sequences overlap"
-    test_paths = run_ntLink("scaffolds_4.fa", "long_reads_4.fa.gz", "test4", k=40, w=100)
+    test_paths = run_ntLink("scaffolds_4.fa", "long_reads_4.fa.gz", "test4", k=40, w=100, merge_gap=20)
 
     expected_paths = ["scaf1+ 21N scaf2+", "scaf3- 21N scaf4+"]
 
@@ -136,3 +138,17 @@ def test_4():
 
     # Clean-up files
     cleanup_files("scaffolds_4.fa", "test4", k=40, w=100)
+
+def test_5():
+    "Testing gap-filling target"
+    test_paths = run_ntLink("scaffolds_1.fa", "long_reads_1.fa", "test1", gap_fill=True, w=250, gap_k=35)
+
+    # Compare with expected output
+    cmd = "cmp {} {}".format("scaffolds_1.fa.k32.w250.z1000.ntLink.scaffolds.gap_fill.fa",
+                             "expected_outputs/scaffolds_1.fa.k32.w250.z1000.ntLink.scaffolds.gap_fill.fa")
+    cmd_shlex = shlex.split(cmd)
+    return_code = subprocess.call(cmd_shlex)
+    assert return_code == 0
+
+    # Clean-up files
+    cleanup_files("scaffolds_1.fa", "test1", w=250)

@@ -71,6 +71,16 @@ class ScaffoldCut:
             raise AssertionError("Target cut is already set")
         self._target_cut = pos
 
+    def get_trim_coordinates(self, k):
+        if self.ori == "+":
+            return self.target_cut, self.source_cut
+        if self.ori == "-":
+            return self.source_cut + k, self.target_cut + k
+        if self.ori is None:
+            return 0, self.length
+        raise ValueError("Orientation should be +, - or None")
+
+
     def __str__(self):
         return f"{self.ctg_id}{self._ori} {self.length} - s:{self._source_cut} t:{self._target_cut}"
 
@@ -393,6 +403,15 @@ def print_trimmed_scaffolds(args, scaffolds):
                 ">{} {}-{}\n{}\n".format(scaffold.ctg_id, scaffold.source_cut, scaffold.target_cut, sequence_out))
     fasta_outfile.close()
 
+def print_trim_coordinates(args, scaffolds):
+    "Print coordinates of trimming done for scaffolds"
+    with open(args.p + ".trimmed_scafs.tsv", 'w') as tsvfile:
+        for scaffold in scaffolds:
+            scaffold_entry = scaffolds[scaffold]
+            start, end = scaffold_entry.get_trim_coordinates(args.k)
+            out_str = "{}\t{}\t{}\n".format(scaffold_entry.ctg_id, start, end, sep="\t")
+            tsvfile.write(out_str)
+
 def parse_arguments():
     "Parse arguments for ntLink overlap"
     parser = argparse.ArgumentParser(description="Find coordinates for combining overlapping sequences")
@@ -406,6 +425,7 @@ def parse_arguments():
     parser.add_argument("--outgap", help="Gap size between trimmed overlapping sequences (bp) [2]", default=2, type=int)
     parser.add_argument("-p", help="Output file prefix [ntlink_merge]", default="ntlink_merge", type=str)
     parser.add_argument("-v", help="Verbose output logging", action="store_true")
+    parser.add_argument("--trim_info", help="Verbose log of trimming info", action="store_true")
     parser.add_argument("--version", action='version', version='ntLink v1.1.3')
 
     return parser.parse_args()
@@ -442,6 +462,9 @@ def main():
     mxs_info, mxs = read_minimizers(args.m, valid_mx_positions)
 
     merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds)
+
+    if args.trim_info:
+        print_trim_coordinates(args, scaffolds)
 
     print_trimmed_scaffolds(args, scaffolds)
 
