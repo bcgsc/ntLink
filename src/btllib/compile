@@ -2,7 +2,7 @@
 
 import argparse
 import os
-from os.path import basename, dirname, join, isdir, abspath
+from os.path import dirname, join, isdir, abspath
 import subprocess as sp
 import shutil
 import sys
@@ -50,7 +50,7 @@ def install_temp_deps(venv_path):
       sp.run([ f'python3 -m venv {venv_path}' ], shell=True)
 
     sp.run([ f'''
-      source {venv_path}/bin/activate &&
+      . {venv_path}/bin/activate &&
       pip3 install {missing_deps} &&
       deactivate;
     ''' ], shell=True, check=True)
@@ -122,14 +122,14 @@ if __name__ == "__main__":
   time.sleep(3)
 
   sp.run([ f'''
-    if [[ -f {venv_path}/bin/activate ]]; then
-      source {venv_path}/bin/activate;
+    if [ -f {venv_path}/bin/activate ]; then
+      . {venv_path}/bin/activate;
     fi &&
     meson setup --buildtype release --prefix={args.prefix} {build_dir} &&
     cd {build_dir} &&
     ninja install &&
     cd .. &&
-    if [[ -f {venv_path}/bin/activate ]]; then
+    if [ -f {venv_path}/bin/activate ]; then
       deactivate;
     fi
   ''' ], shell=True, check=True)
