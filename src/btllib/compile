@@ -26,26 +26,24 @@ def get_cli_args():
   return parser.parse_args()
 
 def program_exists(program):
-  return sp.run([ f'command -v {program} &>/dev/null' ], shell=True).returncode == 0
+  return sp.run([ f'command -v {program}' ], shell=True).returncode == 0
 
 def install_temp_deps(venv_path):
   deps = [ 'meson', 'ninja', 'cmake' ]
   missing_deps = []
-  build_venv = False
   for dep in deps:
     if not program_exists(dep):
       missing_deps.append(dep)
-      build_venv = True
   missing_deps = ' '.join(missing_deps)
 
-  if build_venv:
-    print(f'Building virtual environment for missing dependencies: {missing_deps}')
+  if len(missing_deps) > 0:
+    print(f'Building virtual environment for missing dependencies: {missing_deps}', flush=True)
 
     os.makedirs(f'{os.path.dirname(venv_path)}', exist_ok=True)
 
     # Create virtual environment
     if isdir(venv_path):
-      print(f'Using already existing virtual environment: {venv_path}')
+      print(f'Using already existing virtual environment: {venv_path}', flush=True)
     else:
       sp.run([ f'python3 -m venv {venv_path}' ], shell=True)
 
@@ -54,6 +52,8 @@ def install_temp_deps(venv_path):
       pip3 install {missing_deps} &&
       deactivate;
     ''' ], shell=True, check=True)
+  else:
+    print("All build dependencies are present.", flush=True)
 
 def export_python_flags():
   python3_config = join(sys.exec_prefix, 'bin', 'python3-config')
@@ -63,8 +63,8 @@ def export_python_flags():
   ldflags = sp.run([ f'{python3_config} --ldflags' ], shell=True, capture_output=True, check=True, text=True).stdout.strip()
 
   # Print flags
-  print(f'Passing the following CFLAGS to Python: {cflags}')
-  print(f'Passing the following LDFLAGS to Python: {ldflags}')
+  print(f'Passing the following CFLAGS to Python: {cflags}', flush=True)
+  print(f'Passing the following LDFLAGS to Python: {ldflags}', flush=True)
 
   # Export flags
   os.environ['BTLLIB_PYTHON_CFLAGS'] = cflags
@@ -73,7 +73,7 @@ def export_python_flags():
 def _watch_process(process):
   process.wait()
   if process.returncode != 0:
-    print(f"{process.args} failed!")
+    print(f"{process.args} failed!", flush=True)
     os.kill(os.getpid(), signal.SIGTERM)
 
 def watch_process(process):
@@ -107,11 +107,11 @@ if __name__ == "__main__":
   autoclean(build_dir)
 
   # Print build dir
-  print(f'Building btllib at: {build_dir}')
+  print(f'Building btllib at: {build_dir}', flush=True)
 
   # Check if previous build dir exists and remove it
   if isdir(build_dir):
-    print(f'Removing previous build dir: {build_dir}')
+    print(f'Removing previous build dir: {build_dir}', flush=True)
     shutil.rmtree(build_dir, ignore_errors=True)
 
   venv_path = join(build_dir, 'venv')
