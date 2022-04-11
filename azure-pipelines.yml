@@ -30,9 +30,13 @@ jobs:
       pylint ntlink_pair.py ntlink_utils.py ntlink_stitch_paths.py ntlink_overlap_sequences.py ntlink_filter_sequences.py
       cd ..
     displayName: Run pylint
-  - script: make -C src all
+  - script: |
+    source activate ntlink_CI
+    make -C src all
     displayName: Compile C++ executables
-  - script: make -C src check
+  - script: |
+    source activate ntlink_CI
+    make -C src check
     displayName: Test C++ executables
   - script: |
       source activate ntlink_CI
