@@ -434,7 +434,7 @@ class NtLink():
         parser.add_argument("-x", help="Fudge factor allowed between mapping block lengths on read and assembly. "
                                        "Set to 0 to allow mapping block to be up to read length",
                             type=float, default=0)
-        parser.add_argument("-v", "--version", action='version', version='ntLink v1.1.3')
+        parser.add_argument("-v", "--version", action='version', version='ntLink v1.2.0')
         parser.add_argument("--verbose", help="Verbose output logging", action='store_true')
 
         return parser.parse_args()

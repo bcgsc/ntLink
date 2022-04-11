@@ -426,7 +426,7 @@ def parse_arguments():
     parser.add_argument("-p", help="Output file prefix [ntlink_merge]", default="ntlink_merge", type=str)
     parser.add_argument("-v", help="Verbose output logging", action="store_true")
     parser.add_argument("--trim_info", help="Verbose log of trimming info", action="store_true")
-    parser.add_argument("--version", action='version', version='ntLink v1.1.3')
+    parser.add_argument("--version", action='version', version='ntLink v1.2.0')
 
     return parser.parse_args()
 
