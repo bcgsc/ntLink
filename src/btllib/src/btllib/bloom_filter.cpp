@@ -33,6 +33,7 @@ BloomFilter::BloomFilter(size_t bytes, unsigned hash_num, std::string hash_fn)
   , hash_fn(std::move(hash_fn))
   , array(new std::atomic<uint8_t>[array_size])
 {
+  // Parameter sanity check
   check_error(bytes == 0, "BloomFilter: memory budget must be >0!");
   check_error(hash_num == 0, "BloomFilter: number of hash values must be >0!");
   check_error(hash_num > MAX_HASH_VALUES,
