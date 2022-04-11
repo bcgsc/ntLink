@@ -31,12 +31,12 @@ jobs:
       cd ..
     displayName: Run pylint
   - script: |
-    source activate ntlink_CI
-    make -C src all
+      source activate ntlink_CI
+      make -C src all
     displayName: Compile C++ executables
   - script: |
-    source activate ntlink_CI
-    make -C src check
+      source activate ntlink_CI
+      make -C src check
     displayName: Test C++ executables
   - script: |
       source activate ntlink_CI
