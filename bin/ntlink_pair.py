@@ -130,7 +130,7 @@ class NtLink():
 
         for node in graph.vs():
             node_label = "\"{scaffold}\" [l={length}]\n".\
-                format(scaffold=node['name'], length=NtLink.scaffolds[node['name'][:-1]].length)
+                format(scaffold=node['name'], length=scaffolds[node['name'][:-1]].length)
             outfile.write(node_label)
 
         for edge in graph.es():
