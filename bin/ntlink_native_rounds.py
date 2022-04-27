@@ -12,6 +12,17 @@ import ntlink_pair
 
 PathNodeInfo = namedtuple('PathNodeInfo', ['path_id', "orientation", "five_prime_terminal", "three_prime_terminal"])
 
+class EdgeInfo:
+    "Class to store information about an edge"
+    def __init__(self, distance, edge_id, edge_weight):
+        self.distance = distance
+        self.edge_id = edge_id
+        self.edge_weight = edge_weight
+
+    def __str__(self):
+        return "EdgeInfo: distance = {}, edge_id = {}, edge_weight = {}".format(self.distance, self.edge_id, self.edge_weight)
+
+
 def read_scaffolds(fasta: str, threads: argparse.Namespace) -> dict:
     "Read the scaffolds from the fasta file, storing as a dictonary with the scaffold name \
     as the key and an instance of the Scaffold namedtuple as the value"
@@ -32,7 +43,6 @@ def read_path_file(path_file: str) -> tuple:
             nodes = [node for node in nodes if not node[-1] == "N"]
             rev_nodes = list(reversed([ntlink_utils.reverse_scaf_ori(node) for node in nodes]))
 
-            vertices = nodes + rev_nodes
             fwd_edges = []
             for i, j in zip(nodes, nodes[1:]):
                 fwd_edges.append((i, j))
@@ -52,8 +62,8 @@ def read_path_file(path_file: str) -> tuple:
 
     return path_graphs, scaf_paths
 
-def adjust_node(node: str, path_graphs: dict, scaf_path: dict, source: bool = False) -> str:
-    "Return True if the node is terminal compatible with the paths, False otherwise"
+def adjust_node_terminal(node: str, path_graphs: dict, scaf_path: dict, source: bool = False) -> str:
+    "Return adjusted node if the node is terminal compatible with the paths, None otherwise"
     node_name, node_ori = node[:-1], node[-1]
     if node_name not in scaf_path:
         return node # Node is not in the path file, so it is compatible
@@ -66,12 +76,33 @@ def adjust_node(node: str, path_graphs: dict, scaf_path: dict, source: bool = Fa
             return path_id + ori
     return "None"
 
+def adjust_node_non_terminal(node: str, path_graphs: dict, scaf_path: dict, source: bool = False) -> tuple:
+    "Return adjusted node of the node is non-terminal compatible with the paths, None otherwise"
+    node_name, node_ori = node[:-1], node[-1]
+    if node_name not in scaf_path:
+        return node, "unscaffolded" # Node is not in the path file, so it is compatible
+    path_id = scaf_path[node_name]
+    for ori in path_graphs[path_id]:
+        graph = path_graphs[path_id][ori]
+        if source and ntlink_utils.has_vertex(graph, node) and graph.outdegree(node) > 0:
+            return path_id + ori, "scaffolded"
+        if not source and ntlink_utils.has_vertex(graph, node) and graph.indegree(node) > 0:
+            return path_id + ori, "scaffolded"
+    return "None", "None"
 
 
-def adjust_edge(source: str, target: str, path_graphs: dict, scaf_path: dict) -> tuple:
+def adjust_edge_check_terminal(source: str, target: str, path_graphs: dict, scaf_path: dict) -> tuple:
     "Adjust the edge for the paths"
-    source_adjust = adjust_node(source, path_graphs, scaf_path, source=True)
-    target_adjust = adjust_node(target, path_graphs, scaf_path, source=False)
+    source_adjust = adjust_node_terminal(source, path_graphs, scaf_path, source=True)
+    target_adjust = adjust_node_terminal(target, path_graphs, scaf_path, source=False)
+    return (source_adjust, target_adjust)
+
+def adjust_edge_check_non_terminal(source: str, target: str, path_graphs: dict, scaf_path: dict) -> tuple:
+    "Adjust the edge, only for cases where both nodes are NOT terminal or NOT scaffolded"
+    source_adjust, source_indicator = adjust_node_non_terminal(source, path_graphs, scaf_path, source=True)
+    target_adjust, target_indicator = adjust_node_non_terminal(target, path_graphs, scaf_path, source=False)
+    if source_indicator == "unscaffolded" and target_indicator == "unscaffolded":
+        return ("None", "None")
     return (source_adjust, target_adjust)
 
 
@@ -92,15 +123,30 @@ def adjust_scaffold_graph(graph_file: str, scaffold_lengths: dict, path_graphs: 
             if not edge_match:
                 continue
             source, target, distance, edge_id, edge_weight = edge_match.groups()
-            source, target = adjust_edge(source, target, path_graphs, scaf_paths)
+            source, target = adjust_edge_check_terminal(source, target, path_graphs, scaf_paths)
             if source == "None" or target == "None":
                 continue
-            edges[source][target] = (distance, edge_id, edge_weight)
+            edges[source][target] = EdgeInfo(distance, edge_id, int(edge_weight))
+
+    # Read through the file again, this time adding edge weights to the graph if edge would be same, but not due to terminal nodes
+    with open(graph_file, 'r') as graph_file:
+        for line in graph_file:
+            edge_match = edge_re.match(line)
+            if not edge_match:
+                continue
+            source, target, distance, edge_id, edge_weight = edge_match.groups()
+            source, target = adjust_edge_check_non_terminal(source, target, path_graphs, scaf_paths)
+            if source == "None" or target == "None":
+                continue
+            if source not in edges or target not in edges[source]:
+                continue
+            edges[source][target].edge_weight += int(edge_weight)
+
     formatted_edges = [(s, t) for s in edges for t in edges[s]]
     g.add_edges(formatted_edges)
-    edge_attributes = {ntlink_utils.edge_index(g, s, t): {'d': edges[s][t][0],
-                                                          "e": edges[s][t][1],
-                                                          "n": edges[s][t][2]}
+    edge_attributes = {ntlink_utils.edge_index(g, s, t): {'d': edges[s][t].distance,
+                                                          "e": edges[s][t].edge_id,
+                                                          "n": edges[s][t].edge_weight}
                        for s in edges for t in edges[s]}
     g.es()["d"] = [edge_attributes[e]['d'] for e in sorted(edge_attributes.keys())]
     g.es()["e"] = [edge_attributes[e]['e'] for e in sorted(edge_attributes.keys())]
