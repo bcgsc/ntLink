@@ -27,7 +27,7 @@ def main():
     parser.add_argument("-k", help="K-mer size (bp)", required=True, type=int)
     parser.add_argument("-f", help="Fudge factor for estimated overlap [0.5]", type=float, default=0.5)
     parser.add_argument("-g", help="Minimum gap size (bp) [20]", required=False, type=int, default=20)
-    parser.add_argument("-v", "--version", action='version', version='ntLink v1.1.3')
+    parser.add_argument("-v", "--version", action='version', version='ntLink v1.2.0')
 
     args = parser.parse_args()
 
