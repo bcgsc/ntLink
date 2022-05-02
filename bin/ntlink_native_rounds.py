@@ -106,7 +106,7 @@ def adjust_edge_check_non_terminal(source: str, target: str, path_graphs: dict, 
     return (source_adjust, target_adjust)
 
 
-def adjust_scaffold_graph(graph_file: str, scaffold_lengths: dict, path_graphs: dict, scaf_paths: dict) -> ig.Graph:
+def adjust_scaffold_graph(graph_filename: str, scaffold_lengths: dict, path_graphs: dict, scaf_paths: dict) -> ig.Graph:
     "Read the scaffold graph and adjust it for the paths"
     g = ig.Graph(directed=True)
 
@@ -117,7 +117,7 @@ def adjust_scaffold_graph(graph_file: str, scaffold_lengths: dict, path_graphs: 
     # Step through the edges in the graph, adjusting as needed
     edge_re = re.compile(r'\"(\S+[+-])\"\s+\-\>\s+\"(\S+[+-])\"\s+\[d\=(\-?\d+)\s+e\=(\d+)\s+n\=(\d+)\]')
     edges = defaultdict(dict)
-    with open(graph_file, 'r') as graph_file:
+    with open(graph_filename, 'r') as graph_file:
         for line in graph_file:
             edge_match = edge_re.match(line)
             if not edge_match:
