@@ -108,7 +108,7 @@ The expected output files can be found in: `tests/expected_outputs`
 ## Dependencies
 * Python3 ([Numpy](https://numpy.org/), [Python-igraph](https://igraph.org/python/))
 * [ABySS v2.3.0+](https://github.com/bcgsc/abyss)
-* GCC 5+ or Clang 4+ with OpenMP
+* GCC 6+ or Clang 5+ with OpenMP
 * [zlib](https://zlib.net/)
 
 Python dependencies can be installed with:
