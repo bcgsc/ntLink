@@ -106,7 +106,7 @@ cd tests
 The expected output files can be found in: `tests/expected_outputs`
 
 ## Dependencies
-* Python3 ([Numpy](https://numpy.org/), [Python-igraph](https://igraph.org/python/))
+* Python 3.7+ ([Numpy](https://numpy.org/), [Python-igraph](https://igraph.org/python/))
 * [ABySS v2.3.0+](https://github.com/bcgsc/abyss)
 * GCC 6+ or Clang 5+ with OpenMP
 * [zlib](https://zlib.net/)
