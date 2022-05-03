@@ -396,6 +396,8 @@ class NtLinkPath:
     def print_paths(paths, out_filename, scaf_num):
         "Print the contig paths"
         path_id = 0 if scaf_num is None else scaf_num + 1
+        gap_re = re.compile(r'\d+N')
+        path_lists = []
         with open(out_filename, 'w') as fout:
             for path in paths:
                 path_list = []
@@ -405,9 +407,16 @@ class NtLinkPath:
                         path_list.append(node.get_gap())
                 if len(path_list) < 2:
                     continue
-                path_str = " ".join(path_list)
-                fout.write("ntLink_{path_id}\t{path}\n".format(path_id=path_id, path=path_str))
-                path_id += 1
+                path_list = ntlink_utils.normalize_path(path_list, gap_re)
+                path_lists.append(path_list)
+
+        # Sort to ensure deterministic ntLink rounds
+        path_lists = sorted(path_lists, key=lambda x: (x.get_ori_contig(), x.get_gap()))
+
+        for path_list in path_lists:
+            path_str = " ".join(path_list)
+            fout.write("ntLink_{path_id}\t{path}\n".format(path_id=path_id, path=path_str))
+            path_id += 1
 
 
     def main(self):
