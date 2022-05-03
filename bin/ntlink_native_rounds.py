@@ -128,19 +128,19 @@ def adjust_scaffold_graph(graph_file: str, scaffold_lengths: dict, path_graphs: 
                 continue
             edges[source][target] = EdgeInfo(distance, edge_id, int(edge_weight))
 
-    # Read through the file again, this time adding edge weights to the graph if edge would be same, but not due to terminal nodes
-    with open(graph_file, 'r') as graph_file:
-        for line in graph_file:
-            edge_match = edge_re.match(line)
-            if not edge_match:
-                continue
-            source, target, distance, edge_id, edge_weight = edge_match.groups()
-            source, target = adjust_edge_check_non_terminal(source, target, path_graphs, scaf_paths)
-            if source == "None" or target == "None":
-                continue
-            if source not in edges or target not in edges[source]:
-                continue
-            edges[source][target].edge_weight += int(edge_weight)
+    # # Read through the file again, this time adding edge weights to the graph if edge would be same, but not due to terminal nodes
+    # with open(graph_file, 'r') as graph_file:
+    #     for line in graph_file:
+    #         edge_match = edge_re.match(line)
+    #         if not edge_match:
+    #             continue
+    #         source, target, distance, edge_id, edge_weight = edge_match.groups()
+    #         source, target = adjust_edge_check_non_terminal(source, target, path_graphs, scaf_paths)
+    #         if source == "None" or target == "None":
+    #             continue
+    #         if source not in edges or target not in edges[source]:
+    #             continue
+    #         edges[source][target].edge_weight += int(edge_weight)
 
     formatted_edges = [(s, t) for s in edges for t in edges[s]]
     g.add_edges(formatted_edges)
