@@ -417,11 +417,11 @@ def print_trim_coordinates(args, scaffolds):
 
 def print_agp_file(paths, scaffolds, args):
     "Print the Paths in the AGP format"
-    start = 1
-    component_id = 1
     gap_re = re.compile(r'(\d+)N')
     with open(args.p + ".trimmed_scafs.agp", 'w') as agpfile:
         for path_id in paths:
+            start = 1
+            component_id = 1
             for node in paths[path_id]:
                 if re.search(gap_re, node):
                     gap_size = int(re.search(gap_re, node).group(1))
