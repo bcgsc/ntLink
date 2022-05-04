@@ -359,6 +359,7 @@ def merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds):
     "Read through pathfile, and merge overlapping pieces, updating path file"
     print(datetime.datetime.today(), ": Finding scaffold overlaps", file=sys.stdout)
     out_pathfile = open(args.p + ".trimmed_scafs.path", 'w')
+    my_paths = {}
     with open(args.path, 'r') as path_fin:
         for path in path_fin:
             new_path = []
@@ -380,7 +381,9 @@ def merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds):
                 new_path.append(gap)
                 new_path.append(target)
             out_pathfile.write("{path_id}\t{ctgs}\n".format(path_id=path_id, ctgs=" ".join(new_path)))
+            my_paths[path_id] = new_path
     out_pathfile.close()
+    return my_paths
 
 def print_trimmed_scaffolds(args, scaffolds):
     "Print the trimmed scaffolds fasta to file"
@@ -411,6 +414,29 @@ def print_trim_coordinates(args, scaffolds):
             start, end = scaffold_entry.get_trim_coordinates(args.k)
             out_str = "{}\t{}\t{}\n".format(scaffold_entry.ctg_id, start, end, sep="\t")
             tsvfile.write(out_str)
+
+def print_agp_file(paths, scaffolds, args):
+    "Print the Paths in the AGP format"
+    start = 1
+    component_id = 1
+    gap_re = re.compile(r'(\d+)N')
+    with open(args.p + ".trimmed_scafs.agp", 'w') as agpfile:
+        for path_id in paths:
+            for node in paths[path_id]:
+                if re.search(gap_re, node):
+                    gap_size = int(re.search(gap_re, node).group(1))
+                    agpfile.write(f"{path_id}\t{start}\t{start + gap_size - 1}\t{component_id}\t"
+                                  f"N\t{gap_size}\tscaffold\tyes\tpaired-ends\n")
+                    start += gap_size
+                else:
+                    contig, ori = node.strip("+-"), node[-1]
+                    scaffold = scaffolds[contig]
+                    ctg_start, ctg_end = scaffold.get_trim_coordinates(args.k)
+                    agpfile.write(f"{path_id}\t{start}\t{start + (ctg_end - ctg_start) - 1}\t{component_id}\t"
+                                  f"W\t{contig}\t{ctg_start + 1}\t{ctg_end}\t{ori}\n")
+                    start += (ctg_end - ctg_start)
+                component_id += 1
+
 
 def parse_arguments():
     "Parse arguments for ntLink overlap"
@@ -461,10 +487,11 @@ def main():
     args.m = "/dev/stdin" if args.m == "-" else args.m
     mxs_info, mxs = read_minimizers(args.m, valid_mx_positions)
 
-    merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds)
+    new_paths = merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds)
 
     if args.trim_info:
         print_trim_coordinates(args, scaffolds)
+        print_agp_file(new_paths, scaffolds, args)
 
     print_trimmed_scaffolds(args, scaffolds)
 
