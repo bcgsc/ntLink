@@ -27,7 +27,9 @@ class ScaffoldCut:
         self.length = len(sequence)
         self._ori = None
         self._source_cut = None
+        self._source_cut_flag = False
         self._target_cut = None
+        self._target_cut_flag = False
 
     @property
     def ori(self):
@@ -58,6 +60,14 @@ class ScaffoldCut:
                 (self.ori == "-" and self._source_cut != 0):
             raise AssertionError("Source cut is already set")
         self._source_cut = pos
+        self._source_cut_flag = True
+
+    def adjust_source_cut(self, k):
+        # Adjust the source cut by k if the orientation is - and source flag is set
+        if self.ori == "-" and self._source_cut_flag:
+            return self._source_cut + k
+        return self._source_cut
+
 
     @property
     def target_cut(self):
@@ -70,12 +80,19 @@ class ScaffoldCut:
                 (self.ori == "-" and self._target_cut != self.length):
             raise AssertionError("Target cut is already set")
         self._target_cut = pos
+        self._target_cut_flag = True
+
+    def adjust_target_cut(self, k):
+        # Adjust the target cut by k if the orientation is - and target flag is set, return the adjusted value
+        if self.ori == "-" and self._target_cut_flag:
+            return self._target_cut + k
+        return self._target_cut
 
     def get_trim_coordinates(self, k):
         if self.ori == "+":
             return self.target_cut, self.source_cut
         if self.ori == "-":
-            return self.source_cut + k, self.target_cut + k
+            return self.adjust_source_cut(k), self.adjust_target_cut(k)
         if self.ori is None:
             return 0, self.length
         raise ValueError("Orientation should be +, - or None")
@@ -395,7 +412,7 @@ def print_trimmed_scaffolds(args, scaffolds):
             if scaffold.ori == "+":
                 sequence_out = seq[scaffold.target_cut:scaffold.source_cut]
             elif scaffold.ori == "-":
-                sequence_out = seq[scaffold.source_cut + args.k:scaffold.target_cut + args.k]
+                sequence_out = seq[scaffold.adjust_source_cut(args.k):scaffold.adjust_target_cut(args.k)]
             elif scaffold.ori is None:
                 sequence_out = seq
             else:
