@@ -435,6 +435,7 @@ def print_trim_coordinates(args, scaffolds):
 def print_agp_file(paths, scaffolds, args):
     "Print the Paths in the AGP format"
     gap_re = re.compile(r'(\d+)N')
+    printed_scaffolds = set()
     with open(args.p + ".trimmed_scafs.agp", 'w') as agpfile:
         for path_id in paths:
             start = 1
@@ -454,7 +455,17 @@ def print_agp_file(paths, scaffolds, args):
                     agpfile.write(f"{path_id}\t{start}\t{start + (ctg_end - ctg_start) - 1}\t{component_id}\t"
                                   f"W\t{contig}\t{ctg_start + 1}\t{ctg_end}\t{ori}\n")
                     start += (ctg_end - ctg_start)
+                    printed_scaffolds.add(contig)
                 component_id += 1
+
+        # Print the remaining scaffolds
+        for scaffold in scaffolds:
+            if scaffold not in printed_scaffolds:
+                scaffold_entry = scaffolds[scaffold]
+                ctg_start, ctg_end = scaffold_entry.get_trim_coordinates(args.k)
+                agpfile.write(f"{scaffold_entry.ctg_id}\t{ctg_start + 1}\t{ctg_end}\t1\t"
+                              f"W\t{scaffold_entry.ctg_id}\t{ctg_start + 1}\t{ctg_end}\t+\n")
+
 
 
 def parse_arguments():
