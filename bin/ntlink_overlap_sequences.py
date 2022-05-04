@@ -441,7 +441,9 @@ def print_agp_file(paths, scaffolds, args):
             component_id = 1
             for node in paths[path_id]:
                 if re.search(gap_re, node):
-                    gap_size = int(re.search(gap_re, node).group(1))
+                    gap_size = int(re.search(gap_re, node).group(1)) - 1
+                    if gap_size == 0:
+                        continue
                     agpfile.write(f"{path_id}\t{start}\t{start + gap_size - 1}\t{component_id}\t"
                                   f"N\t{gap_size}\tscaffold\tyes\tpaired-ends\n")
                     start += gap_size
