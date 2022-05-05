@@ -32,7 +32,9 @@ def read_agp(agp_filename: str) -> dict:
     with open(agp_filename, 'r') as agp_file:
         for line in agp_file:
             line = line.strip().split('\t')
-            path_id, scaf_start, scaf_end, component_id, _, ctg_id, ctg_start, ctg_end, orientation = line
+            path_id, scaf_start, scaf_end, component_id, gap_indic, ctg_id, ctg_start, ctg_end, orientation = line
+            if gap_indic == "N":
+                continue
             agp_dict[ctg_id] = AGP(path_id, scaf_start, scaf_end, ctg_id, orientation, ctg_start, ctg_end, component_id)
     return agp_dict
 
@@ -98,7 +100,9 @@ def print_adjusted_mappings(read_id: str, mappings: list, outfile: io.TextIOWrap
         concat_mappings = [m for run in tup for m in run[3]]
         monotonic_increase = all(i.ctg_pos < j.ctg_pos for i, j in zip(concat_mappings, concat_mappings[1:]))
         monotonic_decrease = all(i.ctg_pos > j.ctg_pos for i, j in zip(concat_mappings, concat_mappings[1:]))
-        assert monotonic_increase or monotonic_decrease
+        if not monotonic_increase and not monotonic_decrease: #!!TODO look into this more?
+            continue
+#        assert monotonic_increase or monotonic_decrease, (ctg, read_id, concat_mappings)
         mx_string = NtLink.print_minimizer_positions(concat_mappings)
         outfile.write(f"{read_id}\t{ctg}\t{len(concat_mappings)}\t{mx_string}\n")
 
