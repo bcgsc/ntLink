@@ -86,7 +86,7 @@ def print_adjusted_mappings(read_id: str, mappings: list, outfile: io.TextIOWrap
             contig_hits[ctg].hits = list_mappings
         else:
             for j in range(contig_hits[ctg].index + 1, i):
-                contig_hits[ctg].subsumed = True
+                contig_hits[contig_runs[j][0]].subsumed = True
             contig_hits[ctg] = ContigRun(ctg, i, len(list_mappings))
             contig_hits[ctg].hits = list_mappings
 
