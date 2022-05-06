@@ -239,6 +239,7 @@ def get_accepted_anchor_contigs(mx_list, read_length, scaffolds, list_mx_info, a
             for j in range(contigs_hits[ctg].index + 1, i):
                 contigs_hits[contig_runs[j][0]].subsumed = True
             contigs_hits[ctg].hits.extend(list_hits)
+            contigs_hits[ctg].hit_count += cnt 
         else:
             contigs_hits[ctg] = ntlink_pair.ContigRun(ctg, i, cnt)
             contigs_hits[ctg].hits.extend(list_hits)
