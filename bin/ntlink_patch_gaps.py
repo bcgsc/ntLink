@@ -99,19 +99,6 @@ def read_path_file_pairs(path_filename: str, min_gap_size: int) -> dict:
                     pairs[(i, k)] = PairInfo(int(gap_match.group(1)) - 1)
     return pairs
 
-def parse_minimizers(minimizer_positions: str) -> list:
-    "Parse the minimizer positions string"
-    minimizer_positions = minimizer_positions.split(" ")
-    return_mxs = []
-    for mx_str in minimizer_positions:
-        ctg, read = mx_str.split("_")
-        ctg_pos, ctg_strand = ctg.split(":")
-        read_pos, read_strand = read.split(":")
-        return_mxs.append(MinimizerPositions(ctg_pos=int(ctg_pos), ctg_strand=ctg_strand,
-                                             read_pos=int(read_pos), read_strand=read_strand))
-    return return_mxs
-
-
 def find_orientation(mx_positions: list):
     "Infer orientation relative to contig from minimizer positions"
     if all(x.ctg_strand == x.read_strand for x in mx_positions):

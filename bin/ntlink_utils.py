@@ -253,3 +253,16 @@ def get_accepted_anchor_contigs(mx_list, read_length, scaffolds, list_mx_info, a
         contigs_hits[ctg].hits = contig_positions[ctg]
 
     return return_contigs_hits, return_contig_runs
+
+def parse_minimizers(minimizer_positions: str) -> list:
+    "Parse the minimizer positions string"
+    minimizer_positions = minimizer_positions.split(" ")
+    return_mxs = []
+    for mx_str in minimizer_positions:
+        ctg, read = mx_str.split("_")
+        ctg_pos, ctg_strand = ctg.split(":")
+        read_pos, read_strand = read.split(":")
+        return_mxs.append(MinimizerPositions(ctg_pos=int(ctg_pos), ctg_strand=ctg_strand,
+                                             read_pos=int(read_pos), read_strand=read_strand))
+    return return_mxs
+

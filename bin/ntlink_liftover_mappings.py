@@ -8,7 +8,6 @@ import itertools
 import re
 from ntlink_utils import MinimizerPositions, reverse_orientation
 from ntlink_pair import ContigRun, NtLink
-import ntlink_patch_gaps
 import io
 
 class AGP:

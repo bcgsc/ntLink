@@ -15,7 +15,6 @@ import sys
 import numpy as np
 import igraph as ig
 import ntlink_utils
-import ntlink_patch_gaps
 
 MinimizerEdge = namedtuple("MinimizerEdge", ["mx_i", "mx_i_pos", "mx_i_strand",
                                              "mx_j", "mx_j_pos", "mx_j_strand"])
@@ -434,7 +433,7 @@ class NtLink():
         for i, m in enumerate(mappings):
             contig_runs.append(m.contig_id)
             accepted_anchor_contigs[m.contig_id] = ContigRun(m.contig_id, i, int(m.num_hits))
-            accepted_anchor_contigs[m.contig_id].hits = ntlink_patch_gaps.parse_minimizers(m.list_hits)
+            accepted_anchor_contigs[m.contig_id].hits = ntlink_utils.parse_minimizers(m.list_hits)
             # Generate random 64-bit integer to represent the minimizer hash
             first_hash = random.getrandbits(64)
             last_hash = random.getrandbits(64)
