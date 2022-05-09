@@ -9,16 +9,19 @@ import datetime
 from collections import defaultdict
 from collections import namedtuple
 import itertools
+import random
 import re
 import sys
 import numpy as np
 import igraph as ig
 import ntlink_utils
+import ntlink_patch_gaps
 
 MinimizerEdge = namedtuple("MinimizerEdge", ["mx_i", "mx_i_pos", "mx_i_strand",
                                              "mx_j", "mx_j_pos", "mx_j_strand"])
 Minimizer = namedtuple("Minimizer", ["contig", "position", "strand"])
 MinimizerWithHash = namedtuple("Minimizer_with_hash", ["mx_hash", "contig", "position", "strand"])
+MappingEntry = namedtuple("MappingEntry", ["read_id", "contig_id", "num_hits", "list_hits"])
 
 class ScaffoldPair:
     "Object that represents a scaffold pair"
@@ -374,28 +377,82 @@ class NtLink():
                             accepted_anchor_contigs[mx_contig].terminal_mx = MinimizerWithHash(mx, mx_contig,
                                                                                                int(pos), strand)
 
-                        if len(contig_runs) <= self.args.f:
-                            # Add all transitive edges for pairs
-                            for ctg_pair in itertools.combinations(contig_runs, 2):
-                                ctg_i, ctg_j = ctg_pair
-                                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_long_read)
-                        else:
-                            added_pairs = set()
-                            # Add adjacent pairs
-                            for ctg_i, ctg_j in zip(contig_runs, contig_runs[1:]):
-                                new_pair = self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_long_read)
-                                added_pairs.add(new_pair)
-
-                            # Add transitive edges over weakly supported contigs
-                            contig_runs_filter = [ctg for ctg in contig_runs
-                                                  if accepted_anchor_contigs[ctg].hit_count > 1]
-                            for ctg_i, ctg_j in zip(contig_runs_filter, contig_runs_filter[1:]):
-                                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_long_read,
-                                              check_added=added_pairs)
+                        self.tally_pairs_from_mappings(accepted_anchor_contigs, contig_runs, length_long_read, pairs)
         if self.args.verbose:
             verbose_file.close()
 
         return pairs
+
+    def tally_pairs_from_mappings(self, accepted_anchor_contigs, contig_runs, length_long_read, pairs):
+        if len(contig_runs) <= self.args.f:
+            # Add all transitive edges for pairs
+            for ctg_pair in itertools.combinations(contig_runs, 2):
+                ctg_i, ctg_j = ctg_pair
+                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_long_read)
+        else:
+            added_pairs = set()
+            # Add adjacent pairs
+            for ctg_i, ctg_j in zip(contig_runs, contig_runs[1:]):
+                new_pair = self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_long_read)
+                added_pairs.add(new_pair)
+
+            # Add transitive edges over weakly supported contigs
+            contig_runs_filter = [ctg for ctg in contig_runs
+                                  if accepted_anchor_contigs[ctg].hit_count > 1]
+            for ctg_i, ctg_j in zip(contig_runs_filter, contig_runs_filter[1:]):
+                self.add_pair(accepted_anchor_contigs, ctg_i, ctg_j, pairs, length_long_read,
+                              check_added=added_pairs)
+
+    def find_scaffold_pairs_checkpoints(self):
+        "Build up pairing information between scaffold - using checkpoint mapping file"
+        print(datetime.datetime.today(), ": Finding pairs", file=sys.stdout)
+        pairs = {}
+
+        # Read through checkpoint file
+        curr_read_id = None
+        curr_mappings = []
+        with open(self.args.checkpoint_file, 'r') as checkpoint_file:
+            for line in checkpoint_file:
+                read_id, contig_id, num_hits, mx_hits = line.strip().split('\t')
+                if read_id != curr_read_id:
+                    if curr_read_id is not None:
+                        self.parse_verbose_entries(curr_mappings, pairs)
+                    curr_read_id = read_id
+                    curr_mappings = [MappingEntry(read_id, contig_id, num_hits, mx_hits)]
+                else:
+                    curr_mappings.append(MappingEntry(read_id, contig_id, num_hits, mx_hits))
+        # Don't forget the last read mapping
+        self.parse_verbose_entries(curr_mappings, pairs)
+
+        return pairs
+
+    def parse_verbose_entries(self, mappings, pairs):
+        "Parse the verbose entries from the given read, convert to accepted contigs runs"
+        accepted_anchor_contigs = {}
+        contig_runs = []
+        read_mapping_positions = []
+        for i, m in enumerate(mappings):
+            contig_runs.append(m.contig_id)
+            accepted_anchor_contigs[m.contig_id] = ContigRun(m.contig_id, i, int(m.num_hits))
+            accepted_anchor_contigs[m.contig_id].hits = ntlink_patch_gaps.parse_minimizers(m.list_hits)
+            # Generate random 64-bit integer to represent the minimizer hash
+            first_hash = random.getrandbits(64)
+            last_hash = random.getrandbits(64)
+            # Easier access to the first and last minimizer hits
+            first_mx_hit = accepted_anchor_contigs[m.contig_id].hits[0]
+            last_mx_hit = accepted_anchor_contigs[m.contig_id].hits[-1]
+            # Load minimizer positions for the read
+            accepted_anchor_contigs[m.contig_id].first_hash = MinimizerWithHash(first_hash, m.contig_id,
+                                                                                first_mx_hit.read_pos, first_mx_hit.read_strand)
+            accepted_anchor_contigs[m.contig_id].last_hash = MinimizerWithHash(last_hash, m.contig_id,
+                                                                                last_mx_hit.read_pos, last_mx_hit.read_strand)
+            read_mapping_positions.append(first_mx_hit.read_pos)
+            read_mapping_positions.append(last_mx_hit.read_pos)
+            # Load the minimizer positions for the contig
+            NtLink.list_mx_info[first_hash] = Minimizer(m.contig_id, first_mx_hit.contig_pos, first_mx_hit.contig_strand)
+            NtLink.list_mx_info[last_hash] = Minimizer(m.contig_id, last_mx_hit.contig_pos, last_mx_hit.contig_strand)
+        length_read = max(read_mapping_positions)
+        self.tally_pairs_from_mappings(accepted_anchor_contigs, contig_runs, length_read, pairs)
 
     def write_pairs(self, pairs):
         "Write the scaffold pairs to file"
@@ -434,6 +491,7 @@ class NtLink():
         parser.add_argument("-x", help="Fudge factor allowed between mapping block lengths on read and assembly. "
                                        "Set to 0 to allow mapping block to be up to read length",
                             type=float, default=0)
+        parser.add_argument("-c", "--checkpoint", help="Mappings checkpoint file", required=False)
         parser.add_argument("-v", "--version", action='version', version='ntLink v1.2.1')
         parser.add_argument("--verbose", help="Verbose output logging", action='store_true')
 
@@ -452,22 +510,30 @@ class NtLink():
         print("\t-z ", self.args.z)
         print("\t-f ", self.args.f)
         print("\t-x ", self.args.x)
+        if self.args.checkpoint:
+            print("\t-c ", self.args.checkpoint)
 
     def main(self):
         "Run ntLink graph stage"
         print("Running pairing stage of ntLink ...\n")
         self.print_parameters()
 
-        # Read in the minimizers for target assembly
-        mxs_info = self.read_minimizers(self.args.m)
-        NtLink.list_mx_info = mxs_info
+        if self.args.checkpoint:
+            NtLink.list_mx_info = {}
+        else:
+            # Read in the minimizers for target assembly
+            mxs_info = self.read_minimizers(self.args.m)
+            NtLink.list_mx_info = mxs_info
 
         # Load target scaffolds into memory
         scaffolds = ntlink_utils.read_fasta_file(self.args.s)  # scaffold_id -> Scaffold
         NtLink.scaffolds = scaffolds
 
-        # Get directed scaffold pairs, gap estimates from long reads
-        pairs = self.find_scaffold_pairs()
+        if self.args.checkpoint:
+            pairs = self.find_scaffold_pairs_checkpoint()
+        else:
+            # Get directed scaffold pairs, gap estimates from long reads
+            pairs = self.find_scaffold_pairs()
 
         pairs = self.filter_pairs_distances(pairs)
 
