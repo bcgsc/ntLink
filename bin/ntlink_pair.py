@@ -9,6 +9,7 @@ import datetime
 from collections import defaultdict
 from collections import namedtuple
 import itertools
+import os
 import random
 import re
 import sys
@@ -515,6 +516,10 @@ class NtLink():
         "Run ntLink graph stage"
         print("Running pairing stage of ntLink ...\n")
         self.print_parameters()
+
+        # Check if the checkpoint mapping file exists
+        if os.path.isfile(self.args.p + ".verbose_mapping.tsv"):
+            self.args.checkpoint = self.args.p + ".verbose_mapping.tsv"
 
         if self.args.checkpoint:
             NtLink.list_mx_info = {}
