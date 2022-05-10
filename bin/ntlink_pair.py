@@ -160,7 +160,6 @@ class NtLink():
             v_ctg = NtLink.list_mx_info[j_mx].contig
             v_ctglen = NtLink.scaffolds[v_ctg].length
             b = v_ctglen - NtLink.list_mx_info[j_mx].position - self.args.k
-
         try:
             assert a >= 0
             assert b >= 0
@@ -441,9 +440,9 @@ class NtLink():
             first_mx_hit = accepted_anchor_contigs[m.contig_id].hits[0]
             last_mx_hit = accepted_anchor_contigs[m.contig_id].hits[-1]
             # Load minimizer positions for the read
-            accepted_anchor_contigs[m.contig_id].first_hash = MinimizerWithHash(first_hash, m.contig_id,
+            accepted_anchor_contigs[m.contig_id].first_mx = MinimizerWithHash(first_hash, m.contig_id,
                                                                                 first_mx_hit.read_pos, first_mx_hit.read_strand)
-            accepted_anchor_contigs[m.contig_id].last_hash = MinimizerWithHash(last_hash, m.contig_id,
+            accepted_anchor_contigs[m.contig_id].terminal_mx = MinimizerWithHash(last_hash, m.contig_id,
                                                                                 last_mx_hit.read_pos, last_mx_hit.read_strand)
             read_mapping_positions.append(first_mx_hit.read_pos)
             read_mapping_positions.append(last_mx_hit.read_pos)
@@ -452,7 +451,7 @@ class NtLink():
             NtLink.list_mx_info[last_hash] = Minimizer(m.contig_id, last_mx_hit.ctg_pos, last_mx_hit.ctg_strand)
         length_read = max(read_mapping_positions)
         for ctg in accepted_anchor_contigs:
-            print(ctg, accepted_anchor_contigs[ctg])
+            print(ctg, accepted_anchor_contigs[ctg], m.read_id)
         self.tally_pairs_from_mappings(accepted_anchor_contigs, contig_runs, length_read, pairs)
 
     def write_pairs(self, pairs):
