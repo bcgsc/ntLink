@@ -450,8 +450,6 @@ class NtLink():
             NtLink.list_mx_info[first_hash] = Minimizer(m.contig_id, first_mx_hit.ctg_pos, first_mx_hit.ctg_strand)
             NtLink.list_mx_info[last_hash] = Minimizer(m.contig_id, last_mx_hit.ctg_pos, last_mx_hit.ctg_strand)
         length_read = max(read_mapping_positions)
-        for ctg in accepted_anchor_contigs:
-            print(ctg, accepted_anchor_contigs[ctg], m.read_id)
         self.tally_pairs_from_mappings(accepted_anchor_contigs, contig_runs, length_read, pairs)
 
     def write_pairs(self, pairs):

@@ -76,8 +76,6 @@ def liftover_ctg_mappings(mappings_list: list, agp_dict: dict, k: int) -> tuple:
 
 def print_adjusted_mappings(read_id: str, mappings: list, outfile: io.TextIOWrapper) -> None:
     "Print the adjusted mapping, grouping sequences from the same path ID"
-    if not mappings:
-        return # No mappings to print
     # Group the mappings by contig, and mark subsumed
     contig_runs = [(ctg, list(tup)) for ctg, tup in itertools.groupby(mappings, lambda x: x[1])]
     contig_hits = {}
@@ -100,6 +98,8 @@ def print_adjusted_mappings(read_id: str, mappings: list, outfile: io.TextIOWrap
         tup = list(tup)
 
         concat_mappings = [m for run in tup for m in run[3]]
+        if not concat_mappings:
+            continue # Don't print if empty list
         monotonic_increase = all(i.ctg_pos < j.ctg_pos for i, j in zip(concat_mappings, concat_mappings[1:]))
         monotonic_decrease = all(i.ctg_pos > j.ctg_pos for i, j in zip(concat_mappings, concat_mappings[1:]))
         if not monotonic_increase and not monotonic_decrease: #!!TODO look into this more?
