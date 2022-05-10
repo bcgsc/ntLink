@@ -140,7 +140,7 @@ def tally_contig_mapping_info(read_id: str, mappings: list, read_info: dict, pai
     read_info[read_id] = {}
     mapping_order = []
     for _, ctg_id, anchors, minimizer_positions in mappings:
-        minimizer_positions = parse_minimizers(minimizer_positions)
+        minimizer_positions = ntlink_utils.parse_minimizers(minimizer_positions)
         orientation = find_orientation(minimizer_positions)
         if orientation not in ["+", "-"]:
             continue
