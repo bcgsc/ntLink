@@ -99,8 +99,8 @@ class ContigRun:
 
     def __str__(self):
         return "contig={contig}, hit_count={hit_count}, subsumed={subsumed}, " \
-               "index={index}, hits={hits}".format(contig=self.contig, hit_count=self.hit_count,
-                                      subsumed=self.subsumed, index=self.index, hits=self.hits)
+               "index={index}, hits={hits}, first_mx={first_mx}, terminal_mx={terminal_mx}".format(contig=self.contig, hit_count=self.hit_count,
+                                      subsumed=self.subsumed, index=self.index, hits=self.hits, first_mx=self.first_mx, terminal_mx=self.terminal_mx)
 
 class NtLink():
     "Represents an ntLink graph construction run"
@@ -410,7 +410,7 @@ class NtLink():
         # Read through checkpoint file
         curr_read_id = None
         curr_mappings = []
-        with open(self.args.checkpoint_file, 'r') as checkpoint_file:
+        with open(self.args.checkpoint, 'r') as checkpoint_file:
             for line in checkpoint_file:
                 read_id, contig_id, num_hits, mx_hits = line.strip().split('\t')
                 if read_id != curr_read_id:
@@ -448,9 +448,11 @@ class NtLink():
             read_mapping_positions.append(first_mx_hit.read_pos)
             read_mapping_positions.append(last_mx_hit.read_pos)
             # Load the minimizer positions for the contig
-            NtLink.list_mx_info[first_hash] = Minimizer(m.contig_id, first_mx_hit.contig_pos, first_mx_hit.contig_strand)
-            NtLink.list_mx_info[last_hash] = Minimizer(m.contig_id, last_mx_hit.contig_pos, last_mx_hit.contig_strand)
+            NtLink.list_mx_info[first_hash] = Minimizer(m.contig_id, first_mx_hit.ctg_pos, first_mx_hit.ctg_strand)
+            NtLink.list_mx_info[last_hash] = Minimizer(m.contig_id, last_mx_hit.ctg_pos, last_mx_hit.ctg_strand)
         length_read = max(read_mapping_positions)
+        for ctg in accepted_anchor_contigs:
+            print(ctg, accepted_anchor_contigs[ctg])
         self.tally_pairs_from_mappings(accepted_anchor_contigs, contig_runs, length_read, pairs)
 
     def write_pairs(self, pairs):
@@ -529,7 +531,7 @@ class NtLink():
         NtLink.scaffolds = scaffolds
 
         if self.args.checkpoint:
-            pairs = self.find_scaffold_pairs_checkpoint()
+            pairs = self.find_scaffold_pairs_checkpoints()
         else:
             # Get directed scaffold pairs, gap estimates from long reads
             pairs = self.find_scaffold_pairs()
