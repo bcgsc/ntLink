@@ -110,12 +110,12 @@ def print_adjusted_mappings(read_id: str, mappings: list, outfile: io.TextIOWrap
 
 
 
-def liftover_mappings(mappings_filename: str, agp_dict: dict, prefix: str, k: int) -> None:
+def liftover_mappings(mappings_filename: str, agp_dict: dict, output: str, k: int) -> None:
     "Liftover the verbose mappings file"
     cur_read_id = None
     cur_read_id_mappings = []
     with open(mappings_filename, 'r') as mappings_file:
-        with open(prefix + '.liftover.mappings', 'w') as liftover_mappings_file:
+        with open(output, 'w') as liftover_mappings_file:
             for line in mappings_file:
                 line = line.strip().split('\t')
                 mapping = liftover_ctg_mappings(line, agp_dict, k)
@@ -135,7 +135,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description='Liftover of ntLink mappings')
     parser.add_argument("-m", "--mappings", help="Path to the verbose mappings file", required=True)
     parser.add_argument("-a", "--agp", help="Path to the AGP file", required=True)
-    parser.add_argument("-p", "--prefix", help="Prefix for the output files", required=True)
+    parser.add_argument("-o", "--output", help="Output file name", required=True)
     parser.add_argument("-k", "--kmer", help="Kmer size", required=True, type=int)
     args = parser.parse_args()
 
@@ -143,7 +143,7 @@ def main() -> None:
     agp_dict = read_agp(args.agp)
 
     # Liftover the verbose mappings file
-    liftover_mappings(args.mappings, agp_dict, args.prefix, args.kmer)
+    liftover_mappings(args.mappings, agp_dict, args.output, args.kmer)
 
 if __name__ == "__main__":
     main()
