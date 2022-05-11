@@ -39,6 +39,12 @@ class ScaffoldGaps:
             return self.reverse_complement(self.seq[five_prime_cut_site: three_prime_cut_site])
         return self.seq[five_prime_cut_site: three_prime_cut_site]
 
+    def get_cut_coordinates(self):
+        "Get the cut coordinates"
+        five_prime_cut_site = max(self.five_prime_trim, self.five_prime_cut)
+        three_prime_cut_site = min(self.three_prime_trim, self.three_prime_cut)
+        return five_prime_cut_site, three_prime_cut_site
+
     @staticmethod
     def reverse_complement(sequence):
         "Reverse complements a given sequence"
@@ -79,6 +85,12 @@ class PairInfo:
         if reverse_compl == "-":
             return self.reverse_complement(reads[self.chosen_read][self.target_read_cut: self.source_read_cut])
         return reads[self.chosen_read][self.source_read_cut: self.target_read_cut]
+
+    def get_cut_coordinates(self, reverse_compl):
+        "Get the cut coordinates"
+        if reverse_compl == "-":
+            return self.target_read_cut, self.source_read_cut
+        return self.source_read_cut, self.target_read_cut
 
 def read_path_file_pairs(path_filename: str, min_gap_size: int) -> dict:
     "Read through the path file, storing the found pairs: pair -> gap estimate"
@@ -579,6 +591,67 @@ def print_gap_filled_sequences(pairs: dict, mappings: dict, sequences: dict, rea
 
     outfile.close()
 
+def print_agp(pairs: dict, mappings: dict, sequences: dict, args: argparse.Namespace) -> None:
+    "Describe the gap-filled sequence in AGP format"
+    gap_re = re.compile(r'^(\d+)N$')
+    outfile = open(args.o + ".agp", 'w')
+
+    printed_scaffolds = set()
+
+    with open(args.path, 'r') as fin:
+        for line in fin:
+            start = 1
+            component_id = 1
+            line = line.strip().split("\t")
+            if len(line) < 2:
+                continue
+            ctg_id, path = line
+            path = path.split(" ")
+            for idx, node in enumerate(path):
+                gap_match = re.search(gap_re, node)
+                if gap_match:
+                    gap_size = int(gap_match.group(1))
+                    source, target = path[idx-1], path[idx+1]
+                    if (source, target) not in pairs and gap_size > 0:
+                        # Accounting for gaps being one larger in abyss-scaffold path file
+                        outfile.write(f"{ctg_id}\t{start}\t{start + gap_size - 1}\t{component_id}\t"
+                                      f"N\t{gap_size}\tscaffold\tyes\tpaired-ends\n")
+                        start += gap_size
+                        continue
+                    pair_entry = pairs[(source, target)]
+
+                    if pair_entry.source_read_cut is None or pair_entry.target_read_cut is None:
+                        outfile.write(f"{ctg_id}\t{start}\t{start + gap_size - 1}\t{component_id}\t"
+                                      f"N\t{gap_size}\tscaffold\tyes\tpaired-ends\n")
+                        start += gap_size
+                    else:
+                        if mappings[pair_entry.chosen_read][source.strip("+-")].orientation != source[-1]:
+                            read_start, read_end = pair_entry.get_cut_coordinates("-")
+                            ori = "-"
+                        else:
+                            read_start, read_end = pair_entry.get_cut_coordinates("+")
+                            ori = "+"
+                        outfile.write(f"{ctg_id}\t{start}\t{start + (read_end - read_start) - 1}\t{component_id}\t"
+                                      f"W\t{'read_' + pair_entry.chosen_read}\t{read_start + 1}\t{read_end}\t{ori}\n")
+                        start += (read_end - read_start)
+                else:
+                    ctg = node
+                    printed_scaffolds.add(ctg.strip("+-"))
+                    scaf_start, scaf_end = sequences[ctg.strip("+-")].get_cut_coordinates()
+                    outfile.write(f"{ctg_id}\t{start}\t{start + (scaf_end - scaf_start) - 1}\t{component_id}\t"
+                                  f"W\t{ctg}\t{scaf_start + 1}\t{scaf_end}\t{ctg[-1]}\n")
+                    start += (scaf_end - scaf_start)
+                component_id += 1
+
+    for scaffold in sequences: # Print out unassigned contigs
+        if scaffold not in printed_scaffolds:
+            scaffold_entry = sequences[scaffold]
+            ctg_start, ctg_end = scaffold_entry.get_cut_coordinates()
+            outfile.write(f"{scaffold}\t{ctg_start + 1}\t{ctg_end}\t1\t"
+                          f"W\t{scaffold}\t{ctg_start + 1}\t{ctg_end}\t+\n")
+
+    outfile.close()
+
 
 def print_filling_stats(counter: Counter) -> None:
     "Print statistics about gap filling"
@@ -738,6 +811,10 @@ def main() -> None:
     # Print out the sequences
     print_log_message("Printing output scaffolds..")
     print_gap_filled_sequences(pairs, mappings, sequences, reads, args)
+
+    # Print AGP file
+    print_log_message("Printing AGP file..")
+    print_agp(pairs, mappings, sequences, args)
 
     # Clean up masked tmp files
     print_log_message("Cleaning up..")
