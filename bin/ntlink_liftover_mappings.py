@@ -31,8 +31,8 @@ def read_agp(agp_filename: str) -> dict:
     with open(agp_filename, 'r') as agp_file:
         for line in agp_file:
             line = line.strip().split('\t')
-            path_id, scaf_start, scaf_end, component_id, gap_indic, ctg_id, ctg_start, ctg_end, orientation = line
-            if gap_indic == "N":
+            path_id, scaf_start, scaf_end, component_id, component_type, ctg_id, ctg_start, ctg_end, orientation = line
+            if component_type == "N" or component_type == "P":
                 continue
             agp_dict[ctg_id] = AGP(path_id, scaf_start, scaf_end, ctg_id, orientation, ctg_start, ctg_end, component_id)
     return agp_dict
@@ -55,6 +55,8 @@ def liftover_ctg_mappings(mappings_list: list, agp_dict: dict, k: int) -> tuple:
     read_id, ctg, num_anchors, mappings = mappings_list
     mappings = parse_mappings(mappings)
     adjusted_mappings = []
+    if ctg not in agp_dict:
+        return (read_id, ctg, 0, [], None)
     agp_entry = agp_dict[ctg]
     for m in mappings:
         if not (agp_entry.ctg_start - 1 <= m.ctg_pos <= agp_entry.ctg_end):
