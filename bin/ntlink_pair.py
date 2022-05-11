@@ -515,13 +515,15 @@ class NtLink():
     def main(self):
         "Run ntLink graph stage"
         print("Running pairing stage of ntLink ...\n")
-        self.print_parameters()
 
         # Check if the checkpoint mapping file exists
         if os.path.isfile(self.args.p + ".verbose_mapping.tsv"):
             self.args.checkpoint = self.args.p + ".verbose_mapping.tsv"
 
+        self.print_parameters()
+
         if self.args.checkpoint:
+            print("Found checkpoint file, bypassing read mapping...\n")
             NtLink.list_mx_info = {}
         else:
             # Read in the minimizers for target assembly

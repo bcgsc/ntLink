@@ -610,14 +610,16 @@ def print_agp(pairs: dict, mappings: dict, sequences: dict, args: argparse.Names
             for idx, node in enumerate(path):
                 gap_match = re.search(gap_re, node)
                 if gap_match:
-                    gap_size = int(gap_match.group(1))
+                    gap_size = int(gap_match.group(1)) - 1 # Account for gaps being one larger in abyss-scaffold path file
                     source, target = path[idx-1], path[idx+1]
                     if (source, target) not in pairs and gap_size > 0:
-                        # Accounting for gaps being one larger in abyss-scaffold path file
                         outfile.write(f"{ctg_id}\t{start}\t{start + gap_size - 1}\t{component_id}\t"
                                       f"N\t{gap_size}\tscaffold\tyes\tpaired-ends\n")
                         start += gap_size
                         continue
+                    elif (source, target) not in pairs and gap_size <= 0:
+                        continue
+
                     pair_entry = pairs[(source, target)]
 
                     if pair_entry.source_read_cut is None or pair_entry.target_read_cut is None:
@@ -631,13 +633,17 @@ def print_agp(pairs: dict, mappings: dict, sequences: dict, args: argparse.Names
                         else:
                             read_start, read_end = pair_entry.get_cut_coordinates("+")
                             ori = "+"
+                        if not read_end >= (read_start + 1):
+                            continue # Accounts for when read fully eroded
                         outfile.write(f"{ctg_id}\t{start}\t{start + (read_end - read_start) - 1}\t{component_id}\t"
-                                      f"W\t{'read_' + pair_entry.chosen_read}\t{read_start + 1}\t{read_end}\t{ori}\n")
+                                      f"P\t{pair_entry.chosen_read}\t{read_start + 1}\t{read_end}\t{ori}\n")
                         start += (read_end - read_start)
                 else:
                     ctg = node
                     printed_scaffolds.add(ctg.strip("+-"))
                     scaf_start, scaf_end = sequences[ctg.strip("+-")].get_cut_coordinates()
+                    if not scaf_end >= (scaf_start + 1):
+                        continue # Accounts for when scaffolds are fully eroded
                     outfile.write(f"{ctg_id}\t{start}\t{start + (scaf_end - scaf_start) - 1}\t{component_id}\t"
                                   f"W\t{ctg.strip('+-')}\t{scaf_start + 1}\t{scaf_end}\t{ctg[-1]}\n")
                     start += (scaf_end - scaf_start)
