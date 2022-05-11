@@ -639,7 +639,7 @@ def print_agp(pairs: dict, mappings: dict, sequences: dict, args: argparse.Names
                     printed_scaffolds.add(ctg.strip("+-"))
                     scaf_start, scaf_end = sequences[ctg.strip("+-")].get_cut_coordinates()
                     outfile.write(f"{ctg_id}\t{start}\t{start + (scaf_end - scaf_start) - 1}\t{component_id}\t"
-                                  f"W\t{ctg}\t{scaf_start + 1}\t{scaf_end}\t{ctg[-1]}\n")
+                                  f"W\t{ctg.strip('+-')}\t{scaf_start + 1}\t{scaf_end}\t{ctg[-1]}\n")
                     start += (scaf_end - scaf_start)
                 component_id += 1
 
