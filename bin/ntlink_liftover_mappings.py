@@ -43,33 +43,24 @@ def read_agp(agp_filename: str) -> dict:
             agp_dict[ctg_id] = AGP(path_id, scaf_start, scaf_end, ctg_id, orientation, ctg_start, ctg_end, component_id)
     return agp_dict
 
-def try_int(s):
-    "Try to convert a string to an int"
-    try:
-        return int(s)
-    except ValueError:
-        return s
 
 def parse_mappings(mappings: str) -> list:
     "Parse the mappings string into a list of MinimizerPositions objects"
-    mappings = mappings.split(" ")
     return_mappings = []
-    for m in mappings:
+    for m in mappings.split(" "):
         ctg_maps, read_maps = m.split("_")
         ctg_pos, ctg_strand = ctg_maps.split(":")
         read_pos, read_strand = read_maps.split(":")
-        return_mappings.append(MinimizerPositions(int(ctg_pos), ctg_strand, int(read_pos), read_strand))
-    return return_mappings
+        yield MinimizerPositions(int(ctg_pos), ctg_strand, int(read_pos), read_strand)
 
 def liftover_ctg_mappings(mappings_list: list, agp_dict: dict, k: int) -> tuple:
     "Liftover the mappings for an entry"
     read_id, ctg, num_anchors, mappings = mappings_list
-    mappings = parse_mappings(mappings)
     adjusted_mappings = []
     if ctg not in agp_dict:
         return (read_id, ctg, 0, [], None)
     agp_entry = agp_dict[ctg]
-    for m in mappings:
+    for m in parse_mappings(mappings):
         if not agp_entry.ctg_start - 1 <= m.ctg_pos <= agp_entry.ctg_end:
             continue # Mapping is outside of the assigned contig region
         adjust_pos = m.ctg_pos - (agp_entry.ctg_start - 1)
@@ -100,8 +91,8 @@ def print_adjusted_mappings(read_id: str, mappings: list, outfile: io.TextIOWrap
         else:
             for j in range(contig_hits[ctg].index + 1, i):
                 contig_hits[contig_runs[j][0]].subsumed = True
-            contig_hits[ctg] = ContigRun(ctg, i, len(list_mappings))
-            contig_hits[ctg].hits = list_mappings
+            contig_hits[ctg].hits.extend(list_mappings)
+            contig_hits[ctg].hit_count += len(list_mappings)
 
     filtered_mappings = [m for m in mappings if not contig_hits[m[1]].subsumed]
 
@@ -113,9 +104,10 @@ def print_adjusted_mappings(read_id: str, mappings: list, outfile: io.TextIOWrap
         if not concat_mappings:
             continue # Don't print if empty list
         monotonic_increase = all(i.ctg_pos < j.ctg_pos for i, j in zip(concat_mappings, concat_mappings[1:]))
-        monotonic_decrease = all(i.ctg_pos > j.ctg_pos for i, j in zip(concat_mappings, concat_mappings[1:]))
-        if not monotonic_increase and not monotonic_decrease: #!!TODO deal with these cases?
-            continue
+        if not monotonic_increase:
+            monotonic_decrease = all(i.ctg_pos > j.ctg_pos for i, j in zip(concat_mappings, concat_mappings[1:]))
+            if not monotonic_decrease:
+                continue # !! TODO: deal with these cases?
         mx_string = NtLink.print_minimizer_positions(concat_mappings)
         outfile.write(f"{read_id}\t{ctg}\t{len(concat_mappings)}\t{mx_string}\n")
 
