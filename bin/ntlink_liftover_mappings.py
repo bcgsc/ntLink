@@ -10,6 +10,7 @@ from ntlink_utils import MinimizerPositions, reverse_orientation
 from ntlink_pair import ContigRun, NtLink
 import io
 
+
 class AGP:
     def __init__(self, path_id, scaf_start, scaf_end, contig_id, orientation, ctg_start, ctg_end, component_id):
         self.path_id = path_id
@@ -47,8 +48,12 @@ def try_int(s):
 def parse_mappings(mappings: str) -> list:
     "Parse the mappings string into a list of MinimizerPositions objects"
     mappings = mappings.split(" ")
-    mappings = [MinimizerPositions(*list(map(try_int, re.split(r':|_', m)))) for m in mappings]
-    return mappings
+    return_mappings = []
+    for m in mappings:
+        ctg_maps, read_maps = m.split("_")
+        ctg_pos, ctg_strand, read_pos, read_strand = ctg_maps.split(":"), read_maps.split(":")
+        return_mappings.append(MinimizerPositions(int(ctg_pos), ctg_strand, int(read_pos), read_strand))
+    return return_mappings
 
 def liftover_ctg_mappings(mappings_list: list, agp_dict: dict, k: int) -> tuple:
     "Liftover the mappings for an entry"
