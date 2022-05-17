@@ -5,13 +5,13 @@ system of the scaffolded sequences
 '''
 import argparse
 import itertools
-import re
+import io
 from ntlink_utils import MinimizerPositions, reverse_orientation
 from ntlink_pair import ContigRun, NtLink
-import io
 
 
 class AGP:
+    "Represents an AGP file entry"
     def __init__(self, path_id, scaf_start, scaf_end, contig_id, orientation, ctg_start, ctg_end, component_id):
         self.path_id = path_id
         self.scaf_start = int(scaf_start)
@@ -23,7 +23,12 @@ class AGP:
         self.component_id = int(component_id)
 
     def get_ctg_length(self):
+        "Returns the length of the contig"
         return self.ctg_end - self.ctg_start + 1
+
+    def get_scaf_length(self):
+        "Returns the length of the scaffold"
+        return self.scaf_end - self.scaf_start + 1
 
 
 def read_agp(agp_filename: str) -> dict:
@@ -33,7 +38,7 @@ def read_agp(agp_filename: str) -> dict:
         for line in agp_file:
             line = line.strip().split('\t')
             path_id, scaf_start, scaf_end, component_id, component_type, ctg_id, ctg_start, ctg_end, orientation = line
-            if component_type == "N" or component_type == "P":
+            if component_type in ("N", "P"):
                 continue
             agp_dict[ctg_id] = AGP(path_id, scaf_start, scaf_end, ctg_id, orientation, ctg_start, ctg_end, component_id)
     return agp_dict
@@ -65,7 +70,7 @@ def liftover_ctg_mappings(mappings_list: list, agp_dict: dict, k: int) -> tuple:
         return (read_id, ctg, 0, [], None)
     agp_entry = agp_dict[ctg]
     for m in mappings:
-        if not (agp_entry.ctg_start - 1 <= m.ctg_pos <= agp_entry.ctg_end):
+        if not agp_entry.ctg_start - 1 <= m.ctg_pos <= agp_entry.ctg_end:
             continue # Mapping is outside of the assigned contig region
         adjust_pos = m.ctg_pos - (agp_entry.ctg_start - 1)
         offset = agp_entry.scaf_start - 1
@@ -98,8 +103,7 @@ def print_adjusted_mappings(read_id: str, mappings: list, outfile: io.TextIOWrap
             contig_hits[ctg] = ContigRun(ctg, i, len(list_mappings))
             contig_hits[ctg].hits = list_mappings
 
-    contig_subsumed = [ctg for ctg in contig_hits if contig_hits[ctg].subsumed]
-    filtered_mappings = [m for m in mappings if m[1] not in contig_subsumed]
+    filtered_mappings = [m for m in mappings if not contig_hits[m[1]].subsumed]
 
     # Group the reads again, this time adjusting and printing out the mappings
     for ctg, tup in itertools.groupby(filtered_mappings, lambda x: x[1]):
@@ -110,9 +114,8 @@ def print_adjusted_mappings(read_id: str, mappings: list, outfile: io.TextIOWrap
             continue # Don't print if empty list
         monotonic_increase = all(i.ctg_pos < j.ctg_pos for i, j in zip(concat_mappings, concat_mappings[1:]))
         monotonic_decrease = all(i.ctg_pos > j.ctg_pos for i, j in zip(concat_mappings, concat_mappings[1:]))
-        if not monotonic_increase and not monotonic_decrease: #!!TODO look into this more?
+        if not monotonic_increase and not monotonic_decrease: #!!TODO deal with these cases?
             continue
-#        assert monotonic_increase or monotonic_decrease, (ctg, read_id, concat_mappings)
         mx_string = NtLink.print_minimizer_positions(concat_mappings)
         outfile.write(f"{read_id}\t{ctg}\t{len(concat_mappings)}\t{mx_string}\n")
 
@@ -140,6 +143,7 @@ def liftover_mappings(mappings_filename: str, agp_dict: dict, output: str, k: in
 
 
 def main() -> None:
+    "Liftover the ntLink verbose mappings file"
     parser = argparse.ArgumentParser(description='Liftover of ntLink mappings')
     parser.add_argument("-m", "--mappings", help="Path to the verbose mappings file", required=True)
     parser.add_argument("-a", "--agp", help="Path to the AGP file", required=True)
