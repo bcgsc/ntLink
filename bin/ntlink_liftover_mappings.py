@@ -51,7 +51,8 @@ def parse_mappings(mappings: str) -> list:
     return_mappings = []
     for m in mappings:
         ctg_maps, read_maps = m.split("_")
-        ctg_pos, ctg_strand, read_pos, read_strand = ctg_maps.split(":"), read_maps.split(":")
+        ctg_pos, ctg_strand = ctg_maps.split(":")
+        read_pos, read_strand = read_maps.split(":")
         return_mappings.append(MinimizerPositions(int(ctg_pos), ctg_strand, int(read_pos), read_strand))
     return return_mappings
 
