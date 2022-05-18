@@ -105,9 +105,9 @@ $(target).k$k.w$w.z$z.ntLink.fa: $(target) $(reads)
 # Subsequent rounds of ntLink - gap-filling
 %.ntLink.gap_fill.fa:  %.gap_fill.fa $(reads) %.gap_fill.fa.k$k.w$w.z$z.verbose_mapping.tsv
 	$(ntLink_time) ntLink scaffold gap_fill target=$< reads=$(reads) k=$k w=$w z=$z
-	ln -sf $*.fa.k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa $@
-	ln -sf $*.fa.k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa.agp $*.ntLink.gap_fill.fa.agp
-	ln -sf $*.fa.k$k.w$w.z$z.verbose_mapping.tsv $*.ntLink.gap_fill.fa.verbose_mapping.tsv
+	ln -sf $*.gap_fill.fa.k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa $@
+	ln -sf $*.gap_fill.fa.k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa.agp $*.ntLink.gap_fill.fa.agp
+	ln -sf $*.gap_fill.fa.k$k.w$w.z$z.verbose_mapping.tsv $*.ntLink.gap_fill.fa.verbose_mapping.tsv
 
 # Subsequent rounds of ntLink - no gap-filling
 %.ntLink.fa:  %.fa $(reads) %.fa.k$k.w$w.z$z.verbose_mapping.tsv
