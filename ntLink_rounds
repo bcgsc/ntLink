@@ -1,0 +1,117 @@
+#!/usr/bin/make -rRf
+
+# ntLink: Scaffold assemblies using long reads and minimizers - launching rounds
+# Written by Lauren Coombe @lcoombe
+# ntLink v1.2.1
+
+# Window size
+w=100
+
+# Kmer size
+k=32
+
+# Number of threads
+t=4
+
+# Minimum contig size
+z=1000
+
+# Number of rounds
+rounds=5
+
+# Whether to run gap-filling or not
+gap_filling=True
+
+# Record run ntLink_time and memory usage in a file using GNU time
+v=0
+ifeq ($(v), 0)
+ntLink_time=
+else
+ifneq ($(shell command -v gtime),)
+ntLink_time=command gtime -v -o $@.time
+else
+ntLink_time=command time -v -o $@.time
+endif
+endif
+
+# Path to pairing code
+ntlink_path=$(shell dirname $(realpath $(MAKEFILE_LIST)))
+
+# Set-up PYTHON PATH
+PYTHONPATH=$(ntlink_path)/src/btllib/install/lib/btllib/python
+
+.SECONDARY:
+.DELETE_ON_ERROR:
+.PHONY: run_rounds run_rounds_gaps
+
+help:
+	@echo ""
+	@echo "ntLink: Scaffolding assemblies using long reads - running in rounds"
+	@echo "ntLink v1.2.1"
+	@echo "Running rounds of ntLink - no gap-filling"
+	@echo "Usage: ntLink run_rounds target=<target scaffolds> reads='List of long read files' rounds=<Number>"
+	@echo ""
+	@echo "Running rounds of ntLink - with gap-filling"
+	@echo "Usage: ntLink run_rounds_gaps target=<target scaffolds> reads='List of long read files' rounds=<Number>"
+	@echo ""
+	@echo "Options:"
+	@echo "rounds       Number of rounds of ntLink [5]"
+	@echo "gap_filling  If True, run gap-filling for ntLink rounds. [True]"
+	@echo "See main ntLink file for full additional options"
+	@echo ""
+	@echo "Note: "
+	@echo "	- Ensure all assembly and read files are in the current working directory, making soft links if necessary"
+	@echo ""
+
+run_targets = $(shell for i in `seq 2 $(rounds)`; do printf "$(target).k$k.w$w.z$z"; for j in `seq 1 $$i`; do printf ".ntLink"; done; printf ".fa "; done )
+
+run_rounds: $(target).k$k.w$w.z$z.ntLink.fa \
+	$(run_targets) \
+	$(target).k$k.w$w.z$z.ntLink.$(rounds)rounds.fa
+
+run_targets_gaps = $(shell for i in `seq 2 $(rounds)`; do printf "$(target).k$k.w$w.z$z"; for j in `seq 1 $$i`; do printf ".ntLink"; done; printf ".gap_fill.fa "; done )
+
+run_rounds_gaps: $(target).k$k.w$w.z$z.ntLink.gap_fill.fa \
+	$(run_targets_gaps) \
+	$(target).k$k.w$w.z$z.ntLink.gap_fill.$(rounds)rounds.fa
+
+$(target).k$k.w$w.z$z.ntLink.$(rounds)rounds.fa: $(run_targets)
+	ln -s $(lastword $^) $@
+	echo "Done ntLink rounds!  Final scaffolds found in $@"
+
+$(target).k$k.w$w.z$z.ntLink.gap_fill.$(rounds)rounds.fa: $(run_targets_gaps)
+	ln -s $(lastword $^) $@
+	echo "Done ntLink rounds!  Final scaffolds found in $@"
+
+# First round of ntLink - with gap-filling
+$(target).k$k.w$w.z$z.ntLink.gap_fill.fa: $(target) $(reads)
+	$(ntLink_time) ntLink scaffold gap_fill target=$< reads=$(reads) k=$k w=$w z=$z
+	ln -s $(target).k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa $(target).k$k.w$w.z$z.ntLink.gap_fill.fa
+	ln -s $(target).k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa.agp $(target).k$k.w$w.z$z.ntLink.gap_fill.fa.agp
+	ln -s $(target).k$k.w$w.z$z.verbose_mapping.tsv $(target).k$k.w$w.z$z.ntLink.gap_fill.fa.verbose_mapping.tsv
+
+# First round of ntLink - no gap-filling
+$(target).k$k.w$w.z$z.ntLink.fa: $(target) $(reads)
+	$(ntLink_time) ntLink scaffold target=$< reads=$(reads) k=$k w=$w z=$z
+	ln -s $(target).k$k.w$w.z$z.ntLink.scaffolds.fa $(target).k$k.w$w.z$z.ntLink.fa
+	ln -s $(target).k$k.w$w.z$z.ntLink.scaffolds.fa.agp $(target).k$k.w$w.z$z.ntLink.fa.agp
+	ln -s $(target).k$k.w$w.z$z.verbose_mapping.tsv $(target).k$k.w$w.z$z.ntLink.fa.verbose_mapping.tsv
+
+# Liftover
+%.fa.k$k.w$w.z$z.verbose_mapping.tsv: %.fa
+	PYTHONPATH=$(PYTHONPATH) $(ntLink_time) python3 $(ntlink_path)/bin/ntlink_liftover_mappings.py -k $k \
+	-a $*.agp -m $*.fa.verbose_mapping.tsv -o $@
+
+# Subsequent rounds of ntLink - gap-filling
+%.ntLink.gap_fill.fa:  %.gap_fill.fa $(reads) %.gap_fill.fa.k$k.w$w.z$z.verbose_mapping.tsv
+	$(ntLink_time) ntLink scaffold gap_fill target=$< reads=$(reads) k=$k w=$w z=$z
+	ln -sf $*.fa.k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa $@
+	ln -sf $*.fa.k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa.agp $*.ntLink.gap_fill.fa.agp
+	ln -sf $*.fa.k$k.w$w.z$z.verbose_mapping.tsv $*.ntLink.gap_fill.fa.verbose_mapping.tsv
+
+# Subsequent rounds of ntLink - no gap-filling
+%.ntLink.fa:  %.fa $(reads) %.fa.k$k.w$w.z$z.verbose_mapping.tsv
+	$(ntLink_time) ntLink scaffold target=$< reads=$(reads) k=$k w=$w z=$z
+	ln -sf $*.fa.k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa $@
+	ln -sf $*.fa.k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa.agp $*.ntLink.fa.agp
+	ln -sf $*.fa.k$k.w$w.z$z.verbose_mapping.tsv $*.ntLink.fa.verbose_mapping.tsv
