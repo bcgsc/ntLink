@@ -61,7 +61,7 @@ def liftover_ctg_mappings(mappings_list: list, agp_dict: dict, k: int) -> tuple:
         return (read_id, ctg, 0, [], None)
     agp_entry = agp_dict[ctg]
     for m in parse_mappings(mappings):
-        if not agp_entry.ctg_start - 1 <= m.ctg_pos <= agp_entry.ctg_end:
+        if not agp_entry.ctg_start - 1 <= m.ctg_pos <= (agp_entry.ctg_end - k):
             continue # Mapping is outside of the assigned contig region
         adjust_pos = m.ctg_pos - (agp_entry.ctg_start - 1)
         offset = agp_entry.scaf_start - 1
