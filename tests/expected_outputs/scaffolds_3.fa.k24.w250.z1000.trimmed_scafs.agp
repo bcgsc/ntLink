@@ -1,0 +1,10 @@
+ntLink_0	1	21956	1	W	189459	1	21956	+
+ntLink_0	21957	22026	2	N	70	scaffold	yes	paired-ends
+ntLink_0	22027	35615	3	W	183836	1	13589	-
+ntLink_0	35616	36047	4	N	432	scaffold	yes	paired-ends
+ntLink_0	36048	53476	5	W	182169	1	17429	-
+ntLink_0	53477	54790	6	N	1314	scaffold	yes	paired-ends
+ntLink_0	54791	91677	7	W	190964	1	36887	+
+ntLink_1	1	33803	1	W	188266	1	33803	+
+ntLink_1	33804	38381	2	N	4578	scaffold	yes	paired-ends
+ntLink_1	38382	87438	3	W	189231	1	49057	-
