@@ -46,7 +46,7 @@ PYTHONPATH=$(ntlink_path)/src/btllib/install/lib/btllib/python
 
 help:
 	@echo ""
-	@echo "ntLink: Scaffolding assemblies using long reads - running in rounds"
+	@echo "ntLink: Scaffolding assemblies using long reads - running iterative rounds of ntLink"
 	@echo "ntLink v1.2.1"
 	@echo "Running rounds of ntLink - no gap-filling"
 	@echo "Usage: ntLink run_rounds target=<target scaffolds> reads='List of long read files' rounds=<Number>"
@@ -61,6 +61,7 @@ help:
 	@echo ""
 	@echo "Note: "
 	@echo "	- Ensure all assembly and read files are in the current working directory, making soft links if necessary"
+	@echo " - The prefix parameter can not be changed from default for running rounds with ntLink_rounds"
 	@echo ""
 
 run_targets = $(shell for i in `seq 2 $(rounds)`; do printf "$(target).k$k.w$w.z$z"; for j in `seq 1 $$i`; do printf ".ntLink"; done; printf ".fa "; done )
