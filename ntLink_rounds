@@ -1,6 +1,6 @@
 #!/usr/bin/make -rRf
 
-# ntLink: Scaffold assemblies using long reads and minimizers - launching rounds
+# ntLink: Scaffold assemblies using long reads and minimizers - launching ntLink rounds
 # Written by Lauren Coombe @lcoombe
 # ntLink v1.2.1
 
