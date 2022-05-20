@@ -121,7 +121,7 @@ def test_3():
 
 def test_4():
     "Testing multiple output paths, long reads in gzipped fasta format, sequences overlap"
-    test_paths = run_ntLink("scaffolds_4.fa", "long_reads_4.fa.gz", "test4", k=40, w=100, merge_gap=20)
+    test_paths = run_ntLink("scaffolds_4.fa", "long_reads_4.fa.gz", "scaffolds_4.fa.k40.w100.z1000", k=40, w=100, merge_gap=20)
 
     expected_paths = ["scaf1+ 21N scaf2+", "scaf3- 21N scaf4+"]
 
@@ -134,7 +134,7 @@ def test_4():
     check_stats(scaffolds + ".abyssfac.tsv")
 
     # Compare trimmed scaffolds to expected
-    check_trimmed_scaffolds("test4")
+    check_trimmed_scaffolds("scaffolds_4.fa.k40.w100.z1000")
 
     # Clean-up files
     cleanup_files("scaffolds_4.fa", "test4", k=40, w=100)
