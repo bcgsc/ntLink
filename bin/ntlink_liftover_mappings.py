@@ -6,9 +6,12 @@ system of the scaffolded sequences
 import argparse
 import itertools
 import io
+from collections import namedtuple
 from ntlink_utils import MinimizerPositions, reverse_orientation
 from ntlink_pair import ContigRun, NtLink
 
+NewMinimizerMapping = namedtuple("NewMinimizerMapping", ["read_id", "new_ctg_id", "num_anchors",
+                                                         "adjusted_mappings", "agp_entry"])
 
 class AGP:
     "Represents an AGP file entry"
@@ -46,19 +49,18 @@ def read_agp(agp_filename: str) -> dict:
 
 def parse_mappings(mappings: str) -> list:
     "Parse the mappings string into a list of MinimizerPositions objects"
-    return_mappings = []
     for m in mappings.split(" "):
         ctg_maps, read_maps = m.split("_")
         ctg_pos, ctg_strand = ctg_maps.split(":")
         read_pos, read_strand = read_maps.split(":")
         yield MinimizerPositions(int(ctg_pos), ctg_strand, int(read_pos), read_strand)
 
-def liftover_ctg_mappings(mappings_list: list, agp_dict: dict, k: int) -> tuple:
+def liftover_ctg_mappings(mappings_list: list, agp_dict: dict, k: int) -> NewMinimizerMapping:
     "Liftover the mappings for an entry"
     read_id, ctg, num_anchors, mappings = mappings_list
     adjusted_mappings = []
     if ctg not in agp_dict:
-        return (read_id, ctg, 0, [], None)
+        return NewMinimizerMapping(read_id, ctg, 0, [], None)
     agp_entry = agp_dict[ctg]
     for m in parse_mappings(mappings):
         if not agp_entry.ctg_start - 1 <= m.ctg_pos <= (agp_entry.ctg_end - k):
@@ -76,12 +78,12 @@ def liftover_ctg_mappings(mappings_list: list, agp_dict: dict, k: int) -> tuple:
             adjusted_mappings.append(m)
 
     new_ctg_id = agp_entry.path_id
-    return (read_id, new_ctg_id, num_anchors, adjusted_mappings, agp_entry)
+    return NewMinimizerMapping(read_id, new_ctg_id, num_anchors, adjusted_mappings, agp_entry)
 
 def print_adjusted_mappings(read_id: str, mappings: list, outfile: io.TextIOWrapper) -> None:
     "Print the adjusted mapping, grouping sequences from the same path ID"
     # Group the mappings by contig, and mark subsumed
-    contig_runs = [(ctg, list(tup)) for ctg, tup in itertools.groupby(mappings, lambda x: x[1])]
+    contig_runs = [(ctg, list(tup)) for ctg, tup in itertools.groupby(mappings, lambda x: x.new_ctg_id)]
     contig_hits = {}
     for i, ctg_run in enumerate(contig_runs):
         ctg, list_mappings = ctg_run
@@ -94,13 +96,13 @@ def print_adjusted_mappings(read_id: str, mappings: list, outfile: io.TextIOWrap
             contig_hits[ctg].hits.extend(list_mappings)
             contig_hits[ctg].hit_count += len(list_mappings)
 
-    filtered_mappings = [m for m in mappings if not contig_hits[m[1]].subsumed]
+    filtered_mappings = [m for m in mappings if not contig_hits[m.new_ctg_id].subsumed]
 
     # Group the reads again, this time adjusting and printing out the mappings
-    for ctg, tup in itertools.groupby(filtered_mappings, lambda x: x[1]):
+    for ctg, tup in itertools.groupby(filtered_mappings, lambda x: x.new_ctg_id):
         tup = list(tup)
 
-        concat_mappings = [m for run in tup for m in run[3]]
+        concat_mappings = [m for run in tup for m in run.adjusted_mappings]
         if not concat_mappings:
             continue # Don't print if empty list
         monotonic_increase = all(i.ctg_pos < j.ctg_pos for i, j in zip(concat_mappings, concat_mappings[1:]))
@@ -122,11 +124,11 @@ def liftover_mappings(mappings_filename: str, agp_dict: dict, output: str, k: in
             for line in mappings_file:
                 line = line.strip().split('\t')
                 mapping = liftover_ctg_mappings(line, agp_dict, k)
-                if mapping[0] != cur_read_id:
+                if mapping.read_id != cur_read_id:
                     # Deal with previous mappings
                     if cur_read_id is not None:
                         print_adjusted_mappings(cur_read_id, cur_read_id_mappings, liftover_mappings_file)
-                    cur_read_id = mapping[0]
+                    cur_read_id = mapping.read_id
                     cur_read_id_mappings = [mapping]
                 else:
                     cur_read_id_mappings.append(mapping)
