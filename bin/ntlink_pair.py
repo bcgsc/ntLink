@@ -100,8 +100,10 @@ class ContigRun:
 
     def __str__(self):
         return "contig={contig}, hit_count={hit_count}, subsumed={subsumed}, " \
-               "index={index}, hits={hits}, first_mx={first_mx}, terminal_mx={terminal_mx}".format(contig=self.contig, hit_count=self.hit_count,
-                                      subsumed=self.subsumed, index=self.index, hits=self.hits, first_mx=self.first_mx, terminal_mx=self.terminal_mx)
+               "index={index}, hits={hits}, first_mx={first_mx}, terminal_mx={terminal_mx}".format(
+            contig=self.contig, hit_count=self.hit_count,
+            subsumed=self.subsumed, index=self.index, hits=self.hits, first_mx=self.first_mx,
+            terminal_mx=self.terminal_mx)
 
 class NtLink():
     "Represents an ntLink graph construction run"
@@ -350,17 +352,16 @@ class NtLink():
                         if not mx_pos_split:
                             continue
                         length_long_read = int(mx_pos_split[-1][1])
-                        accepted_anchor_contigs, contig_runs = ntlink_utils.get_accepted_anchor_contigs(mx_pos_split,
-                                                                                                        length_long_read,
-                                                                                                        NtLink.scaffolds,
-                                                                                                        NtLink.list_mx_info,
-                                                                                                        self.args)
+                        accepted_anchor_contigs, contig_runs = \
+                            ntlink_utils.get_accepted_anchor_contigs(mx_pos_split,length_long_read,
+                                                                     NtLink.scaffolds, NtLink.list_mx_info, self.args)
                         if self.args.verbose and accepted_anchor_contigs:
                             for ctg_run in accepted_anchor_contigs:
                                 verbose_file.write("{}\t{}\t{}\t{}\n".
                                                    format(line[0], accepted_anchor_contigs[ctg_run].contig,
                                                           accepted_anchor_contigs[ctg_run].hit_count,
-                                                          self.print_minimizer_positions(accepted_anchor_contigs[ctg_run].hits)))
+                                                          self.print_minimizer_positions(
+                                                              accepted_anchor_contigs[ctg_run].hits)))
 
 
                         # Filter ordered minimizer list for accepted contigs, keep track of hashes for gap sizes
@@ -382,6 +383,7 @@ class NtLink():
         return pairs
 
     def tally_pairs_from_mappings(self, accepted_anchor_contigs, contig_runs, length_long_read, pairs):
+        "Tally the pairs from the given mappings"
         if len(contig_runs) <= self.args.f:
             # Add all transitive edges for pairs
             for ctg_pair in itertools.combinations(contig_runs, 2):
@@ -441,9 +443,11 @@ class NtLink():
             last_mx_hit = accepted_anchor_contigs[m.contig_id].hits[-1]
             # Load minimizer positions for the read
             accepted_anchor_contigs[m.contig_id].first_mx = MinimizerWithHash(first_hash, m.contig_id,
-                                                                                first_mx_hit.read_pos, first_mx_hit.read_strand)
+                                                                              first_mx_hit.read_pos,
+                                                                              first_mx_hit.read_strand)
             accepted_anchor_contigs[m.contig_id].terminal_mx = MinimizerWithHash(last_hash, m.contig_id,
-                                                                                last_mx_hit.read_pos, last_mx_hit.read_strand)
+                                                                                 last_mx_hit.read_pos,
+                                                                                 last_mx_hit.read_strand)
             read_mapping_positions.append(first_mx_hit.read_pos)
             read_mapping_positions.append(last_mx_hit.read_pos)
             # Load the minimizer positions for the contig
