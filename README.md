@@ -79,7 +79,7 @@ Note that the gaps will be filled with raw read sequence, so subsequent polishin
 
 To maximize the scaffolding gains, ntLink can be run iteratively in rounds. As of ntLink v1.3.0, these rounds can be launched using the `ntLink_rounds` Makefile, which uses mapping liftover to reduce the computational cost of additional ntLink rounds.
 
-Example command without gap-filling (target is `run_rounds_gaps` for gap-filling), running 5 rounds of ntLink:
+Example command without gap-filling (target `run_rounds_gaps` runs gap-filling, while `run_rounds` does not), running 5 rounds of ntLink:
 ```
 ntLink_rounds run_rounds target=my_assembly.fa reads=long_reads.fq.gz k=24 w=250 rounds=5
 ```
