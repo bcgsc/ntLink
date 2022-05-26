@@ -773,7 +773,7 @@ def main() -> None:
     parser.add_argument("--soft_mask", help="If specified, will soft mask the filled gap", action="store_true")
     parser.add_argument("--verbose", help="Verbose logging - print out trimmed scaffolds without gaps",
                         action="store_true")
-    parser.add_argument("-v", "--version", action='version', version='ntLink v1.2.1')
+    parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.0')
     args = parser.parse_args()
 
     print_parameters(args)
