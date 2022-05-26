@@ -75,6 +75,17 @@ As of ntLink v1.2.0, ntLink can also run gap-filling after the scaffolding stage
 
 Note that the gaps will be filled with raw read sequence, so subsequent polishing is a good idea. See the wiki page for more details.
 
+### Rounds
+
+To maximize the scaffolding gains, ntLink can be run iteratively in rounds. As of ntLink v1.3.0, these rounds can be launched using the `ntLink_rounds` Makefile, which uses mapping liftover to reduce the computational cost of additional ntLink rounds.
+
+Example command without gap-filling (target `run_rounds_gaps` runs gap-filling, while `run_rounds` does not), running 5 rounds of ntLink:
+```
+ntLink_rounds run_rounds target=my_assembly.fa reads=long_reads.fq.gz k=24 w=250 rounds=5
+```
+
+See the wiki page for more details.
+
 **For more information about the ntLink algorithm and tips for running ntLink see our [wiki](https://github.com/bcgsc/ntLink/wiki)**
 
  ## Installation

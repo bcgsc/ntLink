@@ -27,7 +27,9 @@ class ScaffoldCut:
         self.length = len(sequence)
         self._ori = None
         self._source_cut = None
+        self._source_cut_flag = False
         self._target_cut = None
+        self._target_cut_flag = False
 
     @property
     def ori(self):
@@ -58,6 +60,14 @@ class ScaffoldCut:
                 (self.ori == "-" and self._source_cut != 0):
             raise AssertionError("Source cut is already set")
         self._source_cut = pos
+        self._source_cut_flag = True
+
+    def adjust_source_cut(self, k):
+        # Adjust the source cut by k if the orientation is - and source flag is set
+        if self.ori == "-" and self._source_cut_flag:
+            return self._source_cut + k
+        return self._source_cut
+
 
     @property
     def target_cut(self):
@@ -70,12 +80,19 @@ class ScaffoldCut:
                 (self.ori == "-" and self._target_cut != self.length):
             raise AssertionError("Target cut is already set")
         self._target_cut = pos
+        self._target_cut_flag = True
+
+    def adjust_target_cut(self, k):
+        # Adjust the target cut by k if the orientation is - and target flag is set, return the adjusted value
+        if self.ori == "-" and self._target_cut_flag:
+            return self._target_cut + k
+        return self._target_cut
 
     def get_trim_coordinates(self, k):
         if self.ori == "+":
             return self.target_cut, self.source_cut
         if self.ori == "-":
-            return self.source_cut + k, self.target_cut + k
+            return self.adjust_source_cut(k), self.adjust_target_cut(k)
         if self.ori is None:
             return 0, self.length
         raise ValueError("Orientation should be +, - or None")
@@ -359,6 +376,7 @@ def merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds):
     "Read through pathfile, and merge overlapping pieces, updating path file"
     print(datetime.datetime.today(), ": Finding scaffold overlaps", file=sys.stdout)
     out_pathfile = open(args.p + ".trimmed_scafs.path", 'w')
+    my_paths = {}
     with open(args.path, 'r') as path_fin:
         for path in path_fin:
             new_path = []
@@ -380,7 +398,9 @@ def merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds):
                 new_path.append(gap)
                 new_path.append(target)
             out_pathfile.write("{path_id}\t{ctgs}\n".format(path_id=path_id, ctgs=" ".join(new_path)))
+            my_paths[path_id] = new_path
     out_pathfile.close()
+    return my_paths
 
 def print_trimmed_scaffolds(args, scaffolds):
     "Print the trimmed scaffolds fasta to file"
@@ -392,7 +412,7 @@ def print_trimmed_scaffolds(args, scaffolds):
             if scaffold.ori == "+":
                 sequence_out = seq[scaffold.target_cut:scaffold.source_cut]
             elif scaffold.ori == "-":
-                sequence_out = seq[scaffold.source_cut + args.k:scaffold.target_cut + args.k]
+                sequence_out = seq[scaffold.adjust_source_cut(args.k):scaffold.adjust_target_cut(args.k)]
             elif scaffold.ori is None:
                 sequence_out = seq
             else:
@@ -411,6 +431,42 @@ def print_trim_coordinates(args, scaffolds):
             start, end = scaffold_entry.get_trim_coordinates(args.k)
             out_str = "{}\t{}\t{}\n".format(scaffold_entry.ctg_id, start, end, sep="\t")
             tsvfile.write(out_str)
+
+def print_agp_file(paths, scaffolds, args):
+    "Print the Paths in the AGP format"
+    gap_re = re.compile(r'(\d+)N')
+    printed_scaffolds = set()
+    with open(args.p + ".trimmed_scafs.agp", 'w') as agpfile:
+        for path_id in paths:
+            start = 1
+            component_id = 1
+            for node in paths[path_id]:
+                if re.search(gap_re, node):
+                    gap_size = int(re.search(gap_re, node).group(1)) - 1
+                    if gap_size == 0:
+                        continue
+                    agpfile.write(f"{path_id}\t{start}\t{start + gap_size - 1}\t{component_id}\t"
+                                  f"N\t{gap_size}\tscaffold\tyes\tpaired-ends\n")
+                    start += gap_size
+                else:
+                    contig, ori = node.strip("+-"), node[-1]
+                    scaffold = scaffolds[contig]
+                    ctg_start, ctg_end = scaffold.get_trim_coordinates(args.k)
+                    agpfile.write(f"{path_id}\t{start}\t{start + (ctg_end - ctg_start) - 1}\t{component_id}\t"
+                                  f"W\t{contig}\t{ctg_start + 1}\t{ctg_end}\t{ori}\n")
+                    start += (ctg_end - ctg_start)
+                    printed_scaffolds.add(contig)
+                component_id += 1
+
+        # Print the remaining scaffolds
+        for scaffold in scaffolds:
+            if scaffold not in printed_scaffolds:
+                scaffold_entry = scaffolds[scaffold]
+                ctg_start, ctg_end = scaffold_entry.get_trim_coordinates(args.k)
+                agpfile.write(f"{scaffold_entry.ctg_id}\t{ctg_start + 1}\t{ctg_end}\t1\t"
+                              f"W\t{scaffold_entry.ctg_id}\t{ctg_start + 1}\t{ctg_end}\t+\n")
+
+
 
 def parse_arguments():
     "Parse arguments for ntLink overlap"
@@ -461,10 +517,11 @@ def main():
     args.m = "/dev/stdin" if args.m == "-" else args.m
     mxs_info, mxs = read_minimizers(args.m, valid_mx_positions)
 
-    merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds)
+    new_paths = merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds)
 
     if args.trim_info:
         print_trim_coordinates(args, scaffolds)
+        print_agp_file(new_paths, scaffolds, args)
 
     print_trimmed_scaffolds(args, scaffolds)
 
