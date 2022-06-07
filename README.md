@@ -70,6 +70,9 @@ ntLink scaffold target=my_assembly.fa reads=long_reads.fq.gz k=32 w=250
 
 The post-ntLink scaffolds file will have the suffix `*ntLink.scaffolds.fa`
 
+See our [wiki](https://github.com/bcgsc/ntLink/wiki) for more information about output file formats.
+
+
 ### Gap-filling
 As of ntLink v1.2.0, ntLink can also run gap-filling after the scaffolding stage. This mode is enabled by adding the `gap_fill` target to the `ntLink` command. `overlap=True` is required when using the `gap_fill` feature.
 
