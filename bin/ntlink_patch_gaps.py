@@ -339,8 +339,8 @@ def find_masking_cut_points(pairs: dict, mappings: dict, args: argparse.Namespac
 
 def print_masked_sequences(scaffolds: dict, reads: dict, pairs: dict, args: argparse.Namespace):
     "Print the masked sequences to a temp file"
-    out_scaffolds = open(args.s + ".masked_temp.fa", 'w')
-    out_reads = open(args.reads + ".masked_temp.fa", 'w')
+    out_scaffolds = open(args.o + ".scaffolds.masked_temp.fa", 'w')
+    out_reads = open(args.o + ".reads.masked_temp.fa", 'w')
 
     for source, target in pairs:
         pair_info = pairs[(source, target)]
@@ -408,9 +408,9 @@ def map_long_reads(pairs: dict, scaffolds: dict, args: argparse.Namespace) -> No
     read_header_re = re.compile(r'^(\S+)__(\S+)__(\S+)$')
     scaffold_header_re = re.compile(r'^(\S+)_(source|target)$')
 
-    with btllib.Indexlr(args.s + ".masked_temp.fa", args.k, args.w, btllib.IndexlrFlag.LONG_MODE,
+    with btllib.Indexlr(args.o + ".scaffolds.masked_temp.fa", args.k, args.w, btllib.IndexlrFlag.LONG_MODE,
                         args.t) as scaffolds_btllib:
-        with btllib.Indexlr(args.reads + ".masked_temp.fa", args.k, args.w, btllib.IndexlrFlag.LONG_MODE,
+        with btllib.Indexlr(args.o + ".reads.masked_temp.fa", args.k, args.w, btllib.IndexlrFlag.LONG_MODE,
                             args.t) as reads:
             for chosen_read in reads:
                 _, source, target = re.search(read_header_re, chosen_read.id).groups()
@@ -708,8 +708,8 @@ def read_trim_coordinates(sequences: dict, args: argparse.Namespace) -> None:
 
 def remove_temp_masked_sequences(args: argparse.Namespace) -> None:
     "Remove temporary masked sequence files"
-    out_scaffolds = args.s + ".masked_temp.fa"
-    out_reads = args.reads + ".masked_temp.fa"
+    out_scaffolds = args.o + ".scaffolds.masked_temp.fa"
+    out_reads = args.o + ".reads.masked_temp.fa"
 
     shlex_cmd = shlex.split(f"rm {out_scaffolds}")
     return_code = subprocess.call(shlex_cmd)
