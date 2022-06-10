@@ -494,7 +494,7 @@ class NtLink():
                                        "Set to 0 to allow mapping block to be up to read length",
                             type=float, default=0)
         parser.add_argument("-c", "--checkpoint", help="Mappings checkpoint file", required=False)
-        parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.0')
+        parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.1')
         parser.add_argument("--verbose", help="Verbose output logging", action='store_true')
 
         return parser.parse_args()
