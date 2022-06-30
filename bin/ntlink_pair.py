@@ -16,6 +16,7 @@ import sys
 import numpy as np
 import igraph as ig
 import ntlink_utils
+# import gfapy
 
 MinimizerEdge = namedtuple("MinimizerEdge", ["mx_i", "mx_i_pos", "mx_i_strand",
                                              "mx_j", "mx_j_pos", "mx_j_strand"])
@@ -124,7 +125,38 @@ class NtLink():
         return largest_num
 
     @staticmethod
-    def print_directed_graph(graph, out_prefix, scaffolds):
+    def print_directed_gfa2_graph(graph, out_prefix, scaffolds):
+        "Prints the directed scaffold graph in GFA2 format"
+
+        out_graph = out_prefix + ".scaffold.gfa"
+        outfile = open(out_graph, 'w')
+        print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
+
+        # gfa_graph = gfapy.Gfa("H\tVN:Z:2.0", version='gfa2')
+        outfile.write("H\tVN:Z:2.0")
+
+        # gfa_graph.add_line("graph [scaf_num={}]\n".format(NtLink.get_largest_ntlink_scaffold_id(scaffolds)))
+        graph_info = "graph [scaf_num={}]\n".\
+            format(NtLink.get_largest_ntlink_scaffold_id(scaffolds))
+        outfile.write(graph_info)
+
+        for node in graph.vs():
+            node_str = "S\t{scaffold}\t{length}".\
+                format(scaffold=node['name'], length=scaffolds[node['name'][:-1]].length)
+            outfile.write(node_str) # gfa_graph.add_line(node_str)
+
+        for edge in graph.es():
+            edge_str = "{line}\t*\t{s}\t{t}\t{d}\t{var}\tFC:i:{supports}".\
+                format(s=ntlink_utils.vertex_name(graph, edge.source),
+                       line="E" if int(edge['d']) < 0 else "G",
+                       t=ntlink_utils.vertex_name(graph, edge.target),
+                       d=int(edge['d']), var="*", supports=edge['n'])
+            outfile.write(edge_str) # gfa_graph.add_line(edge_str)
+
+        outfile.write("\n") # gfa_graph.to_file(outfile)    
+
+    @staticmethod
+    def print_directed_dot_graph(graph, out_prefix, scaffolds):
         "Prints the directed scaffold graph in dot format"
         out_graph = out_prefix + ".scaffold.dot"
         outfile = open(out_graph, 'w')
@@ -494,6 +526,7 @@ class NtLink():
                                        "Set to 0 to allow mapping block to be up to read length",
                             type=float, default=0)
         parser.add_argument("-c", "--checkpoint", help="Mappings checkpoint file", required=False)
+        parser.add_argument("--format", choices=['dot', 'gfa', 'gfa2'], help="Output graph format", default="dot")
         parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.1')
         parser.add_argument("--verbose", help="Verbose output logging", action='store_true')
 
@@ -514,9 +547,16 @@ class NtLink():
         print("\t-x ", self.args.x)
         if self.args.checkpoint:
             print("\t-c ", self.args.checkpoint)
-
+        print("\t--format ", self.args.format)
+        
     def main(self):
         "Run ntLink graph stage"
+
+        if self.args.format not in ["dot", "gfa", "gfa2"]:
+            print("Invalid graph format:", self.args.format, file=sys.stderr)
+            print("\nSupported graph formats are: dot, gfa, gfa2", file=sys.stderr)
+            sys.exit(1)
+
         print("Running pairing stage of ntLink ...\n")
 
         # Check if the checkpoint mapping file exists
@@ -556,7 +596,10 @@ class NtLink():
         graph = self.filter_graph_global(graph, int(self.args.n))
 
         # Print out the directed graph
-        self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds)
+        if self.args.format == "dot":
+            self.print_directed_dot_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds)
+        else:
+            self.print_directed_gfa2_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds)
 
         print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
 
