@@ -161,7 +161,7 @@ version:
 .SECONDARY:
 
 %.k$(k).w$(w).tsv: %
-	$(ntLink_time) $(ntlink_path)/src/indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) $< > $@
+	$(ntLink_time) indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) $< > $@
 
 %.fa.gz: %.fa
 	$(ntLink_time) $(gzip) $<
@@ -169,12 +169,12 @@ version:
 $(prefix).n$(n).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
 ifeq ($(verbose), True)
 	$(ntLink_time)  sh -c '$(gzip) -cd $(reads) | \
-	$(ntlink_path)/src/indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) - | \
+	indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) - | \
 	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
 	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) --verbose -'
 else
 	$(ntLink_time)  sh -c '$(gzip) -cd $(reads) | \
-	$(ntlink_path)/src/indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) - | \
+	indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) - | \
 	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
 	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) -'
 endif
@@ -196,12 +196,12 @@ endif
 	rm -f $(prefix).n*.abyss-scaffold.path $(prefix).n*.abyss-scaffold.path.sterr
 
 $(target).k$(small_k).w$(small_w).tsv: $(target)
-	$(ntLink_time) $(ntlink_path)/src/indexlr --long --pos -k $(small_k) -w $(small_w) -t $(t) $< > $@
+	$(ntLink_time) indexlr --long --pos -k $(small_k) -w $(small_w) -t $(t) $< > $@
 
 $(prefix).trimmed_scafs.fa: $(prefix).stitch.path $(prefix).n$(n).scaffold.dot $(target)
 	$(ntLink_time) sh -c '$(ntlink_path)/bin/ntlink_filter_sequences.py --fasta $(target) \
 	--dot $(prefix).n$(n).scaffold.dot --path $< -k $(small_k) -g $g |\
-	$(ntlink_path)/src/indexlr --long --pos -k $(small_k) -w $(small_w) -t $(t) - |\
+	indexlr --long --pos -k $(small_k) -w $(small_w) -t $(t) - |\
 	$(ntlink_path)/bin/ntlink_overlap_sequences.py -m -  --path $< \
 	-s $(target) -d $(prefix).n$(n).scaffold.dot -p $(prefix) -g $(g) -k $(small_k) --outgap $(merge_gap) --trim_info'
 
