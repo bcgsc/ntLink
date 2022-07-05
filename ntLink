@@ -156,7 +156,7 @@ check_install:
 ifeq ($(shell command -v indexlr),)
 	$(error ERROR: indexlr not found. Please ensure btllib is installed)
 endif
-ifneq ($(shell command -v 'python -c "import btllib"'),)
+ifneq ($(shell command -v 'python3 -c "import btllib"'),)
 	$(error ERROR: btllib not found. Please ensure btllib is installed)
 endif
 
