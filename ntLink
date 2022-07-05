@@ -92,9 +92,6 @@ else
 gzip=gzip -f
 endif
 
-# Set-up PYTHON PATH
-PYTHONPATH_ntlink=$(ntlink_path)/src/btllib/install/lib/btllib/python:$(PYTHONPATH)
-
 help:
 	@echo ""
 	@echo "ntLink: Scaffolding assemblies using long reads"
@@ -220,6 +217,6 @@ clean: abyss_scaffold
 	rm -f $(prefix).n*.abyss-scaffold.path $(prefix).n*.abyss-scaffold.path.sterr
 
 $(target).k$(k).w$(w).z$(z).ntLink.scaffolds.gap_fill.fa: $(target) $(prefix).n$(n).scaffold.dot $(prefix).trimmed_scafs.fa
-	PYTHONPATH=$(PYTHONPATH_ntlink) $(ntLink_time) $(ntlink_path)/bin/ntlink_patch_gaps.py --path $(prefix).trimmed_scafs.path \
+	$(ntLink_time) $(ntlink_path)/bin/ntlink_patch_gaps.py --path $(prefix).trimmed_scafs.path \
 	 --mappings $(prefix).verbose_mapping.tsv -s $< --reads $(reads) -o $@ --large_k $(k) --min_gap 1 \
 	 --trims $(prefix).trimmed_scafs.tsv -k $(gap_k) -w $(gap_w)
