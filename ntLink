@@ -122,6 +122,7 @@ help:
 	@echo ""
 
 scaffold: check_params \
+	check_install \
 	ntLink_graph \
 	abyss_scaffold
 
@@ -151,12 +152,20 @@ ifeq ($(target), None)
 	$(error ERROR: Must set target)
 endif
 
+check_install:
+ifeq ($(shell command -v indexlr),)
+	$(error ERROR: indexlr not found. Please ensure btllib is installed)
+endif
+ifneq ($(shell command -v 'python -c "import btllib"'),)
+	$(error ERROR: btllib not found. Please ensure btllib is installed)
+endif
+
 version:
 	@echo "ntLink v1.3.1"
 	@echo "Written by Lauren Coombe (lcoombe@bcgsc.ca)"
 
 
-.PHONY: help scaffold version check_params clean pair gap_fill
+.PHONY: help scaffold version check_params clean pair gap_fill check_install
 .DELETE_ON_ERROR:
 .SECONDARY:
 
