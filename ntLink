@@ -168,7 +168,7 @@ version:
 	@echo "Written by Lauren Coombe (lcoombe@bcgsc.ca)"
 
 
-.PHONY: help scaffold version check_params clean pair gap_fill check_install
+.PHONY: help scaffold version check_params clean pair gap_fill check_install extra_clean
 .DELETE_ON_ERROR:
 .SECONDARY:
 
@@ -244,3 +244,9 @@ endif
 ifeq ($(shell test -e $(target).k$(k).w$(w).z$(z).ntLink.scaffolds.gap_fill.fa && echo $$?),0)
 	rm -f $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa
 endif
+
+extra_clean:
+ifeq ($(overlap), True)
+	rm -f $(prefix).trimmed_scafs.path
+endif
+	rm -f $(prefix).n1.scaffold.dot
