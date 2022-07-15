@@ -494,6 +494,7 @@ class NtLink():
                                        "Set to 0 to allow mapping block to be up to read length",
                             type=float, default=0)
         parser.add_argument("-c", "--checkpoint", help="Mappings checkpoint file", required=False)
+        parser.add_argument("--pairs", help="Output pairs TSV file", action="store_true")
         parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.2')
         parser.add_argument("--verbose", help="Verbose output logging", action='store_true')
 
@@ -547,7 +548,8 @@ class NtLink():
 
         pairs = self.filter_weak_anchor_pairs(pairs)
 
-        self.write_pairs(pairs)
+        if self.args.pairs:
+            self.write_pairs(pairs)
 
         # Build directed graph
         graph = self.build_scaffold_graph(pairs)
