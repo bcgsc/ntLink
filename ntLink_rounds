@@ -42,7 +42,7 @@ PYTHONPATH=$(ntlink_path)/src/btllib/install/lib/btllib/python
 
 .SECONDARY:
 .DELETE_ON_ERROR:
-.PHONY: run_rounds run_rounds_gaps check_prefix
+.PHONY: run_rounds run_rounds_gaps check_prefix clean
 
 help:
 	@echo ""
@@ -94,6 +94,7 @@ endif
 # First round of ntLink - with gap-filling
 $(target).k$k.w$w.z$z.ntLink.gap_fill.fa: $(target) $(reads)
 	$(ntLink_time) ntLink scaffold gap_fill target=$< reads=$(reads) k=$k w=$w z=$z
+	ntLink clean extra_clean target=$< reads=$(reads) k=$k w=$w z=$z
 	ln -sf $(target).k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa $(target).k$k.w$w.z$z.ntLink.gap_fill.fa
 	ln -sf $(target).k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa.agp $(target).k$k.w$w.z$z.ntLink.gap_fill.fa.agp
 	ln -sf $(target).k$k.w$w.z$z.verbose_mapping.tsv $(target).k$k.w$w.z$z.ntLink.gap_fill.fa.verbose_mapping.tsv
@@ -101,6 +102,7 @@ $(target).k$k.w$w.z$z.ntLink.gap_fill.fa: $(target) $(reads)
 # First round of ntLink - no gap-filling
 $(target).k$k.w$w.z$z.ntLink.fa: $(target) $(reads)
 	$(ntLink_time) ntLink scaffold target=$< reads=$(reads) k=$k w=$w z=$z
+	ntLink clean extra_clean target=$< reads=$(reads) k=$k w=$w z=$z
 	ln -sf $(target).k$k.w$w.z$z.ntLink.scaffolds.fa $(target).k$k.w$w.z$z.ntLink.fa
 	ln -sf $(target).k$k.w$w.z$z.trimmed_scafs.agp $(target).k$k.w$w.z$z.ntLink.fa.agp
 	ln -sf $(target).k$k.w$w.z$z.verbose_mapping.tsv $(target).k$k.w$w.z$z.ntLink.fa.verbose_mapping.tsv
@@ -113,6 +115,7 @@ $(target).k$k.w$w.z$z.ntLink.fa: $(target) $(reads)
 # Subsequent rounds of ntLink - gap-filling
 %.ntLink.gap_fill.fa:  %.gap_fill.fa $(reads) %.gap_fill.fa.k$k.w$w.z$z.verbose_mapping.tsv
 	$(ntLink_time) ntLink scaffold gap_fill target=$< reads=$(reads) k=$k w=$w z=$z
+	ntLink clean extra_clean target=$< reads=$(reads) k=$k w=$w z=$z
 	ln -sf $*.gap_fill.fa.k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa $@
 	ln -sf $*.gap_fill.fa.k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa.agp $*.ntLink.gap_fill.fa.agp
 	ln -sf $*.gap_fill.fa.k$k.w$w.z$z.verbose_mapping.tsv $*.ntLink.gap_fill.fa.verbose_mapping.tsv
@@ -120,6 +123,11 @@ $(target).k$k.w$w.z$z.ntLink.fa: $(target) $(reads)
 # Subsequent rounds of ntLink - no gap-filling
 %.ntLink.fa:  %.fa $(reads) %.fa.k$k.w$w.z$z.verbose_mapping.tsv
 	$(ntLink_time) ntLink scaffold target=$< reads=$(reads) k=$k w=$w z=$z
+	ntLink clean extra_clean target=$< reads=$(reads) k=$k w=$w z=$z
 	ln -sf $*.fa.k$k.w$w.z$z.ntLink.scaffolds.fa $@
 	ln -sf $*.fa.k$k.w$w.z$z.trimmed_scafs.agp $*.ntLink.fa.agp
 	ln -sf $*.fa.k$k.w$w.z$z.verbose_mapping.tsv $*.ntLink.fa.verbose_mapping.tsv
+
+# Clean up files
+clean:
+	rm -f $(prefix).*verbose_mapping.tsv
