@@ -106,7 +106,7 @@ See the wiki page for more details.
  
  Installing from source code:
  ```
-curl -L --output ntLink-1.3.2.tar.gz https://github.com/bcgsc/ntLink/releases/download/v1.3.2/ntLink-1.3.2.tar.gz && tar xvzf ntLink-1.3.2.tar.gz 
+curl -L --output ntLink-1.3.3.tar.gz https://github.com/bcgsc/ntLink/releases/download/v1.3.3/ntLink-1.3.3.tar.gz && tar xvzf ntLink-1.3.3.tar.gz 
 ```
 
 #### Testing your installation
