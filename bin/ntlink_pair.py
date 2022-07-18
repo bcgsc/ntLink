@@ -495,7 +495,7 @@ class NtLink():
                             type=float, default=0)
         parser.add_argument("-c", "--checkpoint", help="Mappings checkpoint file", required=False)
         parser.add_argument("--pairs", help="Output pairs TSV file", action="store_true")
-        parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.2')
+        parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.3')
         parser.add_argument("--verbose", help="Verbose output logging", action='store_true')
 
         return parser.parse_args()
