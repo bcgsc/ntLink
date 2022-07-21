@@ -29,6 +29,9 @@ n=1
 # Upper threshold for minimum edge weight (for pairing)
 max_n=10
 
+# Output format for the pairing scaffold graph
+graph_format=dot
+
 # Minimum gap size between scaffolds
 g=20
 
@@ -173,12 +176,12 @@ $(prefix).n$(n).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
 ifeq ($(verbose), True)
 	$(ntLink_time)  sh -c '$(gzip) -cd $(reads) | \
 	$(ntlink_path)/src/indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) - | \
-	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
+	$(ntlink_path)/bin/ntlink_pair.py --format $(graph_format) -p $(prefix) -n $(n) -m $< -s $(target)  \
 	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) --verbose -'
 else
 	$(ntLink_time)  sh -c '$(gzip) -cd $(reads) | \
 	$(ntlink_path)/src/indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) - | \
-	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
+	$(ntlink_path)/bin/ntlink_pair.py --format $(graph_format) -p $(prefix) -n $(n) -m $< -s $(target)  \
 	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) -'
 endif
 
