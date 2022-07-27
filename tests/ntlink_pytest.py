@@ -2,7 +2,7 @@
 
 import shlex
 import subprocess
-import sys
+import os
 import pandas as pd
 
 def run_abyssfac(scaffolds):
@@ -71,13 +71,15 @@ def run_ntLink(target, reads, prefix, k=32, w=100, n=1, gap_fill=False, **kwargs
     return test_paths
 
 def run_ntlink_rounds(target, reads, k=32, w=100, n=1, **kwargs):
-    sys.path.append("../")
+    os.environ["PATH"] += ":../"
+
     args_str = " ".join(f"{k}={v}" for k, v in kwargs.items())
     command = "../ntLink_rounds run_rounds_gaps -B target={target} reads={reads} k={k} w={w} z=1000 n={n} {extra_args}".format(target=target,
                                                                                                                                reads=reads,
                                                                                                                                k=k, w=w, n=n, extra_args=args_str)
     command_shlex = shlex.split(command)
     return_code = subprocess.call(command_shlex)
+
     assert return_code == 0
 
     command = "../ntLink_rounds run_rounds -B target={target} reads={reads} k={k} w={w} z=1000 n={n} {extra_args}".format(target=target,
