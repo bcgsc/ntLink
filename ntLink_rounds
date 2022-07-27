@@ -37,9 +37,6 @@ endif
 # Path to pairing code
 ntlink_path=$(shell dirname $(realpath $(MAKEFILE_LIST)))
 
-# Set-up PYTHON PATH
-PYTHONPATH=$(ntlink_path)/src/btllib/install/lib/btllib/python
-
 .SECONDARY:
 .DELETE_ON_ERROR:
 .PHONY: run_rounds run_rounds_gaps check_prefix clean
@@ -109,7 +106,7 @@ $(target).k$k.w$w.z$z.ntLink.fa: $(target) $(reads)
 
 # Liftover
 %.fa.k$k.w$w.z$z.verbose_mapping.tsv: %.fa
-	PYTHONPATH=$(PYTHONPATH) $(ntLink_time) python3 $(ntlink_path)/bin/ntlink_liftover_mappings.py -k $k \
+	$(ntLink_time) $(ntlink_path)/bin/ntlink_liftover_mappings.py -k $k \
 	-a $*.fa.agp -m $*.fa.verbose_mapping.tsv -o $@
 
 # Subsequent rounds of ntLink - gap-filling
