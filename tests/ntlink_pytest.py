@@ -69,12 +69,18 @@ def run_ntLink(target, reads, prefix, k=32, w=100, n=1, gap_fill=False, **kwargs
 
     return test_paths
 
-def run_ntlink_rounds(target, reads, prefix, k=32, w=100, n=1, gap_fill=False, **kwargs):
+def run_ntlink_rounds(target, reads, k=32, w=100, n=1, **kwargs):
     args_str = " ".join(f"{k}={v}" for k, v in kwargs.items())
-    command = "../ntLink_rounds run_rounds_gaps -B target={target} reads={reads} prefix={prefix} k={k} w={w} z=1000 n={n} {extra_args}".format(target=target,
-                                                                                                                                               reads=reads,
-                                                                                                                                               prefix=prefix,
-                                                                                                                                               k=k, w=w, n=n, extra_args=args_str)
+    command = "../ntLink_rounds run_rounds_gaps -B target={target} reads={reads} k={k} w={w} z=1000 n={n} {extra_args}".format(target=target,
+                                                                                                                               reads=reads,
+                                                                                                                               k=k, w=w, n=n, extra_args=args_str)
+    command_shlex = shlex.split(command)
+    return_code = subprocess.call(command_shlex)
+    assert return_code == 0
+
+    command = "../ntLink_rounds run_rounds -B target={target} reads={reads} k={k} w={w} z=1000 n={n} {extra_args}".format(target=target,
+                                                                                                                          reads=reads,
+                                                                                                                          k=k+1, w=w, n=n, extra_args=args_str)
     command_shlex = shlex.split(command)
     return_code = subprocess.call(command_shlex)
     assert return_code == 0
@@ -165,5 +171,5 @@ def test_5():
 
 def test_6():
     "Testing ntLink rounds"
-    run_ntlink_rounds("scaffolds_1.fa", "long_reads_1.fa", "test1", gap_fill=True, w=250, gap_k=35)
+    run_ntlink_rounds("scaffolds_1.fa", "long_reads_1.fa", gap_fill=True, w=200, gap_k=35)
 
