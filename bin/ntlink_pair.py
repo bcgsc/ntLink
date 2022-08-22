@@ -77,11 +77,11 @@ class PairInfo:
 
 class ContigRun:
     "Represents information about a contig run based on a long read"
-    def __init__(self, contig, index, hit_count):
+    def __init__(self, contig, list_hits):
         self.contig = contig
-        self.index = index
-        self.hit_count = hit_count
-        self.hits = []
+        self.index = None
+        self.hit_count = len(list_hits)
+        self.hits = list_hits
         self._subsumed = False
         self.first_mx = None
         self.terminal_mx = None
@@ -433,8 +433,8 @@ class NtLink():
         read_mapping_positions = []
         for i, m in enumerate(mappings):
             contig_runs.append(m.contig_id)
-            accepted_anchor_contigs[m.contig_id] = ContigRun(m.contig_id, i, int(m.num_hits))
-            accepted_anchor_contigs[m.contig_id].hits = ntlink_utils.parse_minimizers(m.list_hits)
+            accepted_anchor_contigs[m.contig_id] = ContigRun(m.contig_id, ntlink_utils.parse_minimizers(m.list_hits))
+            accepted_anchor_contigs[m.contig_id].index = i
             # Generate random 64-bit integer to represent the minimizer hash
             first_hash = random.getrandbits(64)
             last_hash = random.getrandbits(64)
