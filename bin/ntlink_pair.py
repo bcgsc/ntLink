@@ -365,9 +365,10 @@ class NtLink():
 
 
                         # Filter ordered minimizer list for accepted contigs, keep track of hashes for gap sizes
+                        mx_accepted_pos = set([hit.read_pos for contig, contig_run in contig_runs.items() for hit in contig_run.hits])
                         mx_pos_split = [mx_tup for mx_tup in mx_pos_split
                                         if NtLink.list_mx_info[mx_tup[0]].contig in
-                                        accepted_anchor_contigs]
+                                        accepted_anchor_contigs and mx_tup[1] in mx_accepted_pos]
                         for mx, pos, strand in mx_pos_split:
                             mx_contig = NtLink.list_mx_info[mx].contig
                             if accepted_anchor_contigs[mx_contig].first_mx is None:
