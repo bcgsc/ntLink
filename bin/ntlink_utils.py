@@ -18,6 +18,7 @@ from read_fasta import read_fasta
 
 Scaffold = namedtuple("Scaffold", ["id", "length"])
 MinimizerPositions = namedtuple("MinimizerPositions", ["ctg_pos", "ctg_strand", "read_pos", "read_strand"])
+ContigMinimizerPositions = namedtuple("ContigMinimizerPositions", ["contig", "mx_positions"])
 
 class HiddenPrints:
     "Adapted from: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print"
@@ -198,18 +199,19 @@ def find_valid_mx_region(scaf_noori, scaf_ori, scaffolds, overlap, args, source=
 
 def get_accepted_anchor_contigs(mx_list, read_length, scaffolds, list_mx_info, args):
     "Returns dictionary of contigs of appropriate length, mx hits, whether subsumed"
-    contig_list = []
-    contig_positions = {}  # contig -> [mx positions]
+    contig_list = [] # list of (contig, mx_positions)
+    contig_positions = {}  # contig -> [mx_positions]
     for mx, pos, strand in mx_list:
         contig = list_mx_info[mx].contig
         if scaffolds[contig].length >= args.z:
-            contig_list.append(contig)
+            contig_mxs = MinimizerPositions(ctg_pos=list_mx_info[mx].position,
+                                            ctg_strand=list_mx_info[mx].strand,
+                                            read_pos=int(pos),
+                                            read_strand=strand)
+            contig_list.append(ContigMinimizerPositions(contig, contig_mxs))
             if contig not in contig_positions:
                 contig_positions[contig] = []
-            contig_positions[contig].append(MinimizerPositions(ctg_pos=list_mx_info[mx].position,
-                                                            ctg_strand=list_mx_info[mx].strand,
-                                                               read_pos=int(pos),
-                                                               read_strand=strand))
+            contig_positions[contig].append(contig_mxs)
 
     # Filter out hits where mapped length on contig is greater than the read length
     noisy_contigs = set()
@@ -229,28 +231,41 @@ def get_accepted_anchor_contigs(mx_list, read_length, scaffolds, list_mx_info, a
                             (args.x * abs(end_positions.read_pos - start_positions.read_pos)) + args.k)
             if abs(end_positions.ctg_pos - start_positions.ctg_pos) > threshold:
                 noisy_contigs.add(contig)
-    contig_list = [contig for contig in contig_list if contig not in noisy_contigs]
+    contig_list = [contig_tup for contig_tup in contig_list if contig_tup.contig not in noisy_contigs]
 
-    contig_runs = [(ctg, len(list(hits)), list(hits)) for ctg, hits in itertools.groupby(contig_list)]
-    contigs_hits = {}
-    for i, run_tup in enumerate(contig_runs):
-        ctg, cnt, list_hits = run_tup
-        if ctg in contigs_hits:
-            for j in range(contigs_hits[ctg].index + 1, i):
-                contigs_hits[contig_runs[j][0]].subsumed = True
-            contigs_hits[ctg].hits.extend(list_hits)
-            contigs_hits[ctg].hit_count += cnt 
-        else:
-            contigs_hits[ctg] = ntlink_pair.ContigRun(ctg, i, cnt)
-            contigs_hits[ctg].hits.extend(list_hits)
+    contig_runs = [ntlink_pair.ContigRun(ctg, [hit.mx_positions for hit in hits])
+                   for ctg, hits in itertools.groupby(contig_list, key=lambda x:x.contig)]
 
-    return_contigs_hits = {ctg: contigs_hits[ctg] for ctg in contigs_hits if not contigs_hits[ctg].subsumed}
+    # tally positions of runs for each contig
+    contig_runs_idx = {}
+    for i, ctg_run in enumerate(contig_runs):
+        if ctg_run.contig not in contig_runs_idx:
+            contig_runs_idx[ctg_run.contig] = []
+        contig_runs_idx[ctg_run.contig].append(i)
 
-    return_contig_runs_tmp = [ctg for ctg, hits, list_hits in contig_runs if not contigs_hits[ctg].subsumed]
-    return_contig_runs = [ctg for ctg, hits in itertools.groupby(return_contig_runs_tmp)]
+    # Now, go back and mark subsumed contigs where applicable
+    for ctg in contig_runs_idx:
+        if len(contig_runs_idx[ctg]) < 2:
+            continue
+        for i, j in zip(contig_runs_idx[ctg], contig_runs_idx[ctg][1:]):
+            for idx in range(i+1, j):
+                contig_runs[idx].subsumed = True
 
-    for ctg in contigs_hits:
-        contigs_hits[ctg].hits = contig_positions[ctg]
+    # Filter the flagged subsumed contig runs
+    contig_runs = [cr for cr in contig_runs if not cr.subsumed]
+
+    # Group again by contig
+    contig_runs_final = []
+    for ctg, runs in itertools.groupby(contig_runs, key=lambda x: x.contig):
+        contig_runs_final.append(ntlink_pair.ContigRun(ctg, [hit for cr in runs for hit in cr.hits]))
+
+    return_contig_runs = [ctg_run.contig for ctg_run in contig_runs_final]
+    return_contigs_hits = {ctg_run.contig: ctg_run for ctg_run in contig_runs_final}
+    if len(return_contigs_hits) != len(return_contig_runs):
+        print(return_contigs_hits)
+        print(return_contig_runs)
+    assert len(return_contigs_hits) == len(return_contig_runs)
+    assert len(return_contigs_hits) == len(contig_runs_final)
 
     return return_contigs_hits, return_contig_runs
 
