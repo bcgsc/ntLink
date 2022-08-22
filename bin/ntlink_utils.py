@@ -9,8 +9,8 @@ from collections import namedtuple, defaultdict
 import os
 import re
 import sys
-import igraph as ig
 import itertools
+import igraph as ig
 import numpy as np
 import ntlink_pair
 
@@ -215,8 +215,7 @@ def get_accepted_anchor_contigs(mx_list, read_length, scaffolds, list_mx_info, a
 
     # Filter out hits where mapped length on contig is greater than the read length
     noisy_contigs = set()
-    for contig in contig_positions:
-        positions = contig_positions[contig]
+    for contig, positions in contig_positions.items():
         if len(positions) < 2:
             continue
         ctg_positions = [position.ctg_pos for position in positions]
@@ -244,10 +243,10 @@ def get_accepted_anchor_contigs(mx_list, read_length, scaffolds, list_mx_info, a
         contig_runs_idx[ctg_run.contig].append(i)
 
     # Now, go back and mark subsumed contigs where applicable
-    for ctg in contig_runs_idx:
-        if len(contig_runs_idx[ctg]) < 2:
+    for ctg, indices in contig_runs_idx.items():
+        if len(indices) < 2:
             continue
-        for i, j in zip(contig_runs_idx[ctg], contig_runs_idx[ctg][1:]):
+        for i, j in zip(indices, indices[1:]):
             for idx in range(i+1, j):
                 contig_runs[idx].subsumed = True
 
@@ -279,4 +278,3 @@ def parse_minimizers(minimizer_positions: str) -> list:
         return_mxs.append(MinimizerPositions(ctg_pos=int(ctg_pos), ctg_strand=ctg_strand,
                                              read_pos=int(read_pos), read_strand=read_strand))
     return return_mxs
-
