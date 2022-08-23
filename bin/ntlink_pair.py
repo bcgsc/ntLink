@@ -345,10 +345,19 @@ class NtLink():
                     if len(line) > 1:
                         mx_pos_split_tups = line[1].split(" ")
                         mx_pos_split = []
+
+                        mx_seen = set()
+                        mx_dups = set()
+
                         for mx_pos in mx_pos_split_tups:
                             mx, pos, strand = mx_pos.split(":")
                             if mx in target_mxs:
                                 mx_pos_split.append((mx, pos, strand))
+                                if mx in mx_seen:
+                                    mx_dups.add(mx)
+                                else:
+                                    mx_seen.add(mx)
+                        mx_pos_split = [(mx, pos, strand) for mx, pos, strand in mx_pos_split if mx not in mx_dups]
                         if not mx_pos_split:
                             continue
                         length_long_read = int(mx_pos_split[-1][1])
