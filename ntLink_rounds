@@ -22,6 +22,9 @@ rounds=5
 # Prefix for output files - required for rounds
 prefix=$(target).k$(k).w$(w).z$(z)
 
+# Flag to indicate development run - retain intermediate files (no clean). Set dev=True to enable.
+dev=False
+
 # Record run ntLink_time and memory usage in a file using GNU time
 v=0
 ifeq ($(v), 0)
@@ -58,7 +61,7 @@ help:
 	@echo ""
 	@echo "Note: "
 	@echo "	- Ensure all assembly and read files are in the current working directory, making soft links if necessary"
-	@echo " - The prefix parameter can not be changed from default for running rounds with ntLink_rounds"
+	@echo "	- The prefix parameter can not be changed from default for running rounds with ntLink_rounds"
 	@echo ""
 
 run_targets = $(shell for i in `seq 2 $(rounds)`; do printf "$(target).k$k.w$w.z$z"; for j in `seq 1 $$i`; do printf ".ntLink"; done; printf ".fa "; done )
@@ -91,10 +94,12 @@ endif
 # First round of ntLink - with gap-filling
 $(target).k$k.w$w.z$z.ntLink.gap_fill.fa: $(target) $(reads)
 	$(ntLink_time) ntLink scaffold gap_fill target=$< reads=$(reads) k=$k w=$w z=$z
-	ntLink clean extra_clean target=$< reads=$(reads) k=$k w=$w z=$z
 	ln -sf $(target).k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa $(target).k$k.w$w.z$z.ntLink.gap_fill.fa
 	ln -sf $(target).k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa.agp $(target).k$k.w$w.z$z.ntLink.gap_fill.fa.agp
 	ln -sf $(target).k$k.w$w.z$z.verbose_mapping.tsv $(target).k$k.w$w.z$z.ntLink.gap_fill.fa.verbose_mapping.tsv
+ifneq ($(dev), True)
+	ntLink clean extra_clean target=$< reads=$(reads) k=$k w=$w z=$z
+endif
 
 # First round of ntLink - no gap-filling
 $(target).k$k.w$w.z$z.ntLink.fa: $(target) $(reads)
@@ -103,6 +108,9 @@ $(target).k$k.w$w.z$z.ntLink.fa: $(target) $(reads)
 	ln -sf $(target).k$k.w$w.z$z.ntLink.scaffolds.fa $(target).k$k.w$w.z$z.ntLink.fa
 	ln -sf $(target).k$k.w$w.z$z.trimmed_scafs.agp $(target).k$k.w$w.z$z.ntLink.fa.agp
 	ln -sf $(target).k$k.w$w.z$z.verbose_mapping.tsv $(target).k$k.w$w.z$z.ntLink.fa.verbose_mapping.tsv
+ifneq ($(dev), True)
+	ntLink clean extra_clean target=$< reads=$(reads) k=$k w=$w z=$z
+endif
 
 # Liftover
 %.fa.k$k.w$w.z$z.verbose_mapping.tsv: %.fa
@@ -112,10 +120,12 @@ $(target).k$k.w$w.z$z.ntLink.fa: $(target) $(reads)
 # Subsequent rounds of ntLink - gap-filling
 %.ntLink.gap_fill.fa:  %.gap_fill.fa $(reads) %.gap_fill.fa.k$k.w$w.z$z.verbose_mapping.tsv
 	$(ntLink_time) ntLink scaffold gap_fill target=$< reads=$(reads) k=$k w=$w z=$z
-	ntLink clean extra_clean target=$< reads=$(reads) k=$k w=$w z=$z
 	ln -sf $*.gap_fill.fa.k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa $@
 	ln -sf $*.gap_fill.fa.k$k.w$w.z$z.ntLink.scaffolds.gap_fill.fa.agp $*.ntLink.gap_fill.fa.agp
 	ln -sf $*.gap_fill.fa.k$k.w$w.z$z.verbose_mapping.tsv $*.ntLink.gap_fill.fa.verbose_mapping.tsv
+ifneq ($(dev), True)
+	ntLink clean extra_clean target=$< reads=$(reads) k=$k w=$w z=$z
+endif
 
 # Subsequent rounds of ntLink - no gap-filling
 %.ntLink.fa:  %.fa $(reads) %.fa.k$k.w$w.z$z.verbose_mapping.tsv
@@ -124,6 +134,9 @@ $(target).k$k.w$w.z$z.ntLink.fa: $(target) $(reads)
 	ln -sf $*.fa.k$k.w$w.z$z.ntLink.scaffolds.fa $@
 	ln -sf $*.fa.k$k.w$w.z$z.trimmed_scafs.agp $*.ntLink.fa.agp
 	ln -sf $*.fa.k$k.w$w.z$z.verbose_mapping.tsv $*.ntLink.fa.verbose_mapping.tsv
+ifneq ($(dev), True)
+	ntLink clean extra_clean target=$< reads=$(reads) k=$k w=$w z=$z
+endif
 
 # Clean up files
 clean:
