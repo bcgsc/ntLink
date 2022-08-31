@@ -364,6 +364,9 @@ class NtLink():
                         accepted_anchor_contigs, contig_runs = \
                             ntlink_utils.get_accepted_anchor_contigs(mx_pos_split,length_long_read,
                                                                      NtLink.scaffolds, NtLink.list_mx_info, self.args)
+                        accepted_anchor_contigs, contig_runs = \
+                            ntlink_utils.filter_accepted_anchor_contigs(accepted_anchor_contigs, contig_runs)
+
                         if self.args.verbose and accepted_anchor_contigs:
                             for ctg_run in accepted_anchor_contigs:
                                 verbose_file.write("{}\t{}\t{}\t{}\n".

@@ -5,7 +5,7 @@ General utility functions for ntLink
 __author__ = "Lauren Coombe @lcoombe"
 
 import datetime
-from collections import namedtuple, defaultdict
+from collections import namedtuple, defaultdict, Counter
 import os
 import re
 import sys
@@ -278,3 +278,26 @@ def parse_minimizers(minimizer_positions: str) -> list:
         return_mxs.append(MinimizerPositions(ctg_pos=int(ctg_pos), ctg_strand=ctg_strand,
                                              read_pos=int(read_pos), read_strand=read_strand))
     return return_mxs
+
+def filter_accepted_anchor_contigs(aa_contigs: dict, contigs: list) -> tuple:
+    "Parse the mappings on each contig, looking for orientation and position consistency"
+    to_remove = set()
+    for ctg, ctg_run in aa_contigs.items():
+        # Check consistency with minimizer orientations
+        relative_orientations = Counter([mx.ctg_strand == mx.read_strand for mx in ctg_run.hits])
+        common_ori, ori_count = relative_orientations.most_common(1).pop()
+        if ori_count == ctg_run.hit_count:
+            continue
+        elif (ori_count/ctg_run.hit_count)*100 >= 80:  #!! Magic number
+            # Filter the mx hits that are inconsistent
+            new_mx_list = [mx for mx in ctg_run.hits if (mx.ctg_strand == mx.read_strand) == common_ori]
+            ctg_run.hits = new_mx_list
+            ctg_run.hit_count = len(new_mx_list)
+        else:
+            # Remove the mapping altogether
+            to_remove.add(ctg)
+    contigs = [ctg for ctg in contigs if ctg not in to_remove]
+    aa_contigs = {ctg: ctg_run for ctg, ctg_run in aa_contigs.items() if ctg in contigs}
+
+    return aa_contigs, contigs
+
