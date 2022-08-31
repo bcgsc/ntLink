@@ -7,7 +7,7 @@ import argparse
 import itertools
 import io
 from collections import namedtuple
-from ntlink_utils import MinimizerPositions, reverse_orientation
+from ntlink_utils import MinimizerPositions, reverse_orientation, filter_accepted_anchor_contigs
 from ntlink_pair import ContigRun, NtLink
 
 NewMinimizerMapping = namedtuple("NewMinimizerMapping", ["read_id", "new_ctg_id", "num_anchors",
@@ -99,6 +99,8 @@ def print_adjusted_mappings(read_id: str, mappings: list, outfile: io.TextIOWrap
     filtered_mappings = [m for m in mappings if not contig_hits[m.new_ctg_id].subsumed]
 
     # Group the reads again, this time adjusting and printing out the mappings
+    ctgs = []
+    aa_contigs = {}
     for ctg, tup in itertools.groupby(filtered_mappings, lambda x: x.new_ctg_id):
         tup = list(tup)
 
@@ -110,8 +112,13 @@ def print_adjusted_mappings(read_id: str, mappings: list, outfile: io.TextIOWrap
             monotonic_decrease = all(i.ctg_pos > j.ctg_pos for i, j in zip(concat_mappings, concat_mappings[1:]))
             if not monotonic_decrease:
                 continue # !! TODO: deal with these cases?
-        mx_string = NtLink.print_minimizer_positions(concat_mappings)
-        outfile.write(f"{read_id}\t{ctg}\t{len(concat_mappings)}\t{mx_string}\n")
+        ctgs.append(ctg)
+        aa_contigs[ctg] = ContigRun(ctg, concat_mappings)
+
+    aa_contigs, ctgs = filter_accepted_anchor_contigs(aa_contigs, ctgs)
+    for ctg, ctg_run in aa_contigs.items():
+        mx_string = NtLink.print_minimizer_positions(ctg_run.hits)
+        outfile.write(f"{read_id}\t{ctg}\t{ctg_run.hit_count}\t{mx_string}\n")
 
 
 
