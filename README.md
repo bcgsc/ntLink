@@ -106,9 +106,7 @@ See the wiki page for more details.
  
  Installing from source code:
  ```
-git clone https://github.com/bcgsc/ntLink.git
-cd src
-make
+curl -L --output ntLink-1.3.4.tar.gz https://github.com/bcgsc/ntLink/releases/download/v1.3.4/ntLink-1.3.4.tar.gz && tar xvzf ntLink-1.3.4.tar.gz 
 ```
 
 #### Testing your installation
@@ -121,13 +119,14 @@ The expected output files can be found in: `tests/expected_outputs`
 
 ## Dependencies
 * Python 3.7+ ([Numpy](https://numpy.org/), [Python-igraph](https://igraph.org/python/))
+* [btllib](https://github.com/bcgsc/btllib)
 * [ABySS v2.3.0+](https://github.com/bcgsc/abyss)
 * GCC 6+ or Clang 5+ with OpenMP
 * [zlib](https://zlib.net/)
 
 Python dependencies can be installed with:
 ```
-pip3 install -r requirements.txt
+conda install -c bioconda --file requirements.txt
 ```
 
 ## License

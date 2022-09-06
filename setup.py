@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ntLink",
-    version="1.3.1",
+    version="1.3.4",
     author="Lauren Coombe",
     author_email="lcoombe@bcgsc.ca",
     description="Genome assembly scaffolder using long reads",
@@ -15,7 +15,10 @@ setuptools.setup(
     license="GPLv3",
     python_requires=">=3",
     install_requires=["python-igraph", "numpy"],
-    scripts = ["bin/ntlink_pair.py", "bin/read_fasta.py", "bin/ntlink_utils.py"],
+    scripts = ["bin/ntlink_pair.py", "bin/read_fasta.py", "bin/ntlink_utils.py",
+               "bin/ntlink_filter_sequences.py", "bin/ntlink_liftover_mappings.py",
+               "bin/ntlink_overlap_sequences.py", "bin/ntlink_patch_gaps.py",
+               "bin/ntlink_stitch_paths.py", "bin/ntjoin_utils.py"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
