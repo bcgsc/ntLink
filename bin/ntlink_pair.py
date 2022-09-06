@@ -527,7 +527,8 @@ class NtLink():
                             type=float, default=0)
         parser.add_argument("-c", "--checkpoint", help="Mappings checkpoint file", required=False)
         parser.add_argument("--format", choices=['dot', 'gfa', 'gfa2', 'both'], help="Output graph format", default="dot")
-        parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.1')
+        parser.add_argument("--pairs", help="Output pairs TSV file", action="store_true")
+        parser.add_argument("-v", "--version", action='version', version='ntLink v1.4.0')
         parser.add_argument("--verbose", help="Verbose output logging", action='store_true')
 
         return parser.parse_args()
@@ -586,7 +587,8 @@ class NtLink():
 
         pairs = self.filter_weak_anchor_pairs(pairs)
 
-        self.write_pairs(pairs)
+        if self.args.pairs:
+            self.write_pairs(pairs)
 
         # Build directed graph
         graph = self.build_scaffold_graph(pairs)
