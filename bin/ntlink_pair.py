@@ -323,6 +323,22 @@ class NtLink():
 
         return pair
 
+    def filter_mapped_contigs(self, mx_pos_split, accepted_anchor_contigs,
+                              contig_runs):
+        "Filter the given hits for minimizers that are repetitive in the read"
+        mx_pos_in_read = set([pos for _, pos, _ in mx_pos_split])
+        return_anchor_contigs = {}
+        for contig, ctg_run in accepted_anchor_contigs.items():
+            hits = [mx_pos for mx_pos in ctg_run.hits if mx_pos.read_pos in mx_pos_in_read]
+            if hits:
+                return_anchor_contigs[contig] = ctg_run
+                return_anchor_contigs[contig].hits = hits
+                return_anchor_contigs[contig].hit_count = len(hits)
+        return_contig_runs = [ctg for ctg in contig_runs if ctg in return_anchor_contigs]
+
+        return return_anchor_contigs, return_contig_runs
+
+
     def find_scaffold_pairs(self):
         "Builds up pairing information between scaffolds"
         print(datetime.datetime.today(), ": Finding pairs", file=sys.stdout)
@@ -357,13 +373,16 @@ class NtLink():
                                     mx_dups.add(mx)
                                 else:
                                     mx_seen.add(mx)
-                        mx_pos_split = [(mx, pos, strand) for mx, pos, strand in mx_pos_split if mx not in mx_dups]
+                        #mx_pos_split = [(mx, pos, strand) for mx, pos, strand in mx_pos_split if mx not in mx_dups]
                         if not mx_pos_split:
                             continue
                         length_long_read = int(mx_pos_split[-1][1])
                         accepted_anchor_contigs, contig_runs = \
                             ntlink_utils.get_accepted_anchor_contigs(mx_pos_split,length_long_read,
                                                                      NtLink.scaffolds, NtLink.list_mx_info, self.args)
+                        mx_pos_split = [(mx, pos, strand) for mx, pos, strand in mx_pos_split if mx not in mx_dups]
+                        accepted_anchor_contigs, contig_runs = self.filter_mapped_contigs(mx_pos_split, accepted_anchor_contigs,
+                                                                                          contig_runs)
                         if self.args.verbose and accepted_anchor_contigs:
                             for ctg_run in accepted_anchor_contigs:
                                 verbose_file.write("{}\t{}\t{}\t{}\n".
