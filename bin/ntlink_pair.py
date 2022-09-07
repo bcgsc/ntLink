@@ -326,9 +326,11 @@ class NtLink():
     def filter_mapped_contigs(self, mx_pos_split, accepted_anchor_contigs,
                               contig_runs):
         "Filter the given hits for minimizers that are repetitive in the read"
-        mx_pos_in_read = set([pos for _, pos, _ in mx_pos_split])
+        mx_pos_in_read = set([int(pos) for _, pos, _ in mx_pos_split])
+        print(mx_pos_in_read)
         return_anchor_contigs = {}
         for contig, ctg_run in accepted_anchor_contigs.items():
+            print(str(ctg_run))
             hits = [mx_pos for mx_pos in ctg_run.hits if mx_pos.read_pos in mx_pos_in_read]
             if hits:
                 return_anchor_contigs[contig] = ctg_run
@@ -381,8 +383,10 @@ class NtLink():
                             ntlink_utils.get_accepted_anchor_contigs(mx_pos_split,length_long_read,
                                                                      NtLink.scaffolds, NtLink.list_mx_info, self.args)
                         mx_pos_split = [(mx, pos, strand) for mx, pos, strand in mx_pos_split if mx not in mx_dups]
+                        print(accepted_anchor_contigs)
                         accepted_anchor_contigs, contig_runs = self.filter_mapped_contigs(mx_pos_split, accepted_anchor_contigs,
                                                                                           contig_runs)
+                        print(accepted_anchor_contigs)
                         if self.args.verbose and accepted_anchor_contigs:
                             for ctg_run in accepted_anchor_contigs:
                                 verbose_file.write("{}\t{}\t{}\t{}\n".
