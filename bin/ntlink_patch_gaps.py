@@ -771,6 +771,7 @@ def main() -> None:
     parser.add_argument("--stringent", help="If specified, will only use lower k/w re-mapping for filling gaps,"
                                             " will not fall back on original anchors", action="store_true")
     parser.add_argument("--soft_mask", help="If specified, will soft mask the filled gap", action="store_true")
+    parser.add_argument("--sensitive", help="Run more sensitive read mapping", action="store_true")
     parser.add_argument("--verbose", help="Verbose logging - print out trimmed scaffolds without gaps",
                         action="store_true")
     parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.4')

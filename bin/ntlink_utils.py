@@ -243,12 +243,10 @@ def get_accepted_anchor_contigs(mx_list, read_length, scaffolds, list_mx_info, a
         contig_runs_idx[ctg_run.contig].append(i)
 
     # Now, go back and mark subsumed contigs where applicable
-    for ctg, indices in contig_runs_idx.items():
-        if len(indices) < 2:
-            continue
-        for i, j in zip(indices, indices[1:]):
-            for idx in range(i+1, j):
-                contig_runs[idx].subsumed = True
+    if args.sensitive:
+        mark_subsumed_sensitive(contig_runs, contig_runs_idx)
+    else:
+        mark_subsumed_conservative(contig_runs, contig_runs_idx)
 
     # Filter the flagged subsumed contig runs
     contig_runs = [cr for cr in contig_runs if not cr.subsumed]
@@ -267,6 +265,30 @@ def get_accepted_anchor_contigs(mx_list, read_length, scaffolds, list_mx_info, a
     assert len(return_contigs_hits) == len(contig_runs_final)
 
     return return_contigs_hits, return_contig_runs
+
+
+def mark_subsumed_sensitive(contig_runs, contig_runs_idx):
+    "Iterate over the contig runs and mark only contig runs as subsumed"
+    for ctg, indices in contig_runs_idx.items():
+        if len(indices) < 2:
+            continue
+        for i, j in zip(indices, indices[1:]):
+            for idx in range(i + 1, j):
+                contig_runs[idx].subsumed = True
+
+def mark_subsumed_conservative(contig_runs, contig_runs_idx):
+    "Iterate over the contig runs and mark contigs as subsumed if any runs are subsumed"
+    subsumed_ctgs = set()
+    for ctg, indices in contig_runs_idx.items():
+        if len(indices) < 2:
+            continue
+        for i, j in zip(indices, indices[1:]):
+            for idx in range(i + 1, j):
+                contig_runs[idx].subsumed = True
+                subsumed_ctgs.add(contig_runs[idx].contig)
+    for cr in contig_runs:
+        if cr.contig in subsumed_ctgs:
+            cr.subsumed = True
 
 def parse_minimizers(minimizer_positions: str) -> list:
     "Parse the minimizer positions string"
