@@ -51,6 +51,7 @@ x=0
 conservative=True
 
 # Run ntLink mapping in sensitive mode?
+sensitive=False
 
 # Output verbose read mappings to contigs?
 verbose=True

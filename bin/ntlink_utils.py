@@ -246,7 +246,7 @@ def get_accepted_anchor_contigs(mx_list, read_length, scaffolds, list_mx_info, a
     if args.sensitive:
         mark_subsumed_sensitive(contig_runs, contig_runs_idx)
     else:
-        mark_subsumed_conservative(contig_runs, contig_runs_idx)
+        mark_subsumed_specific(contig_runs, contig_runs_idx)
 
     # Filter the flagged subsumed contig runs
     contig_runs = [cr for cr in contig_runs if not cr.subsumed]
@@ -276,7 +276,7 @@ def mark_subsumed_sensitive(contig_runs, contig_runs_idx):
             for idx in range(i + 1, j):
                 contig_runs[idx].subsumed = True
 
-def mark_subsumed_conservative(contig_runs, contig_runs_idx):
+def mark_subsumed_specific(contig_runs, contig_runs_idx):
     "Iterate over the contig runs and mark contigs as subsumed if any runs are subsumed"
     subsumed_ctgs = set()
     for ctg, indices in contig_runs_idx.items():
