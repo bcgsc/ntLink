@@ -53,6 +53,9 @@ conservative=True
 # Run ntLink mapping in sensitive mode?
 sensitive=False
 
+# Use repeat filter?
+repeats=False
+
 # Output verbose read mappings to contigs?
 verbose=True
 
@@ -191,6 +194,9 @@ ntlink_pair_params+=--pairs
 endif
 ifeq ($(sensitive), True)
 ntlink_pair_params+=--sensitive
+endif
+ifeq ($(repeats), True)
+ntlink_pair_params+=--repeat-filter
 endif
 
 $(prefix).n$(n).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
