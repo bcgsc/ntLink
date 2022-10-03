@@ -517,6 +517,8 @@ class NtLink():
         print("\t-x ", self.args.x)
         if self.args.checkpoint:
             print("\t-c ", self.args.checkpoint)
+        if self.args.sensitive:
+            print("\t--sensitive")
 
     def main(self):
         "Run ntLink graph stage"
