@@ -279,13 +279,15 @@ def mark_subsumed_sensitive(contig_runs, contig_runs_idx):
 def mark_subsumed_specific(contig_runs, contig_runs_idx):
     "Iterate over the contig runs and mark contigs as subsumed if any runs are subsumed"
     subsumed_ctgs = set()
-    for ctg, indices in contig_runs_idx.items():
-        if len(indices) < 2:
-            continue
-        for i, j in zip(indices, indices[1:]):
-            for idx in range(i + 1, j):
-                contig_runs[idx].subsumed = True
-                subsumed_ctgs.add(contig_runs[idx].contig)
+    contigs_hits = {}
+    for i, run_tup in enumerate(contig_runs):
+        ctg, cnt, list_hits = run_tup
+        if ctg in contigs_hits:
+            for j in range(contigs_hits[ctg] + 1, i):
+                subsumed_ctgs.add(contig_runs[j][0])
+        else:
+            contigs_hits[ctg] = i
+
     for cr in contig_runs:
         if cr.contig in subsumed_ctgs:
             cr.subsumed = True
