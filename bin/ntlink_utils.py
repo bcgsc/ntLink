@@ -281,10 +281,10 @@ def mark_subsumed_specific(contig_runs, contig_runs_idx):
     subsumed_ctgs = set()
     contigs_hits = {}
     for i, run_tup in enumerate(contig_runs):
-        ctg, cnt, list_hits = run_tup
+        ctg = run_tup.contig
         if ctg in contigs_hits:
-            for j in range(contigs_hits[ctg] + 1, i):
-                subsumed_ctgs.add(contig_runs[j][0])
+            for j in range(contigs_hits[run_tup.contig] + 1, i):
+                subsumed_ctgs.add(contig_runs[j].contig)
         else:
             contigs_hits[ctg] = i
 
