@@ -346,7 +346,7 @@ class NtLink():
                         mx_pos_split_tups = line[1].split(" ")
                         mx_pos_split = []
                         mx_seen = set()
-                        mx_dup = set()
+                        mx_dups = set()
 
                         for mx_pos in mx_pos_split_tups:
                             mx, pos, strand = mx_pos.split(":")
