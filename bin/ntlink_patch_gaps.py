@@ -14,7 +14,6 @@ import btllib
 import numpy
 import ntlink_pair
 import ntlink_utils
-from ntlink_utils import MinimizerPositions
 
 MinimizerMapping = namedtuple("MinimizerMapping", ["anchors", "minimizer_positions", "orientation"])
 
@@ -610,7 +609,7 @@ def print_agp(pairs: dict, mappings: dict, sequences: dict, args: argparse.Names
             for idx, node in enumerate(path):
                 gap_match = re.search(gap_re, node)
                 if gap_match:
-                    gap_size = int(gap_match.group(1)) - 1 # Account for gaps being one larger in abyss-scaffold path file
+                    gap_size = int(gap_match.group(1)) - 1 # Account for gaps being 1 larger in abyss-scaffold path file
                     source, target = path[idx-1], path[idx+1]
                     if (source, target) not in pairs and gap_size > 0:
                         outfile.write(f"{ctg_id}\t{start}\t{start + gap_size - 1}\t{component_id}\t"
