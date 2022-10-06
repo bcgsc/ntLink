@@ -13,6 +13,8 @@ import os
 import random
 import re
 import sys
+
+import btllib
 import numpy as np
 import igraph as ig
 import ntlink_utils
@@ -337,59 +339,58 @@ class NtLink():
             verbose_file = open(self.args.p + ".verbose_mapping.tsv", 'w')
 
         # Add the long read edges to the graph
-        for mx_long_file in self.args.FILES:
-            mx_long_filename = "/dev/stdin" if mx_long_file == "-" else mx_long_file
-            with open(mx_long_filename, 'r') as long_mxs:
-                for line in long_mxs:
-                    line = line.strip().split("\t")
-                    if len(line) > 1:
-                        mx_pos_split_tups = line[1].split(" ")
-                        mx_pos_split = []
-                        mx_seen = set()
-                        mx_dups = set()
+        for fa_in in self.args.FILES:
+            with btllib.Indexlr(fa_in, self.args.k, self.args.w, btllib.IndexlrFlag.LONG_MODE,
+                                self.args.t) as minimizers:
+                for record in minimizers:
+                    if len(record.minimizers) == 0:
+                        continue
 
-                        for mx_pos in mx_pos_split_tups:
-                            mx, pos, strand = mx_pos.split(":")
-                            if mx in target_mxs:
-                                mx_pos_split.append((mx, pos, strand))
-                                if self.args.repeat_filter:
-                                    if mx in mx_seen:
-                                        mx_dups.add(mx)
-                                    else:
-                                        mx_seen.add(mx)
-                        if self.args.repeat_filter:
-                            mx_pos_split = [(mx, pos, strand) for mx, pos, strand in mx_pos_split if mx not in mx_dups]
+                    mx_seen = set()
+                    mx_dups = set()
+                    mx_pos_split = []
 
-                        if not mx_pos_split:
-                            continue
-                        length_long_read = int(mx_pos_split[-1][1])
-                        accepted_anchor_contigs, contig_runs = \
-                            ntlink_utils.get_accepted_anchor_contigs(mx_pos_split,length_long_read,
-                                                                     NtLink.scaffolds, NtLink.list_mx_info, self.args)
-                        if self.args.verbose and accepted_anchor_contigs:
-                            for ctg_run in accepted_anchor_contigs:
-                                verbose_file.write("{}\t{}\t{}\t{}\n".
-                                                   format(line[0], accepted_anchor_contigs[ctg_run].contig,
-                                                          accepted_anchor_contigs[ctg_run].hit_count,
-                                                          self.print_minimizer_positions(
-                                                              accepted_anchor_contigs[ctg_run].hits)))
+                    for mx in record.minimizers:
+                        if mx.out_hash in target_mxs:
+                            mx_pos_split.append((mx.out_hash, mx.pos, mx.forward))
+                            if self.args.repeat_filter:
+                                if mx.out_hash in mx_seen:
+                                    mx_dups.add(mx.out_hash)
+                                else:
+                                    mx_seen.add(mx.out_hash)
+                    if self.args.repeat_filter:
+                        mx_pos_split = [(mx, pos, strand) for mx, pos, strand in mx_pos_split if mx not in mx_dups]
+
+                    if not mx_pos_split:
+                        continue
+                    length_long_read = record.readlen
+                    accepted_anchor_contigs, contig_runs = \
+                        ntlink_utils.get_accepted_anchor_contigs(mx_pos_split,length_long_read,
+                                                                 NtLink.scaffolds, NtLink.list_mx_info, self.args)
+                    if self.args.verbose and accepted_anchor_contigs:
+                        for ctg_run in accepted_anchor_contigs:
+                            verbose_file.write("{}\t{}\t{}\t{}\n".
+                                               format(record.id, accepted_anchor_contigs[ctg_run].contig,
+                                                      accepted_anchor_contigs[ctg_run].hit_count,
+                                                      self.print_minimizer_positions(
+                                                          accepted_anchor_contigs[ctg_run].hits)))
 
 
-                        # Filter ordered minimizer list for accepted contigs, keep track of hashes for gap sizes
-                        mx_accepted_pos = (hit.read_pos for contig, contig_run in accepted_anchor_contigs.items()
-                                               for hit in contig_run.hits)
-                        mx_pos_split = [mx_tup for mx_tup in mx_pos_split
-                                        if NtLink.list_mx_info[mx_tup[0]].contig in
-                                        accepted_anchor_contigs and int(mx_tup[1]) in mx_accepted_pos]
-                        for mx, pos, strand in mx_pos_split:
-                            mx_contig = NtLink.list_mx_info[mx].contig
-                            if accepted_anchor_contigs[mx_contig].first_mx is None:
-                                accepted_anchor_contigs[mx_contig].first_mx = MinimizerWithHash(mx, mx_contig,
-                                                                                                int(pos), strand)
-                            accepted_anchor_contigs[mx_contig].terminal_mx = MinimizerWithHash(mx, mx_contig,
-                                                                                               int(pos), strand)
+                    # Filter ordered minimizer list for accepted contigs, keep track of hashes for gap sizes
+                    mx_accepted_pos = (hit.read_pos for contig, contig_run in accepted_anchor_contigs.items()
+                                       for hit in contig_run.hits)
+                    mx_pos_split = [mx_tup for mx_tup in mx_pos_split
+                                    if NtLink.list_mx_info[mx_tup[0]].contig in
+                                    accepted_anchor_contigs and int(mx_tup[1]) in mx_accepted_pos]
+                    for mx, pos, strand in mx_pos_split:
+                        mx_contig = NtLink.list_mx_info[mx].contig
+                        if accepted_anchor_contigs[mx_contig].first_mx is None:
+                            accepted_anchor_contigs[mx_contig].first_mx = MinimizerWithHash(mx, mx_contig,
+                                                                                            int(pos), strand)
+                        accepted_anchor_contigs[mx_contig].terminal_mx = MinimizerWithHash(mx, mx_contig,
+                                                                                           int(pos), strand)
 
-                        self.tally_pairs_from_mappings(accepted_anchor_contigs, contig_runs, length_long_read, pairs)
+                    self.tally_pairs_from_mappings(accepted_anchor_contigs, contig_runs, length_long_read, pairs)
         if self.args.verbose:
             verbose_file.close()
 
@@ -491,13 +492,15 @@ class NtLink():
     def parse_arguments():
         "Parse ntLink arguments"
         parser = argparse.ArgumentParser(description="ntLink: Scaffolding genome assemblies using long reads")
-        parser.add_argument("FILES", nargs="+", help="Minimizer TSV files of long reads")
+        parser.add_argument("FILES", nargs="+", help="Long reads file")
         parser.add_argument("-s", help="Target scaffolds fasta file", required=True)
         parser.add_argument("-m", help="Target scaffolds minimizer TSV file", required=True)
         parser.add_argument("-p", help="Output prefix [out]", default="out",
                             type=str, required=False)
         parser.add_argument("-n", help="Minimum edge weight [1]", default=1, type=int)
         parser.add_argument("-k", help="Kmer size used for minimizer step", required=True, type=int)
+        parser.add_argument("-w", help="Window size used for minimizer step", required=True, type=int)
+        parser.add_argument("-t", help="Number of threads", type=int, default=4)
         parser.add_argument("-z", help="Minimum size of contig to scaffold", required=False, default=500, type=int)
         parser.add_argument("-a", help="Minimum number of anchoring long reads for an edge", required=False,
                             type=int, default=1)
@@ -519,7 +522,7 @@ class NtLink():
     def print_parameters(self):
         "Print the set parameters for the ntLink run"
         print("Parameters:")
-        print("\tReads TSV files: ", self.args.FILES)
+        print("\tRead files: ", self.args.FILES)
         print("\t-s ", self.args.s)
         print("\t-m ", self.args.m)
         print("\t-p ", self.args.p)
