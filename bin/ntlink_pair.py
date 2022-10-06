@@ -193,6 +193,7 @@ class NtLink():
                     mx_pos_split = line[1].split(" ")
                     for mx_pos in mx_pos_split:
                         mx, pos, strand = mx_pos.split(":")
+                        mx = int(mx)
                         if mx in mx_info:  # This is a duplicate, add to dup set, don't add to dict
                             dup_mxs.add(mx)
                         else:
@@ -351,7 +352,7 @@ class NtLink():
                     mx_pos_split = []
 
                     for mx in record.minimizers:
-                        str_hash = str(mx.out_hash)
+                        str_hash = mx.out_hash
                         if str_hash in target_mxs:
                             strand = "+" if mx.forward else "-"
                             mx_pos_split.append((str_hash, mx.pos, strand))
