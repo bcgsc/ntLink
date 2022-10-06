@@ -77,11 +77,11 @@ class PairInfo:
 
 class ContigRun:
     "Represents information about a contig run based on a long read"
-    def __init__(self, contig, index, hit_count):
+    def __init__(self, contig, list_hits):
         self.contig = contig
-        self.index = index
-        self.hit_count = hit_count
-        self.hits = []
+        self.index = None
+        self.hit_count = len(list_hits)
+        self.hits = list_hits
         self._subsumed = False
         self.first_mx = None
         self.terminal_mx = None
@@ -345,10 +345,21 @@ class NtLink():
                     if len(line) > 1:
                         mx_pos_split_tups = line[1].split(" ")
                         mx_pos_split = []
+                        mx_seen = set()
+                        mx_dups = set()
+
                         for mx_pos in mx_pos_split_tups:
                             mx, pos, strand = mx_pos.split(":")
                             if mx in target_mxs:
                                 mx_pos_split.append((mx, pos, strand))
+                                if self.args.repeat_filter:
+                                    if mx in mx_seen:
+                                        mx_dups.add(mx)
+                                    else:
+                                        mx_seen.add(mx)
+                        if self.args.repeat_filter:
+                            mx_pos_split = [(mx, pos, strand) for mx, pos, strand in mx_pos_split if mx not in mx_dups]
+
                         if not mx_pos_split:
                             continue
                         length_long_read = int(mx_pos_split[-1][1])
@@ -365,9 +376,11 @@ class NtLink():
 
 
                         # Filter ordered minimizer list for accepted contigs, keep track of hashes for gap sizes
+                        mx_accepted_pos = set([hit.read_pos for contig, contig_run in accepted_anchor_contigs.items()
+                                               for hit in contig_run.hits])
                         mx_pos_split = [mx_tup for mx_tup in mx_pos_split
                                         if NtLink.list_mx_info[mx_tup[0]].contig in
-                                        accepted_anchor_contigs]
+                                        accepted_anchor_contigs and int(mx_tup[1]) in mx_accepted_pos]
                         for mx, pos, strand in mx_pos_split:
                             mx_contig = NtLink.list_mx_info[mx].contig
                             if accepted_anchor_contigs[mx_contig].first_mx is None:
@@ -433,8 +446,8 @@ class NtLink():
         read_mapping_positions = []
         for i, m in enumerate(mappings):
             contig_runs.append(m.contig_id)
-            accepted_anchor_contigs[m.contig_id] = ContigRun(m.contig_id, i, int(m.num_hits))
-            accepted_anchor_contigs[m.contig_id].hits = ntlink_utils.parse_minimizers(m.list_hits)
+            accepted_anchor_contigs[m.contig_id] = ContigRun(m.contig_id, ntlink_utils.parse_minimizers(m.list_hits))
+            accepted_anchor_contigs[m.contig_id].index = i
             # Generate random 64-bit integer to represent the minimizer hash
             first_hash = random.getrandbits(64)
             last_hash = random.getrandbits(64)
@@ -495,6 +508,9 @@ class NtLink():
                             type=float, default=0)
         parser.add_argument("-c", "--checkpoint", help="Mappings checkpoint file", required=False)
         parser.add_argument("--pairs", help="Output pairs TSV file", action="store_true")
+        parser.add_argument("--sensitive", help="Run more sensitive read mapping", action="store_true")
+        parser.add_argument("--repeat-filter", help="Remove repetitive minimizers within a long read's sketch",
+                            action="store_true")
         parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.4')
         parser.add_argument("--verbose", help="Verbose output logging", action='store_true')
 
@@ -515,6 +531,10 @@ class NtLink():
         print("\t-x ", self.args.x)
         if self.args.checkpoint:
             print("\t-c ", self.args.checkpoint)
+        if self.args.sensitive:
+            print("\t--sensitive")
+        if self.args.repeat_filter:
+            print("\t--repeat-filter")
 
     def main(self):
         "Run ntLink graph stage"

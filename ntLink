@@ -50,6 +50,12 @@ x=0
 # Run ntLink in conservative mode?
 conservative=True
 
+# Run ntLink mapping in sensitive mode?
+sensitive=False
+
+# Use repeat filter?
+repeats=False
+
 # Output verbose read mappings to contigs?
 verbose=True
 
@@ -119,6 +125,7 @@ help:
 	@echo "v			If 1, track time and memory for each step of the pipeline [0]"
 	@echo "conservative		If False, runs ntLink in stitching mode [True]"
 	@echo "overlap			If True, runs extra step to attempt to identify and trim overlapping joined sequences [True]"
+	@echo "sensitive	        If True, runs mapping in sensitive mode [False]"
 	@echo ""
 	@echo "Note: "
 	@echo "	- Ensure all assembly and read files are in the current working directory, making soft links if necessary"
@@ -184,6 +191,12 @@ ntlink_pair_params+=--verbose
 endif
 ifeq ($(ntlink_pairs_tsv), True)
 ntlink_pair_params+=--pairs
+endif
+ifeq ($(sensitive), True)
+ntlink_pair_params+=--sensitive
+endif
+ifeq ($(repeats), True)
+ntlink_pair_params+=--repeat-filter
 endif
 
 $(prefix).n$(n).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
