@@ -351,16 +351,17 @@ class NtLink():
                     mx_pos_split = []
 
                     for mx in record.minimizers:
-                        if mx.out_hash in target_mxs:
-                            mx_pos_split.append((mx.out_hash, mx.pos, mx.forward))
+                        str_hash = str(mx.out_hash)
+                        if str_hash in target_mxs:
+                            strand = "+" if mx.forward else "-"
+                            mx_pos_split.append((str_hash, mx.pos, strand))
                             if self.args.repeat_filter:
-                                if mx.out_hash in mx_seen:
-                                    mx_dups.add(mx.out_hash)
+                                if str_hash in mx_seen:
+                                    mx_dups.add(str_hash)
                                 else:
-                                    mx_seen.add(mx.out_hash)
+                                    mx_seen.add(str_hash)
                     if self.args.repeat_filter:
                         mx_pos_split = [(mx, pos, strand) for mx, pos, strand in mx_pos_split if mx not in mx_dups]
-
                     if not mx_pos_split:
                         continue
                     length_long_read = record.readlen
