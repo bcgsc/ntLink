@@ -63,7 +63,7 @@ class ScaffoldCut:
         self._source_cut_flag = True
 
     def adjust_source_cut(self, k):
-        # Adjust the source cut by k if the orientation is - and source flag is set
+        "Adjust the source cut by k if the orientation is - and source flag is set"
         if self.ori == "-" and self._source_cut_flag:
             return self._source_cut + k
         return self._source_cut
@@ -83,12 +83,13 @@ class ScaffoldCut:
         self._target_cut_flag = True
 
     def adjust_target_cut(self, k):
-        # Adjust the target cut by k if the orientation is - and target flag is set, return the adjusted value
+        "Adjust the target cut by k if the orientation is - and target flag is set, return the adjusted value"
         if self.ori == "-" and self._target_cut_flag:
             return self._target_cut + k
         return self._target_cut
 
     def get_trim_coordinates(self, k):
+        "Return the trim coordinates for the source and target scaffold"
         if self.ori == "+":
             return self.target_cut, self.source_cut
         if self.ori == "-":
