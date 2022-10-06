@@ -376,7 +376,8 @@ class NtLink():
 
 
                         # Filter ordered minimizer list for accepted contigs, keep track of hashes for gap sizes
-                        mx_accepted_pos = set([hit.read_pos for contig, contig_run in accepted_anchor_contigs.items() for hit in contig_run.hits])
+                        mx_accepted_pos = set([hit.read_pos for contig, contig_run in accepted_anchor_contigs.items()
+                                               for hit in contig_run.hits])
                         mx_pos_split = [mx_tup for mx_tup in mx_pos_split
                                         if NtLink.list_mx_info[mx_tup[0]].contig in
                                         accepted_anchor_contigs and int(mx_tup[1]) in mx_accepted_pos]
@@ -508,7 +509,8 @@ class NtLink():
         parser.add_argument("-c", "--checkpoint", help="Mappings checkpoint file", required=False)
         parser.add_argument("--pairs", help="Output pairs TSV file", action="store_true")
         parser.add_argument("--sensitive", help="Run more sensitive read mapping", action="store_true")
-        parser.add_argument("--repeat-filter", help="Remove repetitive minimizers within a long read's sketch", action="store_true")
+        parser.add_argument("--repeat-filter", help="Remove repetitive minimizers within a long read's sketch",
+                            action="store_true")
         parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.4')
         parser.add_argument("--verbose", help="Verbose output logging", action='store_true')
 
