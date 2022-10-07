@@ -345,7 +345,7 @@ class NtLink():
             with open(mx_long_filename, 'r') as long_mxs:
                 for line in long_mxs:
                     line = line.strip().split("\t")
-                    if len(line) < 2:
+                    if len(line) < 3:
                         continue
                     mx_pos_split_tups = line[2].split(" ")
                     mx_pos_split = []
