@@ -199,8 +199,8 @@ ifeq ($(repeats), True)
 ntlink_pair_params+=--repeat-filter
 endif
 
-$(prefix).n$(n).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
-	$(ntLink_time) $(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
+$(prefix).n$(n).scaffold.dot: $(target) $(reads)
+	$(ntLink_time) $(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n)  -s $(target)  \
 	-k $(k) -w $(w) -t $(t) -a $(a) -z $(z) -f $(f) -x $(x) $(ntlink_pair_params) $(reads)
 
 # Run abyss-scaffold scaffolding layout

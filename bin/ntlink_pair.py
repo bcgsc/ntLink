@@ -179,25 +179,23 @@ class NtLink():
         gap_size = est_distance - a - b
         return int(gap_size)
 
-    @staticmethod
-    def read_minimizers(tsv_filename):
+    def read_minimizers(self):
         "Read the minimizers from a file, removing duplicate minimizers"
-        print(datetime.datetime.today(), ": Reading minimizers", tsv_filename, file=sys.stdout)
+        print(datetime.datetime.today(), ": Reading minimizers", self.args.s, file=sys.stdout)
         mx_info = {}  # mx -> Minimizer object
         dup_mxs = set()  # Set of minimizers identified as duplicates
-        with open(tsv_filename, 'r') as tsv:
-            for line in tsv:
-                line = line.strip().split("\t")
-                if len(line) > 1:
-                    ctg_name = line[0]
-                    mx_pos_split = line[1].split(" ")
-                    for mx_pos in mx_pos_split:
-                        mx, pos, strand = mx_pos.split(":")
-                        mx = int(mx)
-                        if mx in mx_info:  # This is a duplicate, add to dup set, don't add to dict
-                            dup_mxs.add(mx)
+
+        with btllib.Indexlr(self.args.s, self.args.k, self.args.w, btllib.IndexlrFlag.LONG_MODE,
+                            self.args.t) as minimizers:
+            for record in minimizers:
+                if len(record.minimizers) > 1:
+                    ctg_name = record.id
+                    for mx in record.minimizers:
+                        if mx.out_hash in mx_info:  # This is a duplicate, add to dup set, don't add to dict
+                            dup_mxs.add(mx.out_hash)
                         else:
-                            mx_info[mx] = Minimizer(ctg_name, int(pos), strand)
+                            strand = "+" if mx.forward else "-"
+                            mx_info[mx.out_hash] = Minimizer(ctg_name, mx.pos, strand)
 
         mx_info = {mx: mx_info[mx] for mx in mx_info if mx not in dup_mxs}
 
@@ -496,7 +494,7 @@ class NtLink():
         parser = argparse.ArgumentParser(description="ntLink: Scaffolding genome assemblies using long reads")
         parser.add_argument("FILES", nargs="+", help="Long reads file")
         parser.add_argument("-s", help="Target scaffolds fasta file", required=True)
-        parser.add_argument("-m", help="Target scaffolds minimizer TSV file", required=True)
+        #parser.add_argument("-m", help="Target scaffolds minimizer TSV file", required=True)
         parser.add_argument("-p", help="Output prefix [out]", default="out",
                             type=str, required=False)
         parser.add_argument("-n", help="Minimum edge weight [1]", default=1, type=int)
@@ -526,7 +524,7 @@ class NtLink():
         print("Parameters:")
         print("\tRead files: ", self.args.FILES)
         print("\t-s ", self.args.s)
-        print("\t-m ", self.args.m)
+       # print("\t-m ", self.args.m)
         print("\t-p ", self.args.p)
         print("\t-n ", self.args.n)
         print("\t-k ", self.args.k)
@@ -556,7 +554,7 @@ class NtLink():
             NtLink.list_mx_info = {}
         else:
             # Read in the minimizers for target assembly
-            mxs_info = self.read_minimizers(self.args.m)
+            mxs_info = self.read_minimizers()
             NtLink.list_mx_info = mxs_info
 
         # Load target scaffolds into memory
