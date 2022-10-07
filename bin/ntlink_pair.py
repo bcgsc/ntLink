@@ -345,23 +345,20 @@ class NtLink():
             with btllib.Indexlr(fa_in, self.args.k, self.args.w, btllib.IndexlrFlag.LONG_MODE,
                                 self.args.t) as minimizers:
                 for record in minimizers:
-                    if len(record.minimizers) == 0:
-                        continue
 
                     mx_seen = set()
                     mx_dups = set()
                     mx_pos_split = []
 
                     for mx in record.minimizers:
-                        str_hash = mx.out_hash
-                        if str_hash in target_mxs:
+                        if mx.out_hash in target_mxs:
                             strand = "+" if mx.forward else "-"
-                            mx_pos_split.append((str_hash, mx.pos, strand))
+                            mx_pos_split.append((mx.out_hash, mx.pos, strand))
                             if self.args.repeat_filter:
-                                if str_hash in mx_seen:
-                                    mx_dups.add(str_hash)
+                                if mx.out_hash in mx_seen:
+                                    mx_dups.add(mx.out_hash)
                                 else:
-                                    mx_seen.add(str_hash)
+                                    mx_seen.add(mx.out_hash)
                     if self.args.repeat_filter:
                         mx_pos_split = [(mx, pos, strand) for mx, pos, strand in mx_pos_split if mx not in mx_dups]
                     if not mx_pos_split:
@@ -384,14 +381,15 @@ class NtLink():
                                        for hit in contig_run.hits)
                     mx_pos_split = [mx_tup for mx_tup in mx_pos_split
                                     if NtLink.list_mx_info[mx_tup[0]].contig in
-                                    accepted_anchor_contigs and int(mx_tup[1]) in mx_accepted_pos]
+                                    accepted_anchor_contigs and mx_tup[1] in mx_accepted_pos]
+                    
                     for mx, pos, strand in mx_pos_split:
                         mx_contig = NtLink.list_mx_info[mx].contig
                         if accepted_anchor_contigs[mx_contig].first_mx is None:
                             accepted_anchor_contigs[mx_contig].first_mx = MinimizerWithHash(mx, mx_contig,
-                                                                                            int(pos), strand)
+                                                                                            pos, strand)
                         accepted_anchor_contigs[mx_contig].terminal_mx = MinimizerWithHash(mx, mx_contig,
-                                                                                           int(pos), strand)
+                                                                                           pos, strand)
 
                     self.tally_pairs_from_mappings(accepted_anchor_contigs, contig_runs, length_long_read, pairs)
         if self.args.verbose:
