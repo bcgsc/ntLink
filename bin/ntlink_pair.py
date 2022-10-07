@@ -185,17 +185,20 @@ class NtLink():
         mx_info = {}  # mx -> Minimizer object
         dup_mxs = set()  # Set of minimizers identified as duplicates
 
-        with btllib.Indexlr(self.args.s, self.args.k, self.args.w, btllib.IndexlrFlag.LONG_MODE,
-                            self.args.t) as minimizers:
-            for record in minimizers:
-                if len(record.minimizers) > 1:
-                    ctg_name = record.id
-                    for mx in record.minimizers:
-                        if mx.out_hash in mx_info:  # This is a duplicate, add to dup set, don't add to dict
-                            dup_mxs.add(mx.out_hash)
+        inmx_file = "/dev/stdin" if self.args.m == "-" else self.args.m
+
+        with open(inmx_file, 'r') as fin:
+            for record in fin:
+                record = record.strip().split("\t")
+                if len(record) > 1:
+                    ctg_name = record[0]
+                    for mx_pos_strand in record[1].split(" "):
+                        mx, pos, strand = mx_pos_strand.split(":")
+                        mx = int(mx)
+                        if mx in mx_info:  # This is a duplicate, add to dup set, don't add to dict
+                            dup_mxs.add(mx)
                         else:
-                            strand = "+" if mx.forward else "-"
-                            mx_info[mx.out_hash] = Minimizer(ctg_name, mx.pos, strand)
+                            mx_info[mx] = Minimizer(ctg_name, int(pos), strand)
 
         mx_info = {mx: mx_info[mx] for mx in mx_info if mx not in dup_mxs}
 
@@ -494,7 +497,7 @@ class NtLink():
         parser = argparse.ArgumentParser(description="ntLink: Scaffolding genome assemblies using long reads")
         parser.add_argument("FILES", nargs="+", help="Long reads file")
         parser.add_argument("-s", help="Target scaffolds fasta file", required=True)
-        #parser.add_argument("-m", help="Target scaffolds minimizer TSV file", required=True)
+        parser.add_argument("-m", help="Target scaffolds minimizer TSV file", required=True)
         parser.add_argument("-p", help="Output prefix [out]", default="out",
                             type=str, required=False)
         parser.add_argument("-n", help="Minimum edge weight [1]", default=1, type=int)
@@ -524,7 +527,7 @@ class NtLink():
         print("Parameters:")
         print("\tRead files: ", self.args.FILES)
         print("\t-s ", self.args.s)
-       # print("\t-m ", self.args.m)
+        print("\t-m ", self.args.m)
         print("\t-p ", self.args.p)
         print("\t-n ", self.args.n)
         print("\t-k ", self.args.k)

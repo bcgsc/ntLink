@@ -139,8 +139,7 @@ scaffold: check_params \
 LIST = $(shell seq $(n) $(max_n))
 LIST_n = $(addprefix .n, $(LIST))
 path_targets = $(addsuffix .abyss-scaffold.path, $(addprefix $(prefix), $(LIST_n)))
-ntLink_graph: $(target).k$(k).w$(w).tsv \
-	$(prefix).n$(n).scaffold.dot
+ntLink_graph: $(prefix).n$(n).scaffold.dot
 
 abyss_scaffold: ntLink_graph \
 	$(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa \
@@ -200,8 +199,9 @@ ntlink_pair_params+=--repeat-filter
 endif
 
 $(prefix).n$(n).scaffold.dot: $(target) $(reads)
-	$(ntLink_time) $(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n)  -s $(target)  \
-	-k $(k) -w $(w) -t $(t) -a $(a) -z $(z) -f $(f) -x $(x) $(ntlink_pair_params) $(reads)
+	$(ntLink_time) sh -c 'indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) $< | \
+	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n)  -s $<  \
+	-k $(k) -w $(w) -t $(t) -a $(a) -z $(z) -f $(f) -x $(x) -m - $(ntlink_pair_params) $(reads)'
 
 # Run abyss-scaffold scaffolding layout
 $(prefix).n%.abyss-scaffold.path: $(prefix).n$(n).scaffold.dot
