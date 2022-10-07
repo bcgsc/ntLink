@@ -13,8 +13,6 @@ import os
 import random
 import re
 import sys
-
-import btllib
 import numpy as np
 import igraph as ig
 import ntlink_utils
