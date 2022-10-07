@@ -377,19 +377,31 @@ class NtLink():
 
 
                     # Filter ordered minimizer list for accepted contigs, keep track of hashes for gap sizes
-                    mx_accepted_pos = (hit.read_pos for contig, contig_run in accepted_anchor_contigs.items()
-                                       for hit in contig_run.hits)
-                    mx_pos_split = [mx_tup for mx_tup in mx_pos_split
-                                    if NtLink.list_mx_info[mx_tup[0]].contig in
-                                    accepted_anchor_contigs and mx_tup[1] in mx_accepted_pos]
-                    
-                    for mx, pos, strand in mx_pos_split:
-                        mx_contig = NtLink.list_mx_info[mx].contig
-                        if accepted_anchor_contigs[mx_contig].first_mx is None:
-                            accepted_anchor_contigs[mx_contig].first_mx = MinimizerWithHash(mx, mx_contig,
-                                                                                            pos, strand)
-                        accepted_anchor_contigs[mx_contig].terminal_mx = MinimizerWithHash(mx, mx_contig,
-                                                                                           pos, strand)
+                    for contig in accepted_anchor_contigs:
+                        contig_run = accepted_anchor_contigs[contig].hits
+                        first_mx = contig_run[0]
+                        accepted_anchor_contigs[contig].first_mx = MinimizerWithHash(first_mx.mx,
+                                                                                     contig,
+                                                                                     first_mx.read_pos,
+                                                                                     first_mx.read_strand)
+                        last_mx = contig_run[-1]
+                        accepted_anchor_contigs[contig].terminal_mx = MinimizerWithHash(last_mx.mx,
+                                                                                        contig,
+                                                                                        last_mx.read_pos,
+                                                                                        last_mx.read_strand)
+
+                    # mx_accepted_pos = (hit.read_pos for contig, contig_run in accepted_anchor_contigs.items()
+                    #                    for hit in contig_run.hits)
+                    # mx_pos_split = [mx_tup for mx_tup in mx_pos_split
+                    #                 if NtLink.list_mx_info[mx_tup[0]].contig in
+                    #                 accepted_anchor_contigs and mx_tup[1] in mx_accepted_pos]
+                    # for mx, pos, strand in mx_pos_split:
+                    #     mx_contig = NtLink.list_mx_info[mx].contig
+                    #     if accepted_anchor_contigs[mx_contig].first_mx is None:
+                    #         accepted_anchor_contigs[mx_contig].first_mx = MinimizerWithHash(mx, mx_contig,
+                    #                                                                         int(pos), strand)
+                    #     accepted_anchor_contigs[mx_contig].terminal_mx = MinimizerWithHash(mx, mx_contig,
+                    #                                                                        int(pos), strand)
 
                     self.tally_pairs_from_mappings(accepted_anchor_contigs, contig_runs, length_long_read, pairs)
         if self.args.verbose:

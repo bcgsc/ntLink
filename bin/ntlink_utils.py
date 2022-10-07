@@ -17,7 +17,7 @@ import ntlink_pair
 from read_fasta import read_fasta
 
 Scaffold = namedtuple("Scaffold", ["id", "length"])
-MinimizerPositions = namedtuple("MinimizerPositions", ["ctg_pos", "ctg_strand", "read_pos", "read_strand"])
+MinimizerPositions = namedtuple("MinimizerPositions", ["mx", "ctg_pos", "ctg_strand", "read_pos", "read_strand"])
 ContigMinimizerPositions = namedtuple("ContigMinimizerPositions", ["contig", "mx_positions"])
 
 class HiddenPrints:
@@ -204,9 +204,10 @@ def get_accepted_anchor_contigs(mx_list, read_length, scaffolds, list_mx_info, a
     for mx, pos, strand in mx_list:
         contig = list_mx_info[mx].contig
         if scaffolds[contig].length >= args.z:
-            contig_mxs = MinimizerPositions(ctg_pos=list_mx_info[mx].position,
+            contig_mxs = MinimizerPositions(mx=mx,
+                                            ctg_pos=list_mx_info[mx].position,
                                             ctg_strand=list_mx_info[mx].strand,
-                                            read_pos=int(pos),
+                                            read_pos=pos,
                                             read_strand=strand)
             contig_list.append(ContigMinimizerPositions(contig, contig_mxs))
             if contig not in contig_positions:
@@ -299,6 +300,6 @@ def parse_minimizers(minimizer_positions: str) -> list:
         ctg, read = mx_str.split("_")
         ctg_pos, ctg_strand = ctg.split(":")
         read_pos, read_strand = read.split(":")
-        return_mxs.append(MinimizerPositions(ctg_pos=int(ctg_pos), ctg_strand=ctg_strand,
+        return_mxs.append(MinimizerPositions(mx=None, ctg_pos=int(ctg_pos), ctg_strand=ctg_strand,
                                              read_pos=int(read_pos), read_strand=read_strand))
     return return_mxs
