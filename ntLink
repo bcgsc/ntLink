@@ -198,10 +198,11 @@ ifeq ($(repeats), True)
 ntlink_pair_params+=--repeat-filter
 endif
 
-$(prefix).n$(n).scaffold.dot: $(target) $(reads)
-	$(ntLink_time) sh -c 'indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) $< | \
-	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n)  -s $<  \
-	-k $(k) -w $(w) -t $(t) -a $(a) -z $(z) -f $(f) -x $(x) -m - $(ntlink_pair_params) $(reads)'
+$(prefix).n$(n).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
+	$(ntLink_time)  sh -c '$(gzip) -cd $(reads) | \
+	indexlr --long --pos --strand --len -k $(k) -w $(w) -t $(t) - | \
+	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
+	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) $(ntlink_pair_params) -'
 
 # Run abyss-scaffold scaffolding layout
 $(prefix).n%.abyss-scaffold.path: $(prefix).n$(n).scaffold.dot
