@@ -53,7 +53,7 @@ def parse_mappings(mappings: str) -> list:
         ctg_maps, read_maps = m.split("_")
         ctg_pos, ctg_strand = ctg_maps.split(":")
         read_pos, read_strand = read_maps.split(":")
-        yield MinimizerPositions(int(ctg_pos), ctg_strand, int(read_pos), read_strand)
+        yield MinimizerPositions(None, int(ctg_pos), ctg_strand, int(read_pos), read_strand)
 
 def liftover_ctg_mappings(mappings_list: list, agp_dict: dict, k: int) -> NewMinimizerMapping:
     "Liftover the mappings for an entry"
@@ -69,10 +69,10 @@ def liftover_ctg_mappings(mappings_list: list, agp_dict: dict, k: int) -> NewMin
         offset = agp_entry.scaf_start - 1
         if agp_entry.orientation == '+' and agp_entry.path_id != ctg:
             new_pos = offset + adjust_pos
-            adjusted_mappings.append(MinimizerPositions(new_pos, m.ctg_strand, m.read_pos, m.read_strand))
+            adjusted_mappings.append(MinimizerPositions(None, new_pos, m.ctg_strand, m.read_pos, m.read_strand))
         elif agp_entry.orientation == "-" and agp_entry.path_id != ctg:
             new_pos = offset + (agp_entry.get_ctg_length() - adjust_pos) - k
-            adjusted_mappings.append(MinimizerPositions(new_pos, reverse_orientation(m.ctg_strand),
+            adjusted_mappings.append(MinimizerPositions(None, new_pos, reverse_orientation(m.ctg_strand),
                                                         m.read_pos, m.read_strand))
         else:
             adjusted_mappings.append(m)
