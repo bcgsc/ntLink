@@ -6,8 +6,7 @@ __author__ = 'laurencoombe'
 
 import argparse
 import datetime
-from collections import defaultdict
-from collections import namedtuple
+from collections import defaultdict, namedtuple, Counter
 import itertools
 import os
 import random
@@ -336,6 +335,8 @@ class NtLink():
         verbose_file = None
         if self.args.verbose:
             verbose_file = open(self.args.p + ".verbose_mapping.tsv", 'w')
+        if self.args.paf:
+            paf_file = open(self.args.p + ".paf", 'w')
 
         # Add the long read edges to the graph
         for mx_long_file in self.args.FILES:
@@ -375,6 +376,8 @@ class NtLink():
                                                       accepted_anchor_contigs[ctg_run].hit_count,
                                                       self.print_minimizer_positions(
                                                           accepted_anchor_contigs[ctg_run].hits)))
+                    if self.args.paf and accepted_anchor_contigs:
+                        self.print_paf(paf_file, accepted_anchor_contigs)
 
 
                     # Set first and terminal minimizers for the hits
@@ -394,8 +397,33 @@ class NtLink():
                     self.tally_pairs_from_mappings(accepted_anchor_contigs, contig_runs, length_long_read, pairs)
         if self.args.verbose:
             verbose_file.close()
+        if self.args.paf:
+            paf_file.close()
 
         return pairs
+
+    def print_paf(self, outfile, accepted_contigs, read_len, read_name):
+        "Print the given read mappings in PAF-like format"
+        for ctg_run in accepted_contigs:
+            sorted_mx_positions = sorted(ctg_run.hits, key=lambda x:x.ctg_pos)
+            first_mx_mapping = sorted_mx_positions[0]
+            last_mx_mapping = sorted_mx_positions[-1]
+
+            strand_counter = Counter([hit.ctg_strand == hit.read_strand for hit in sorted_mx_positions])
+            if strand_counter[True]/len(strand_counter)*100 >= 50:
+                strand = "+"
+            else:
+                strand = "-"
+            target_start, target_end = min(first_mx_mapping.ctg_pos, last_mx_mapping.ctg_pos), \
+                                       max(first_mx_mapping.ctg_pos, last_mx_mapping.ctg_pos)
+            query_start, query_end = min(first_mx_mapping.read_pos, last_mx_mapping.read_pos), \
+                                     max(first_mx_mapping.read_pos, last_mx_mapping.read_pos)
+            out_str = f"{read_name}\t{read_len}\t{query_start}\t{query_end}\t{strand}\t" \
+                      f"{ctg_run.contig}\t{NtLink.scaffolds[ctg_run.contig].length}\t" \
+                      f"{target_start}\t{target_end}\t{len(sorted_mx_positions)}\t" \
+                      f"{target_end - target_start}\t255\n"
+            outfile.write(out_str)
+
 
     def tally_pairs_from_mappings(self, accepted_anchor_contigs, contig_runs, length_long_read, pairs):
         "Tally the pairs from the given mappings"
@@ -510,6 +538,7 @@ class NtLink():
                             type=float, default=0)
         parser.add_argument("-c", "--checkpoint", help="Mappings checkpoint file", required=False)
         parser.add_argument("--pairs", help="Output pairs TSV file", action="store_true")
+        parser.add_argument("--paf", help="Output mappings in PAF-like format", action="store_true")
         parser.add_argument("--sensitive", help="Run more sensitive read mapping", action="store_true")
         parser.add_argument("--repeat-filter", help="Remove repetitive minimizers within a long read's sketch",
                             action="store_true")
@@ -550,6 +579,7 @@ class NtLink():
 
         if self.args.checkpoint:
             print("Found checkpoint file, bypassing read mapping...\n")
+            print("Warning: --paf specified, but not compatible with checkpoint")
             NtLink.list_mx_info = {}
         else:
             # Read in the minimizers for target assembly
