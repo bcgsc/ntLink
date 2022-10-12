@@ -422,9 +422,17 @@ class NtLink():
             else:
                 strand = "-"
             target_start, target_end = min(first_mx_mapping.ctg_pos, last_mx_mapping.ctg_pos), \
-                                       max(first_mx_mapping.ctg_pos, last_mx_mapping.ctg_pos)
+                                       max(first_mx_mapping.ctg_pos, last_mx_mapping.ctg_pos) + self.args.k
             query_start, query_end = min(first_mx_mapping.read_pos, last_mx_mapping.read_pos), \
                                      max(first_mx_mapping.read_pos, last_mx_mapping.read_pos)
+            if strand == "-":
+                query_end += self.args.k
+            else:
+                query_start -= self.args.k
+            assert query_start < query_end
+            assert query_start >= 0
+            assert query_end < read_len
+
             out_str = f"{read_name}\t{read_len}\t{query_start}\t{query_end}\t{strand}\t" \
                       f"{ctg_run.contig}\t{NtLink.scaffolds[ctg_run.contig].length}\t" \
                       f"{target_start}\t{target_end}\t{len(sorted_mx_positions)}\t" \
