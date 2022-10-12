@@ -493,7 +493,7 @@ class NtLink():
     def parse_arguments():
         "Parse ntLink arguments"
         parser = argparse.ArgumentParser(description="ntLink: Scaffolding genome assemblies using long reads")
-        parser.add_argument("FILES", nargs="+", help="Long reads file minimizers TSV files")
+        parser.add_argument("FILES", nargs="+", help="Long read minimizer TSV files")
         parser.add_argument("-s", help="Target scaffolds fasta file", required=True)
         parser.add_argument("-m", help="Target scaffolds minimizer TSV file", required=True)
         parser.add_argument("-p", help="Output prefix [out]", default="out",
@@ -521,7 +521,7 @@ class NtLink():
     def print_parameters(self):
         "Print the set parameters for the ntLink run"
         print("Parameters:")
-        print("\tRead files: ", self.args.FILES)
+        print("\tRead minimizer files: ", self.args.FILES)
         print("\t-s ", self.args.s)
         print("\t-m ", self.args.m)
         print("\t-p ", self.args.p)
