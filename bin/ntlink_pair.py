@@ -11,6 +11,8 @@ import itertools
 import os
 import random
 import re
+import shlex
+import subprocess
 import sys
 import numpy as np
 import igraph as ig
@@ -21,6 +23,10 @@ MinimizerEdge = namedtuple("MinimizerEdge", ["mx_i", "mx_i_pos", "mx_i_strand",
 Minimizer = namedtuple("Minimizer", ["contig", "position", "strand"])
 MinimizerWithHash = namedtuple("Minimizer_with_hash", ["mx_hash", "contig", "position", "strand"])
 MappingEntry = namedtuple("MappingEntry", ["read_id", "contig_id", "num_hits", "list_hits"])
+
+class NtlinkPairError(Exception):
+    pass
+
 
 class ScaffoldPair:
     "Object that represents a scaffold pair"
@@ -364,7 +370,7 @@ class NtLink():
                         mx_pos_split = [(mx, pos, strand) for mx, pos, strand in mx_pos_split if mx not in mx_dups]
                     if not mx_pos_split:
                         continue
-                    ctg_name = line[0]
+                    read_name = line[0]
                     length_long_read = int(line[1])
                     accepted_anchor_contigs, contig_runs = \
                         ntlink_utils.get_accepted_anchor_contigs(mx_pos_split,length_long_read,
@@ -372,12 +378,12 @@ class NtLink():
                     if self.args.verbose and accepted_anchor_contigs:
                         for ctg_run in accepted_anchor_contigs:
                             verbose_file.write("{}\t{}\t{}\t{}\n".
-                                               format(ctg_name, accepted_anchor_contigs[ctg_run].contig,
+                                               format(read_name, accepted_anchor_contigs[ctg_run].contig,
                                                       accepted_anchor_contigs[ctg_run].hit_count,
                                                       self.print_minimizer_positions(
                                                           accepted_anchor_contigs[ctg_run].hits)))
                     if self.args.paf and accepted_anchor_contigs:
-                        self.print_paf(paf_file, accepted_anchor_contigs)
+                        self.print_paf(paf_file, accepted_anchor_contigs, length_long_read, read_name)
 
 
                     # Set first and terminal minimizers for the hits
@@ -404,7 +410,8 @@ class NtLink():
 
     def print_paf(self, outfile, accepted_contigs, read_len, read_name):
         "Print the given read mappings in PAF-like format"
-        for ctg_run in accepted_contigs:
+        for ctg in accepted_contigs:
+            ctg_run = accepted_contigs[ctg]
             sorted_mx_positions = sorted(ctg_run.hits, key=lambda x:x.ctg_pos)
             first_mx_mapping = sorted_mx_positions[0]
             last_mx_mapping = sorted_mx_positions[-1]
@@ -570,49 +577,56 @@ class NtLink():
     def main(self):
         "Run ntLink graph stage"
         print("Running pairing stage of ntLink ...\n")
-
-        # Check if the checkpoint mapping file exists
-        if os.path.isfile(self.args.p + ".verbose_mapping.tsv"):
-            self.args.checkpoint = self.args.p + ".verbose_mapping.tsv"
-
-        self.print_parameters()
-
-        if self.args.checkpoint:
-            print("Found checkpoint file, bypassing read mapping...\n")
-            print("Warning: --paf specified, but not compatible with checkpoint")
-            NtLink.list_mx_info = {}
-        else:
-            # Read in the minimizers for target assembly
-            mxs_info = self.read_minimizers()
-            NtLink.list_mx_info = mxs_info
-
-        # Load target scaffolds into memory
-        scaffolds = ntlink_utils.read_fasta_file(self.args.s)  # scaffold_id -> Scaffold
-        NtLink.scaffolds = scaffolds
-
-        if self.args.checkpoint:
-            pairs = self.find_scaffold_pairs_checkpoints()
-        else:
-            # Get directed scaffold pairs, gap estimates from long reads
-            pairs = self.find_scaffold_pairs()
-
-        pairs = self.filter_pairs_distances(pairs)
-
-        pairs = self.filter_weak_anchor_pairs(pairs)
-
-        if self.args.pairs:
-            self.write_pairs(pairs)
-
-        # Build directed graph
-        graph = self.build_scaffold_graph(pairs)
-
-        # Filter graph
-        graph = self.filter_graph_global(graph, int(self.args.n))
-
-        # Print out the directed graph
-        self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds)
-
-        print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
+    
+        try:
+            # Check if the checkpoint mapping file exists
+            if os.path.isfile(self.args.p + ".verbose_mapping.tsv"):
+                self.args.checkpoint = self.args.p + ".verbose_mapping.tsv"
+    
+            self.print_parameters()
+    
+            if self.args.checkpoint:
+                print("Found checkpoint file, bypassing read mapping...\n")
+                print("Warning: --paf specified, but not compatible with checkpoint")
+                NtLink.list_mx_info = {}
+            else:
+                # Read in the minimizers for target assembly
+                mxs_info = self.read_minimizers()
+                NtLink.list_mx_info = mxs_info
+    
+            # Load target scaffolds into memory
+            scaffolds = ntlink_utils.read_fasta_file(self.args.s)  # scaffold_id -> Scaffold
+            NtLink.scaffolds = scaffolds
+    
+            if self.args.checkpoint:
+                pairs = self.find_scaffold_pairs_checkpoints()
+            else:
+                # Get directed scaffold pairs, gap estimates from long reads
+                pairs = self.find_scaffold_pairs()
+    
+            pairs = self.filter_pairs_distances(pairs)
+    
+            pairs = self.filter_weak_anchor_pairs(pairs)
+    
+            if self.args.pairs:
+                self.write_pairs(pairs)
+    
+            # Build directed graph
+            graph = self.build_scaffold_graph(pairs)
+    
+            # Filter graph
+            graph = self.filter_graph_global(graph, int(self.args.n))
+    
+            # Print out the directed graph
+            self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds)
+    
+            print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
+        except:
+            if not self.args.checkpoint and self.args.verbose:
+               subprocess.call(shlex.split(f"rm {self.args.p}.verbose_mapping.tsv")) 
+            if not self.args.checkpoint and self.args.paf:
+               subprocess.call(shlex.split(f"rm {self.args.p}.paf")) 
+            raise NtlinkPairError("ntLink pairing stage encountered an error..") 
 
     def __init__(self):
         "Create an ntLink instance"

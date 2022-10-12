@@ -73,6 +73,9 @@ gap_w=10
 # debugging parameters
 ntlink_pairs_tsv=False
 
+# Output PAF-like format for mappings
+paf=False
+
 SHELL=bash -e -o pipefail
 ifeq ($(shell zsh -e -o pipefail -c 'true' 2>/dev/null; echo $$?), 0)
 # Set pipefail to ensure that all commands of a pipe succeed.
@@ -196,6 +199,9 @@ ntlink_pair_params+=--sensitive
 endif
 ifeq ($(repeats), True)
 ntlink_pair_params+=--repeat-filter
+endif
+ifeq ($(paf), True)
+ntlink_pair_params+=--paf
 endif
 
 $(prefix).n$(n).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
