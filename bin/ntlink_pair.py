@@ -415,7 +415,6 @@ class NtLink():
             sorted_mx_positions = sorted(ctg_run.hits, key=lambda x:x.ctg_pos)
             first_mx_mapping = sorted_mx_positions[0]
             last_mx_mapping = sorted_mx_positions[-1]
-
             strand_counter = Counter([hit.ctg_strand == hit.read_strand for hit in sorted_mx_positions])
             if strand_counter[True]/len(strand_counter)*100 >= 50:
                 strand = "+"
@@ -424,14 +423,10 @@ class NtLink():
             target_start, target_end = min(first_mx_mapping.ctg_pos, last_mx_mapping.ctg_pos), \
                                        max(first_mx_mapping.ctg_pos, last_mx_mapping.ctg_pos) + self.args.k
             query_start, query_end = min(first_mx_mapping.read_pos, last_mx_mapping.read_pos), \
-                                     max(first_mx_mapping.read_pos, last_mx_mapping.read_pos)
-            if strand == "-":
-                query_end += self.args.k
-            else:
-                query_start -= self.args.k
+                                     max(first_mx_mapping.read_pos, last_mx_mapping.read_pos) + self.args.k
             assert query_start < query_end
             assert query_start >= 0
-            assert query_end < read_len
+            assert query_end <= read_len
 
             out_str = f"{read_name}\t{read_len}\t{query_start}\t{query_end}\t{strand}\t" \
                       f"{ctg_run.contig}\t{NtLink.scaffolds[ctg_run.contig].length}\t" \
