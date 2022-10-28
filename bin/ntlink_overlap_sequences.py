@@ -22,7 +22,7 @@ MappedPathInfo = namedtuple("MappedPathInfo",
 class ScaffoldCut:
     "Defines a scaffold, and the cut points for that scaffold"
 
-    def __init__(self, ctg_id, sequence):
+    def __init__(self, ctg_id, sequence, store_seq=False):
         self.ctg_id = ctg_id
         self.length = len(sequence)
         self._ori = None
@@ -30,6 +30,10 @@ class ScaffoldCut:
         self._source_cut_flag = False
         self._target_cut = None
         self._target_cut_flag = False
+        if store_seq:
+            self.sequence = sequence
+        else:
+            self.sequence = None
 
     @property
     def ori(self):
