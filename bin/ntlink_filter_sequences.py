@@ -18,7 +18,7 @@ def filter_sequences(args, scaffolds, valid_mx_regions):
     "Filter the input fasta file to only output those in valid_mx_regions, in order from the path file"
     with open(args.path, 'r') as path_fin:
         for path in path_fin:
-            _, path_seq = path.strip().split("\t")
+            path_name, path_seq = path.strip().split("\t")
             path_seq = path_seq.split(" ")
             path_seq = ntlink_utils.normalize_path(path_seq, gap_re)
             for node in path_seq:
@@ -26,7 +26,9 @@ def filter_sequences(args, scaffolds, valid_mx_regions):
                     continue
                 node_name = node.strip("+-")
                 if node_name in valid_mx_regions:
-                    print(">{}\n{}".format(scaffolds[node_name].ctg_id, scaffolds[node_name].sequence))
+                    print(">{}\n{}".format(scaffolds[node_name].ctg_id,
+                                           scaffolds[node_name].sequence))
+            print(">LAST{}\nN".format(path_name))
 
 def read_fasta_file(filename, args):
     "Read a fasta file into memory. Returns dictionary of scafID -> Scaffold"
