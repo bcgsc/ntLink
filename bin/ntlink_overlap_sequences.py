@@ -544,7 +544,6 @@ def main():
     valid_mx_positions = ntlink_utils.find_valid_mx_regions(args, gap_re, graph, scaffolds)
 
     args.m = "/dev/stdin" if args.m == "-" else args.m
-    #mxs_info, mxs = read_minimizers(args.m, valid_mx_positions)
 
     new_paths = merge_overlapping_pathfile(args, gap_re, graph, scaffolds, valid_mx_positions)
 
