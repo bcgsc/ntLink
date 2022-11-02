@@ -19,10 +19,12 @@ import ntlink_utils
 MappedPathInfo = namedtuple("MappedPathInfo",
                             ["mapped_region_length", "mid_mx", "median_length_from_end"])
 
+final_sequence_marker_re = re.compile(r'^LAST(ntLink_\d+)$')
+
 class ScaffoldCut:
     "Defines a scaffold, and the cut points for that scaffold"
 
-    def __init__(self, ctg_id, sequence):
+    def __init__(self, ctg_id, sequence, store_seq=False):
         self.ctg_id = ctg_id
         self.length = len(sequence)
         self._ori = None
@@ -30,6 +32,10 @@ class ScaffoldCut:
         self._source_cut_flag = False
         self._target_cut = None
         self._target_cut_flag = False
+        if store_seq:
+            self.sequence = sequence
+        else:
+            self.sequence = None
 
     @property
     def ori(self):
@@ -125,27 +131,46 @@ def read_minimizers(tsv_filename, valid_mx_positions):
     mxs = {}  # Contig -> [list of minimizers]
     with open(tsv_filename, 'r') as tsv:
         for line in tsv:
-            dup_mxs = set()  # Set of minimizers identified as duplicates
             line = line.strip().split("\t")
-            if len(line) > 1:
-                name = line[0]
-                if name not in valid_mx_positions:
-                    continue
-                mx_pos_split = line[1].split(" ")
-                for mx_pos in mx_pos_split:
-                    mx, pos = mx_pos.split(":")
-                    if not is_in_valid_region(int(pos), valid_mx_positions[name]):
-                        continue
-                    if name in mx_info and mx in mx_info[name]:  # This is a duplicate
-                        dup_mxs.add(mx)
-                    else:
-                        mx_info[name][mx] = (name, int(pos))
-                mx_info[name] = {mx: mx_info[name][mx] for mx in mx_info[name] if mx not in dup_mxs}
-                mxs[name] = [[mx for mx, pos in (mx_pos.split(":") for mx_pos in mx_pos_split)
-                              if mx not in dup_mxs and mx in mx_info[name] and
-                              is_in_valid_region(int(pos), valid_mx_positions[name])]]
+            read_minimizer_line(line, mx_info, mxs, valid_mx_positions)
 
     return mx_info, mxs
+
+def read_minimizers_path(mx_reader, valid_mx_positions):
+    "Read in the minimizers for the given path, stopping at the LAST marker"
+    mx_info = defaultdict(dict)  # contig -> mx -> (contig, position)
+    mxs = {}  # Contig -> [list of minimizers]
+    for line in mx_reader:
+        line = line.strip().split("\t")
+        name = line[0]
+        if re.search(final_sequence_marker_re, name):
+            return mx_info, mxs
+        read_minimizer_line(line, mx_info, mxs, valid_mx_positions)
+    return mx_info, mxs
+
+
+def read_minimizer_line(line, mx_info, mxs, valid_mx_positions):
+    "Read a line from the indexlr minimizer file"
+    name = line[0]
+    if len(line) < 2 or name not in valid_mx_positions:
+        return
+    dup_mxs = set() # Set of minimizers identified as duplicates
+    mx_pos_split = line[1].split(" ")
+
+    for mx_pos in mx_pos_split:
+        mx, pos = mx_pos.split(":")
+        if not is_in_valid_region(int(pos), valid_mx_positions[name]):
+            continue
+        if name in mx_info and mx in mx_info[name]:  # This is a duplicate
+            dup_mxs.add(mx)
+        else:
+            mx_info[name][mx] = (name, int(pos))
+
+    mx_info[name] = {mx: mx_info[name][mx] for mx in mx_info[name] if mx not in dup_mxs}
+    mxs[name] = [[mx for mx, pos in (mx_pos.split(":") for mx_pos in mx_pos_split)
+                  if mx not in dup_mxs and mx in mx_info[name] and
+                  is_in_valid_region(int(pos), valid_mx_positions[name])]]
+
 
 def read_fasta_file_trim_prep(filename):
     "Read a fasta file into memory. Returns dictionary of scafID -> Scaffold"
@@ -373,33 +398,36 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, g
 
     return True
 
-def merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds):
+def merge_overlapping_pathfile(args, gap_re, graph, scaffolds, valid_mx_positions):
     "Read through pathfile, and merge overlapping pieces, updating path file"
     print(datetime.datetime.today(), ": Finding scaffold overlaps", file=sys.stdout)
     out_pathfile = open(args.p + ".trimmed_scafs.path", 'w')
     my_paths = {}
+
     with open(args.path, 'r') as path_fin:
-        for path in path_fin:
-            new_path = []
-            path_id, path_seq = path.strip().split("\t")
-            path_seq = path_seq.split(" ")
-            path_seq = ntlink_utils.normalize_path(path_seq, gap_re)
-            for source, gap, target in zip(path_seq, path_seq[1:], path_seq[2:]):
-                gap_match = re.search(gap_re, gap)
-                if not gap_match:
-                    continue
-                if int(gap_match.group(1)) <= args.g + 1 and \
-                        ntlink_utils.has_estimated_overlap(graph, source, target):
-                    cuts_found = merge_overlapping(mxs, mxs_info, source, target, scaffolds, args,
-                                      graph.es()[ntlink_utils.edge_index(graph, source, target)]["d"])
-                    if cuts_found:
-                        gap = "{}N".format(args.outgap)
-                if not new_path:
-                    new_path.append(source)
-                new_path.append(gap)
-                new_path.append(target)
-            out_pathfile.write("{path_id}\t{ctgs}\n".format(path_id=path_id, ctgs=" ".join(new_path)))
-            my_paths[path_id] = new_path
+        with open(args.m, 'r') as minimizers_reader:
+            for path in path_fin:
+                new_path = []
+                path_id, path_seq = path.strip().split("\t")
+                path_seq = path_seq.split(" ")
+                path_seq = ntlink_utils.normalize_path(path_seq, gap_re)
+                mxs_info, mxs = read_minimizers_path(minimizers_reader, valid_mx_positions)
+                for source, gap, target in zip(path_seq, path_seq[1:], path_seq[2:]):
+                    gap_match = re.search(gap_re, gap)
+                    if not gap_match:
+                        continue
+                    if int(gap_match.group(1)) <= args.g + 1 and \
+                            ntlink_utils.has_estimated_overlap(graph, source, target):
+                        cuts_found = merge_overlapping(mxs, mxs_info, source, target, scaffolds, args,
+                                          graph.es()[ntlink_utils.edge_index(graph, source, target)]["d"])
+                        if cuts_found:
+                            gap = "{}N".format(args.outgap)
+                    if not new_path:
+                        new_path.append(source)
+                    new_path.append(gap)
+                    new_path.append(target)
+                out_pathfile.write("{path_id}\t{ctgs}\n".format(path_id=path_id, ctgs=" ".join(new_path)))
+                my_paths[path_id] = new_path
     out_pathfile.close()
     return my_paths
 
@@ -516,9 +544,8 @@ def main():
     valid_mx_positions = ntlink_utils.find_valid_mx_regions(args, gap_re, graph, scaffolds)
 
     args.m = "/dev/stdin" if args.m == "-" else args.m
-    mxs_info, mxs = read_minimizers(args.m, valid_mx_positions)
 
-    new_paths = merge_overlapping_pathfile(args, gap_re, graph, mxs, mxs_info, scaffolds)
+    new_paths = merge_overlapping_pathfile(args, gap_re, graph, scaffolds, valid_mx_positions)
 
     if args.trim_info:
         print_trim_coordinates(args, scaffolds)
