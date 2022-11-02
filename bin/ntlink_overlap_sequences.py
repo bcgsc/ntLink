@@ -132,8 +132,7 @@ def read_minimizers(tsv_filename, valid_mx_positions):
     with open(tsv_filename, 'r') as tsv:
         for line in tsv:
             line = line.strip().split("\t")
-            name = line[0]
-            read_minimizer_line(line, mx_info, mxs, name, valid_mx_positions)
+            read_minimizer_line(line, mx_info, mxs, valid_mx_positions)
 
     return mx_info, mxs
 
@@ -146,12 +145,13 @@ def read_minimizers_path(mx_reader, valid_mx_positions):
         name = line[0]
         if re.search(final_sequence_marker_re, name):
             return mx_info, mxs
-        read_minimizer_line(line, mx_info, mxs, name, valid_mx_positions)
+        read_minimizer_line(line, mx_info, mxs, valid_mx_positions)
     return mx_info, mxs
 
 
-def read_minimizer_line(line, mx_info, mxs, name, valid_mx_positions):
+def read_minimizer_line(line, mx_info, mxs, valid_mx_positions):
     "Read a line from the indexlr minimizer file"
+    name = line[0]
     if len(line) < 2 or name not in valid_mx_positions:
         return
     dup_mxs = set() # Set of minimizers identified as duplicates
