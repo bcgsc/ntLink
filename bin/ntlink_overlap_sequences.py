@@ -137,7 +137,7 @@ def read_minimizers(tsv_filename, valid_mx_positions):
 
     return mx_info, mxs
 
-def read_minimizers_path(mx_reader, valid_mx_positions, path_name):
+def read_minimizers_path(mx_reader, valid_mx_positions):
     "Read in the minimizers for the given path, stopping at the LAST marker"
     mx_info = defaultdict(dict)  # contig -> mx -> (contig, position)
     mxs = {}  # Contig -> [list of minimizers]
@@ -147,9 +147,11 @@ def read_minimizers_path(mx_reader, valid_mx_positions, path_name):
         if re.search(final_sequence_marker_re, name):
             return mx_info, mxs
         read_minimizer_line(line, mx_info, mxs, name, valid_mx_positions)
+    return mx_info, mxs
 
 
 def read_minimizer_line(line, mx_info, mxs, name, valid_mx_positions):
+    "Read a line from the indexlr minimizer file"
     if len(line) < 2 or name not in valid_mx_positions:
         return
     dup_mxs = set() # Set of minimizers identified as duplicates
@@ -409,8 +411,7 @@ def merge_overlapping_pathfile(args, gap_re, graph, scaffolds, valid_mx_position
                 path_id, path_seq = path.strip().split("\t")
                 path_seq = path_seq.split(" ")
                 path_seq = ntlink_utils.normalize_path(path_seq, gap_re)
-                mxs_info, mxs = read_minimizers_path(minimizers_reader, valid_mx_positions,
-                                                     path_id)
+                mxs_info, mxs = read_minimizers_path(minimizers_reader, valid_mx_positions)
                 for source, gap, target in zip(path_seq, path_seq[1:], path_seq[2:]):
                     gap_match = re.search(gap_re, gap)
                     if not gap_match:
