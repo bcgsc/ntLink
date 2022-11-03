@@ -148,7 +148,7 @@ def reverse_complement_pair(source: str, target: str) -> tuple:
 
 def tally_contig_mapping_info(read_id: str, mappings: list, read_info: dict, pairs: dict) -> None:
     "Tally the contig mapping information for the given read"
-    read_info[read_id] = {}
+    tmp_dict = {}
     mapping_order = []
     for _, ctg_id, anchors, minimizer_positions in mappings:
         minimizer_positions = ntlink_utils.parse_minimizers(minimizer_positions)
@@ -157,16 +157,22 @@ def tally_contig_mapping_info(read_id: str, mappings: list, read_info: dict, pai
             continue
         if not check_position_consistency(minimizer_positions):
             continue
-        read_info[read_id][ctg_id] = MinimizerMapping(anchors=int(anchors), minimizer_positions=minimizer_positions,
+        tmp_dict[ctg_id] = MinimizerMapping(anchors=int(anchors), minimizer_positions=minimizer_positions,
                                                       orientation=orientation)
         mapping_order.append(ctg_id + orientation)
-        read_info[read_id]["length"] = minimizer_positions[-1].read_pos
+        tmp_dict["length"] = minimizer_positions[-1].read_pos
 
+    added_pair = False
     for i, j in itertools.combinations(mapping_order, 2):
         if (i, j) in pairs:
             pairs[(i, j)].mapping_reads.add(read_id)
+            added_pair = True
         if reverse_complement_pair(i, j) in pairs:
             pairs[reverse_complement_pair(i, j)].mapping_reads.add(read_id)
+            added_pair = True
+
+    if added_pair:
+        read_info[read_id] = tmp_dict
 
 
 def read_verbose_mappings(mappings_filename: str, pairs: dict) -> dict:
