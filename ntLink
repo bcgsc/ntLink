@@ -2,7 +2,7 @@
 
 # ntLink: Scaffold assemblies using long reads and minimizers
 # Written by Lauren Coombe @lcoombe
-# ntLink v1.3.4
+# ntLink v1.3.5
 
 # Input files
 target=None
@@ -104,7 +104,7 @@ endif
 help:
 	@echo ""
 	@echo "ntLink: Scaffolding assemblies using long reads"
-	@echo "ntLink v1.3.4"
+	@echo "ntLink v1.3.5"
 	@echo "Usage: ntLink scaffold target=<target scaffolds> reads='List of long read files'"
 	@echo ""
 	@echo "To additionally run gap-filling (fill gap regions with raw read sequence):"
@@ -170,7 +170,7 @@ ifneq ($(shell command -v 'python3 -c "import btllib"'),)
 endif
 
 version:
-	@echo "ntLink v1.3.4"
+	@echo "ntLink v1.3.5"
 	@echo "Written by Lauren Coombe (lcoombe@bcgsc.ca)"
 
 
