@@ -153,7 +153,11 @@ class NtLink():
                        d=int(edge['d']), var="*", supports=edge['n'])
             outfile.write(edge_str) # gfa_graph.add_line(edge_str)
 
-        outfile.write("\n") # gfa_graph.to_file(outfile)    
+        outfile.write("\n") # gfa_graph.to_file(outfile)
+
+    @staticmethod
+    def print_directed_graph(graph, out_prefix, scaffolds):
+        print_directed_dot_graph(graph, out_prefix, scaffolds)
 
     @staticmethod
     def print_directed_dot_graph(graph, out_prefix, scaffolds):
