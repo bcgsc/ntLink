@@ -14,7 +14,6 @@ import btllib
 import numpy
 import ntlink_pair
 import ntlink_utils
-from ntlink_utils import MinimizerPositions
 
 MinimizerMapping = namedtuple("MinimizerMapping", ["anchors", "minimizer_positions", "orientation"])
 
@@ -149,7 +148,7 @@ def reverse_complement_pair(source: str, target: str) -> tuple:
 
 def tally_contig_mapping_info(read_id: str, mappings: list, read_info: dict, pairs: dict) -> None:
     "Tally the contig mapping information for the given read"
-    read_info[read_id] = {}
+    read_mapping_dict = {}
     mapping_order = []
     for _, ctg_id, anchors, minimizer_positions in mappings:
         minimizer_positions = ntlink_utils.parse_minimizers(minimizer_positions)
@@ -158,16 +157,22 @@ def tally_contig_mapping_info(read_id: str, mappings: list, read_info: dict, pai
             continue
         if not check_position_consistency(minimizer_positions):
             continue
-        read_info[read_id][ctg_id] = MinimizerMapping(anchors=int(anchors), minimizer_positions=minimizer_positions,
+        read_mapping_dict[ctg_id] = MinimizerMapping(anchors=int(anchors), minimizer_positions=minimizer_positions,
                                                       orientation=orientation)
         mapping_order.append(ctg_id + orientation)
-        read_info[read_id]["length"] = minimizer_positions[-1].read_pos
+        read_mapping_dict["length"] = minimizer_positions[-1].read_pos
 
+    added_pair = False
     for i, j in itertools.combinations(mapping_order, 2):
         if (i, j) in pairs:
             pairs[(i, j)].mapping_reads.add(read_id)
+            added_pair = True
         if reverse_complement_pair(i, j) in pairs:
             pairs[reverse_complement_pair(i, j)].mapping_reads.add(read_id)
+            added_pair = True
+
+    if added_pair:
+        read_info[read_id] = read_mapping_dict
 
 
 def read_verbose_mappings(mappings_filename: str, pairs: dict) -> dict:
@@ -610,7 +615,7 @@ def print_agp(pairs: dict, mappings: dict, sequences: dict, args: argparse.Names
             for idx, node in enumerate(path):
                 gap_match = re.search(gap_re, node)
                 if gap_match:
-                    gap_size = int(gap_match.group(1)) - 1 # Account for gaps being one larger in abyss-scaffold path file
+                    gap_size = int(gap_match.group(1)) - 1 # Account for gaps being 1 larger in abyss-scaffold path file
                     source, target = path[idx-1], path[idx+1]
                     if (source, target) not in pairs and gap_size > 0:
                         outfile.write(f"{ctg_id}\t{start}\t{start + gap_size - 1}\t{component_id}\t"
@@ -771,9 +776,10 @@ def main() -> None:
     parser.add_argument("--stringent", help="If specified, will only use lower k/w re-mapping for filling gaps,"
                                             " will not fall back on original anchors", action="store_true")
     parser.add_argument("--soft_mask", help="If specified, will soft mask the filled gap", action="store_true")
+    parser.add_argument("--sensitive", help="Run more sensitive read mapping", action="store_true")
     parser.add_argument("--verbose", help="Verbose logging - print out trimmed scaffolds without gaps",
                         action="store_true")
-    parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.4')
+    parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.5')
     args = parser.parse_args()
 
     print_parameters(args)

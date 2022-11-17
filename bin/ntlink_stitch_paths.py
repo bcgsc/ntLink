@@ -414,9 +414,9 @@ class NtLinkPath:
 
         with open(out_filename, 'w') as fout:
             for path_list in path_lists:
-                    path_str = " ".join(path_list)
-                    fout.write("ntLink_{path_id}\t{path}\n".format(path_id=path_id, path=path_str))
-                    path_id += 1
+                path_str = " ".join(path_list)
+                fout.write("ntLink_{path_id}\t{path}\n".format(path_id=path_id, path=path_str))
+                path_id += 1
 
 
     def main(self):
@@ -469,7 +469,7 @@ class NtLinkPath:
         parser.add_argument("--transitive", help="Require transitive support for edges?", action="store_true")
         parser.add_argument("--conservative", help="Conservative mode - take optimal N50 paths, no stitching",
                             action="store_true")
-        parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.4')
+        parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.5')
 
         return parser.parse_args()
 

@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ntLink",
-    version="1.3.4",
+    version="1.3.5",
     author="Lauren Coombe",
     author_email="lcoombe@bcgsc.ca",
     description="Genome assembly scaffolder using long reads",

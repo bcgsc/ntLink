@@ -49,6 +49,7 @@ z			Minimum size of contig (bp) to scaffold [1000]
 v                       If 1, track time and memory for each step of the pipeline [0]
 conservative		If False, runs ntLink in stitching mode [True]
 overlap			If True, runs extra step to attempt to identify and trim overlapping joined sequences [True]
+sensitive	        If True, runs mapping in sensitive mode [False]
 
 Note: 
 	- Ensure all assembly and read files are in the current working directory, making soft links if necessary
@@ -106,7 +107,7 @@ See the wiki page for more details.
  
  Installing from source code:
  ```
-curl -L --output ntLink-1.3.4.tar.gz https://github.com/bcgsc/ntLink/releases/download/v1.3.4/ntLink-1.3.4.tar.gz && tar xvzf ntLink-1.3.4.tar.gz 
+curl -L --output ntLink-1.3.5.tar.gz https://github.com/bcgsc/ntLink/releases/download/v1.3.5/ntLink-1.3.5.tar.gz && tar xvzf ntLink-1.3.5.tar.gz 
 ```
 
 #### Testing your installation

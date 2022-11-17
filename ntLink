@@ -2,7 +2,7 @@
 
 # ntLink: Scaffold assemblies using long reads and minimizers
 # Written by Lauren Coombe @lcoombe
-# ntLink v1.3.4
+# ntLink v1.3.5
 
 # Input files
 target=None
@@ -53,6 +53,12 @@ x=0
 # Run ntLink in conservative mode?
 conservative=True
 
+# Run ntLink mapping in sensitive mode?
+sensitive=False
+
+# Use repeat filter?
+repeats=False
+
 # Output verbose read mappings to contigs?
 verbose=True
 
@@ -101,7 +107,7 @@ endif
 help:
 	@echo ""
 	@echo "ntLink: Scaffolding assemblies using long reads"
-	@echo "ntLink v1.3.4"
+	@echo "ntLink v1.3.5"
 	@echo "Usage: ntLink scaffold target=<target scaffolds> reads='List of long read files'"
 	@echo ""
 	@echo "To additionally run gap-filling (fill gap regions with raw read sequence):"
@@ -122,6 +128,7 @@ help:
 	@echo "v			If 1, track time and memory for each step of the pipeline [0]"
 	@echo "conservative		If False, runs ntLink in stitching mode [True]"
 	@echo "overlap			If True, runs extra step to attempt to identify and trim overlapping joined sequences [True]"
+	@echo "sensitive	        If True, runs mapping in sensitive mode [False]"
 	@echo ""
 	@echo "Note: "
 	@echo "	- Ensure all assembly and read files are in the current working directory, making soft links if necessary"
@@ -135,8 +142,7 @@ scaffold: check_params \
 LIST = $(shell seq $(n) $(max_n))
 LIST_n = $(addprefix .n, $(LIST))
 path_targets = $(addsuffix .abyss-scaffold.path, $(addprefix $(prefix), $(LIST_n)))
-ntLink_graph: $(target).k$(k).w$(w).tsv \
-	$(prefix).n$(n).scaffold.dot
+ntLink_graph: $(prefix).n$(n).scaffold.dot
 
 abyss_scaffold: ntLink_graph \
 	$(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa \
@@ -167,7 +173,7 @@ ifneq ($(shell command -v 'python3 -c "import btllib"'),)
 endif
 
 version:
-	@echo "ntLink v1.3.4"
+	@echo "ntLink v1.3.5"
 	@echo "Written by Lauren Coombe (lcoombe@bcgsc.ca)"
 
 
@@ -188,6 +194,12 @@ endif
 ifeq ($(ntlink_pairs_tsv), True)
 ntlink_pair_params+=--pairs
 endif
+ifeq ($(sensitive), True)
+ntlink_pair_params+=--sensitive
+endif
+ifeq ($(repeats), True)
+ntlink_pair_params+=--repeat-filter
+endif
 
 $(prefix).n$(n).scaffold.gfa: $(target).k$(k).w$(w).tsv $(reads)
 	$(ntLink_time)  sh -c '$(gzip) -cd $(reads) | \
@@ -197,7 +209,7 @@ $(prefix).n$(n).scaffold.gfa: $(target).k$(k).w$(w).tsv $(reads)
 
 $(prefix).n$(n).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
 	$(ntLink_time)  sh -c '$(gzip) -cd $(reads) | \
-	indexlr --long --pos --strand -k $(k) -w $(w) -t $(t) - | \
+	indexlr --long --pos --strand --len -k $(k) -w $(w) -t $(t) - | \
 	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
 	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) $(ntlink_pair_params) -'
 
@@ -222,7 +234,7 @@ $(target).k$(small_k).w$(small_w).tsv: $(target)
 
 $(prefix).trimmed_scafs.fa: $(prefix).stitch.path $(prefix).n$(n).scaffold.dot $(target)
 	$(ntLink_time) sh -c '$(ntlink_path)/bin/ntlink_filter_sequences.py --fasta $(target) \
-	--dot $(prefix).n$(n).scaffold.dot --path $< -k $(small_k) -g $g |\
+	--dot $(prefix).n$(n).scaffold.dot --path $< -k $(small_k) -g $g -t $t |\
 	indexlr --long --pos -k $(small_k) -w $(small_w) -t $(t) - |\
 	$(ntlink_path)/bin/ntlink_overlap_sequences.py -m -  --path $< \
 	-s $(target) -d $(prefix).n$(n).scaffold.dot -p $(prefix) -g $(g) -k $(small_k) --outgap $(merge_gap) --trim_info'
