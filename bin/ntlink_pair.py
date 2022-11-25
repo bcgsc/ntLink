@@ -442,26 +442,30 @@ class NtLink():
         skip_next = False # Want to skip transitions that are after repeats or now span a break
         for i, transition in enumerate(transitions):
             if not transition:
-                if sorted_ctg_pos[i].ctg_pos == sorted_ctg_pos[i + 1].ctg_pos:
-                    skip_next = True
-                    continue
                 if skip_next:
                     skip_next = False
                     continue  # The mapping right after a repeat could confuse the approach. Just skip it
+                if sorted_ctg_pos[i].ctg_pos == sorted_ctg_pos[i + 1].ctg_pos:
+                    skip_next = True
+                    continue
+                if i > 0 and sorted_ctg_pos[i-1].ctg_pos == sorted_ctg_pos[i].ctg_pos:
+                    continue
                 if i + 2 >= len(transitions):
                     # This is an end minimizers that's an issue. Remove it
                     breaks.add(i + 1)
                 elif NtLink.is_consistent(sorted_ctg_pos, increasing, i, i + 2):
                     # This is a single issue minimizer. Remove it
                     filters.add(i + 1)
+                elif (i > 0 and NtLink.is_consistent(sorted_ctg_pos, increasing, i - 1, i + 1)):
+                    # This is a single issue minimizer. Remove it
+                    filters.add(i)
                 else:
-                    # This is a larger segment problem or problem minimizer at the end. Break the alignment block
+                    # This is a larger segment problem or problem minimizer at the beginning. Break the alignment block
                     breaks.add(i + 1)
             skip_next = False
 
         if not breaks and not filters:
             return [sorted_ctg_pos]
-
         return NtLink.break_alignment_blocks(sorted_ctg_pos, breaks, filters)
 
     @staticmethod
@@ -475,9 +479,9 @@ class NtLink():
             return [sorted_ctg_pos]
 
         transition_counts = Counter(transitions_incr)
-        if (transition_counts[True]/len(transition_counts)) >= min_consistent:
+        if (transition_counts[True]/len(transitions_incr)) >= min_consistent:
             return NtLink.filter_and_break_alignment_blocks(transitions_incr, sorted_ctg_pos, increasing=True)
-        if (transition_counts[False]/len(transition_counts)) >= min_consistent:
+        if (transition_counts[False]/len(transitions_incr)) >= min_consistent:
             return NtLink.filter_and_break_alignment_blocks(transitions_decr, sorted_ctg_pos, increasing=False)
         return []
 
