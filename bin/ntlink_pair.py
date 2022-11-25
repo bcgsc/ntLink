@@ -417,17 +417,36 @@ class NtLink():
             return ctg_pos[i2].read_pos >= ctg_pos[i2].read_pos
 
     @staticmethod
+    def break_alignment_blocks(sorted_ctg_pos, breaks, filters):
+        "Break the alignment blocks at detected locations"
+        return_alignment_blocks = []
+        current_alignment_block = []
+        for i, mapping in enumerate(sorted_ctg_pos):
+            if i in filters:
+                continue
+            if i in breaks:
+                return_alignment_blocks.append(current_alignment_block)
+                current_alignment_block = [mapping]
+            else:
+                current_alignment_block.append(mapping)
+        if current_alignment_block:
+            return_alignment_blocks.append(current_alignment_block)
+
+        return return_alignment_blocks
+
+
+    @staticmethod
     def filter_and_break_alignment_blocks(transitions, sorted_ctg_pos, increasing=True):
         breaks = set()
         filters = set()
-        seen_repeat = False
+        skip_next = False # Want to skip transitions that are after repeats or now span a break
         for i, transition in enumerate(transitions):
             if not transition:
                 if sorted_ctg_pos[i].ctg_pos == sorted_ctg_pos[i + 1].ctg_pos:
-                    seen_repeat = True
+                    skip_next = True
                     continue
-                if seen_repeat:
-                    seen_repeat = False
+                if skip_next:
+                    skip_next = False
                     continue  # The mapping right after a repeat could confuse the approach. Just skip it
                 if i + 2 >= len(transitions):
                     # This is an end minimizers that's an issue. Remove it
@@ -436,12 +455,14 @@ class NtLink():
                     # This is a single issue minimizer. Remove it
                     filters.add(i + 1)
                 else:
-                    # This is a larger segment problem. Break the alignment block
+                    # This is a larger segment problem or problem minimizer at the end. Break the alignment block
                     breaks.add(i + 1)
-            seen_repeat = False
+            skip_next = False
 
         if not breaks and not filters:
             return [sorted_ctg_pos]
+
+        return NtLink.break_alignment_blocks(sorted_ctg_pos, breaks, filters)
 
     @staticmethod
     def get_mapped_blocks(sorted_ctg_pos: list, min_consistent=0.75) -> list:
