@@ -434,10 +434,10 @@ class NtLink():
                     breaks.add(i + 1)
                 elif NtLink.is_consistent(sorted_ctg_pos, increasing, i, i + 2):
                     # This is a single issue minimizer. Remove it
-                    breaks.add(i + 1)
+                    filters.add(i + 1)
                 else:
                     # This is a larger segment problem. Break the alignment block
-                    filters.add(i + 1)
+                    breaks.add(i + 1)
             seen_repeat = False
 
         if not breaks and not filters:
