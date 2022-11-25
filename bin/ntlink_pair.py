@@ -441,7 +441,7 @@ class NtLink():
         filters = set()
         for i, transition in enumerate(transitions):
             if not transition:
-                if sorted_ctg_pos[i].ctg_pos in duplicate_positions or sorted_ctg_pos[i+1] in duplicate_positions:
+                if sorted_ctg_pos[i].ctg_pos in duplicate_positions or sorted_ctg_pos[i+1].ctg_pos in duplicate_positions:
                     continue # Just skip when transitions include duplicate contig positions
                 if i + 2 >= len(transitions):
                     # This is an end minimizer that's an issue. Remove it
@@ -469,7 +469,7 @@ class NtLink():
 
         for i, j in zip(sorted_ctg_pos, sorted_ctg_pos[1:]):
             transitions_incr.append(i.read_pos <= j.read_pos)
-            transitions_decr.append(i.read_pos > j.read_pos)
+            transitions_decr.append(i.read_pos >= j.read_pos)
             if i.ctg_pos in ctg_positions:
                 dup_positions.add(i.ctg_pos)
             else:
