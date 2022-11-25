@@ -408,31 +408,86 @@ class NtLink():
 
         return pairs
 
+    @staticmethod
+    def is_consistent(ctg_pos: list, increasing: bool, i1: int, i2: int) -> bool:
+        "Given the expected monotonicity and a list with contig positions of mappings, determine whether the given indices are consistent"
+        if increasing:
+            return ctg_pos[i1].read_pos <= ctg_pos[i2].read_pos
+        else:
+            return ctg_pos[i2].read_pos >= ctg_pos[i2].read_pos
+
+    @staticmethod
+    def filter_and_break_alignment_blocks(transitions, sorted_ctg_pos, increasing=True):
+        breaks = set()
+        filters = set()
+        seen_repeat = False
+        for i, transition in enumerate(transitions):
+            if not transition:
+                if sorted_ctg_pos[i].ctg_pos == sorted_ctg_pos[i + 1].ctg_pos:
+                    seen_repeat = True
+                    continue
+                if seen_repeat:
+                    seen_repeat = False
+                    continue  # The mapping right after a repeat could confuse the approach. Just skip it
+                if i + 2 >= len(transitions):
+                    # This is an end minimizers that's an issue. Remove it
+                    breaks.add(i + 1)
+                elif NtLink.is_consistent(sorted_ctg_pos, increasing, i, i + 2):
+                    # This is a single issue minimizer. Remove it
+                    breaks.add(i + 1)
+                else:
+                    # This is a larger segment problem. Break the alignment block
+                    filters.add(i + 1)
+            seen_repeat = False
+
+        if not breaks and not filters:
+            return [sorted_ctg_pos]
+
+    @staticmethod
+    def get_mapped_blocks(sorted_ctg_pos: list, min_consistent=0.75) -> list:
+        "Go through a list of transitions, deciding whether to filter or cut the alignment block accordingly"
+        transitions_incr = [i.read_pos <= j.read_pos for i, j in zip(sorted_ctg_pos, sorted_ctg_pos[1:])]
+        if all(transitions_incr):
+            return [sorted_ctg_pos]
+        transitions_decr = [i.read_pos > j.read_pos for i, j in zip(sorted_ctg_pos, sorted_ctg_pos[1:])]
+        if all(transitions_decr):
+            return [sorted_ctg_pos]
+
+        transition_counts = Counter(transitions_incr)
+        if (transition_counts[True]/len(transition_counts)) >= min_consistent:
+            return NtLink.filter_and_break_alignment_blocks(transitions_incr, sorted_ctg_pos, increasing=True)
+        if (transition_counts[False]/len(transition_counts)) >= min_consistent:
+            return NtLink.filter_and_break_alignment_blocks(transitions_decr, sorted_ctg_pos, increasing=False)
+        return []
+
+
     def print_paf(self, outfile, accepted_contigs, read_len, read_name):
         "Print the given read mappings in PAF-like format"
         for ctg in accepted_contigs:
             ctg_run = accepted_contigs[ctg]
             sorted_mx_positions = sorted(ctg_run.hits, key=lambda x:x.ctg_pos)
-            first_mx_mapping = sorted_mx_positions[0]
-            last_mx_mapping = sorted_mx_positions[-1]
-            strand_counter = Counter([hit.ctg_strand == hit.read_strand for hit in sorted_mx_positions])
-            if strand_counter[True]/len(strand_counter)*100 >= 50:
-                strand = "+"
-            else:
-                strand = "-"
-            target_start, target_end = min(first_mx_mapping.ctg_pos, last_mx_mapping.ctg_pos), \
-                                       max(first_mx_mapping.ctg_pos, last_mx_mapping.ctg_pos) + self.args.k
-            query_start, query_end = min(first_mx_mapping.read_pos, last_mx_mapping.read_pos), \
-                                     max(first_mx_mapping.read_pos, last_mx_mapping.read_pos) + self.args.k
-            assert query_start < query_end
-            assert query_start >= 0
-            assert query_end <= read_len
+            mapped_blocks = self.get_mapped_blocks(sorted_mx_positions)
+            for mapping in mapped_blocks:
+                first_mx_mapping = mapping[0]
+                last_mx_mapping = mapping[-1]
+                strand_counter = Counter([hit.ctg_strand == hit.read_strand for hit in mapping])
+                if strand_counter[True]/len(strand_counter)*100 >= 50:
+                    strand = "+"
+                else:
+                    strand = "-"
+                target_start, target_end = min(first_mx_mapping.ctg_pos, last_mx_mapping.ctg_pos), \
+                                           max(first_mx_mapping.ctg_pos, last_mx_mapping.ctg_pos) + self.args.k
+                query_start, query_end = min(first_mx_mapping.read_pos, last_mx_mapping.read_pos), \
+                                         max(first_mx_mapping.read_pos, last_mx_mapping.read_pos) + self.args.k
+                assert query_start < query_end
+                assert query_start >= 0
+                assert query_end <= read_len
 
-            out_str = f"{read_name}\t{read_len}\t{query_start}\t{query_end}\t{strand}\t" \
-                      f"{ctg_run.contig}\t{NtLink.scaffolds[ctg_run.contig].length}\t" \
-                      f"{target_start}\t{target_end}\t{len(sorted_mx_positions)}\t" \
-                      f"{target_end - target_start}\t255\n"
-            outfile.write(out_str)
+                out_str = f"{read_name}\t{read_len}\t{query_start}\t{query_end}\t{strand}\t" \
+                          f"{ctg_run.contig}\t{NtLink.scaffolds[ctg_run.contig].length}\t" \
+                          f"{target_start}\t{target_end}\t{len(mapping)}\t" \
+                          f"{target_end - target_start}\t255\n"
+                outfile.write(out_str)
 
 
     def tally_pairs_from_mappings(self, accepted_anchor_contigs, contig_runs, length_long_read, pairs):
