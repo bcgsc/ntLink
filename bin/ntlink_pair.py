@@ -409,12 +409,14 @@ class NtLink():
         return pairs
 
     @staticmethod
-    def is_consistent(ctg_pos: list, increasing: bool, i1: int, i2: int) -> bool:
+    def is_consistent(ctg_positions: list, increasing: bool, i1: int, i2: int, duplicate_positions: list) -> bool:
         "Given the expected monotonicity and a list with contig positions of mappings, determine whether the given indices are consistent"
+        if ctg_positions[i1].ctg_pos in duplicate_positions or ctg_positions[i2].ctg_pos in duplicate_positions:
+            return True  # Err on the side of caution when checking consistency including dups, don't break if unsure, just filter
         if increasing:
-            return ctg_pos[i1].read_pos <= ctg_pos[i2].read_pos
+            return ctg_positions[i1].read_pos <= ctg_positions[i2].read_pos
         else:
-            return ctg_pos[i2].read_pos >= ctg_pos[i2].read_pos
+            return ctg_positions[i2].read_pos >= ctg_positions[i2].read_pos
 
     @staticmethod
     def break_alignment_blocks(sorted_ctg_pos, breaks, filters):
@@ -446,10 +448,10 @@ class NtLink():
                 if i + 2 >= len(transitions):
                     # This is an end minimizer that's an issue. Remove it
                     breaks.add(i + 1)
-                elif NtLink.is_consistent(sorted_ctg_pos, increasing, i, i + 2):
+                elif NtLink.is_consistent(sorted_ctg_pos, increasing, i, i + 2, duplicate_positions):
                     # This is a single issue minimizer. Remove it
                     filters.add(i + 1)
-                elif i > 0 and NtLink.is_consistent(sorted_ctg_pos, increasing, i - 1, i + 1):
+                elif i > 0 and NtLink.is_consistent(sorted_ctg_pos, increasing, i - 1, i + 1, duplicate_positions):
                     # This is a single issue minimizer. Remove it
                     filters.add(i)
                 else:
