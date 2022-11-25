@@ -436,33 +436,25 @@ class NtLink():
 
 
     @staticmethod
-    def filter_and_break_alignment_blocks(transitions, sorted_ctg_pos, increasing=True):
+    def filter_and_break_alignment_blocks(transitions, sorted_ctg_pos, duplicate_positions, increasing=True):
         breaks = set()
         filters = set()
-        skip_next = False # Want to skip transitions that are after repeats or now span a break
         for i, transition in enumerate(transitions):
             if not transition:
-                if skip_next:
-                    skip_next = False
-                    continue  # The mapping right after a repeat could confuse the approach. Just skip it
-                if sorted_ctg_pos[i].ctg_pos == sorted_ctg_pos[i + 1].ctg_pos:
-                    skip_next = True
-                    continue
-                if i > 0 and sorted_ctg_pos[i-1].ctg_pos == sorted_ctg_pos[i].ctg_pos:
-                    continue
+                if sorted_ctg_pos[i].ctg_pos in duplicate_positions or sorted_ctg_pos[i+1] in duplicate_positions:
+                    continue # Just skip when transitions include duplicate contig positions
                 if i + 2 >= len(transitions):
-                    # This is an end minimizers that's an issue. Remove it
+                    # This is an end minimizer that's an issue. Remove it
                     breaks.add(i + 1)
                 elif NtLink.is_consistent(sorted_ctg_pos, increasing, i, i + 2):
                     # This is a single issue minimizer. Remove it
                     filters.add(i + 1)
-                elif (i > 0 and NtLink.is_consistent(sorted_ctg_pos, increasing, i - 1, i + 1)):
+                elif i > 0 and NtLink.is_consistent(sorted_ctg_pos, increasing, i - 1, i + 1):
                     # This is a single issue minimizer. Remove it
                     filters.add(i)
                 else:
                     # This is a larger segment problem or problem minimizer at the beginning. Break the alignment block
                     breaks.add(i + 1)
-            skip_next = False
 
         if not breaks and not filters:
             return [sorted_ctg_pos]
@@ -471,18 +463,30 @@ class NtLink():
     @staticmethod
     def get_mapped_blocks(sorted_ctg_pos: list, min_consistent=0.75) -> list:
         "Go through a list of transitions, deciding whether to filter or cut the alignment block accordingly"
-        transitions_incr = [i.read_pos <= j.read_pos for i, j in zip(sorted_ctg_pos, sorted_ctg_pos[1:])]
+        ctg_positions = set()
+        dup_positions = set()
+        transitions_incr, transitions_decr = [], []
+
+        for i, j in zip(sorted_ctg_pos, sorted_ctg_pos[1:]):
+            transitions_incr.append(i.read_pos <= j.read_pos)
+            transitions_decr.append(i.read_pos > j.read_pos)
+            if i.ctg_pos in ctg_positions:
+                dup_positions.add(i.ctg_pos)
+            else:
+                ctg_positions.add(i.ctg_pos)
+        if sorted_ctg_pos[-1].ctg_pos in ctg_positions:
+            dup_positions.add(sorted_ctg_pos[-1].ctg_pos)
+
         if all(transitions_incr):
             return [sorted_ctg_pos]
-        transitions_decr = [i.read_pos > j.read_pos for i, j in zip(sorted_ctg_pos, sorted_ctg_pos[1:])]
         if all(transitions_decr):
             return [sorted_ctg_pos]
 
         transition_counts = Counter(transitions_incr)
         if (transition_counts[True]/len(transitions_incr)) >= min_consistent:
-            return NtLink.filter_and_break_alignment_blocks(transitions_incr, sorted_ctg_pos, increasing=True)
+            return NtLink.filter_and_break_alignment_blocks(transitions_incr, sorted_ctg_pos, dup_positions, increasing=True)
         if (transition_counts[False]/len(transitions_incr)) >= min_consistent:
-            return NtLink.filter_and_break_alignment_blocks(transitions_decr, sorted_ctg_pos, increasing=False)
+            return NtLink.filter_and_break_alignment_blocks(transitions_decr, sorted_ctg_pos, dup_positions, increasing=False)
         return []
 
 
