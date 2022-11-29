@@ -416,7 +416,7 @@ class NtLink():
         if increasing:
             return ctg_positions[i1].read_pos <= ctg_positions[i2].read_pos
         else:
-            return ctg_positions[i2].read_pos >= ctg_positions[i2].read_pos
+            return ctg_positions[i1].read_pos >= ctg_positions[i2].read_pos
 
     @staticmethod
     def break_alignment_blocks(sorted_ctg_pos, breaks, filters):
