@@ -158,7 +158,7 @@ def test_4():
     check_trimmed_scaffolds("scaffolds_4.fa.k40.w100.z1000")
 
     # Clean-up files
-    cleanup_files("scaffolds_4.fa", "test4", k=40, w=100)
+    cleanup_files("scaffolds_4.fa", "scaffolds_4.fa.k40.w100.z1000", k=40, w=100)
 
 def test_5():
     "Testing gap-filling target"
