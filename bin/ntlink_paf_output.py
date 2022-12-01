@@ -67,10 +67,17 @@ def get_mapped_blocks(sorted_ctg_pos: list, min_consistent=0.75) -> list:
     ctg_positions = set()
     dup_positions = set()
     transitions_incr, transitions_decr = [], []
+    all_transitions_incr, all_transitions_decr = True, True
 
     for i, j in zip(sorted_ctg_pos, sorted_ctg_pos[1:]):
-        transitions_incr.append(i.read_pos <= j.read_pos)
-        transitions_decr.append(i.read_pos >= j.read_pos)
+        incr = i.read_pos <= j.read_pos
+        transitions_incr.append(incr)
+        all_transitions_incr = False if not incr else all_transitions_incr
+
+        decr = i.read_pos >= j.read_pos
+        transitions_decr.append(decr)
+        all_transitions_decr = False if not decr else all_transitions_decr
+
         if i.ctg_pos in ctg_positions:
             dup_positions.add(i.ctg_pos)
         else:
@@ -78,9 +85,7 @@ def get_mapped_blocks(sorted_ctg_pos: list, min_consistent=0.75) -> list:
     if sorted_ctg_pos[-1].ctg_pos in ctg_positions:
         dup_positions.add(sorted_ctg_pos[-1].ctg_pos)
 
-    if all(transitions_incr):
-        return [sorted_ctg_pos]
-    if all(transitions_decr):
+    if all_transitions_incr or all_transitions_decr:
         return [sorted_ctg_pos]
 
     transition_counts = Counter(transitions_incr)
