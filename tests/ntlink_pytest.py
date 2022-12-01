@@ -177,3 +177,21 @@ def test_6():
     "Testing ntLink rounds"
     run_ntlink_rounds("scaffolds_1.fa", "long_reads_1.fa", gap_fill=True, w=200, gap_k=35)
 
+def test_7():
+    "Testing PAF output"
+    command = "ntLink pair target=scaffolds_4.fa reads=long_reads_4_top5.fa k=40 w=100 paf=True"
+    command_shlex = shlex.split(command)
+    return_code = subprocess.call(command_shlex)
+    assert return_code == 0
+
+    expected_paf_entries = ["ERR3219854.377839\t21803\t411\t2361\t-\tscaf2\t30523\t100\t2056\t10\t1956\t255",
+                            "ERR3219854.377839\t21803\t2997\t11206\t-\tscaf1\t8978\t116\t8330\t19\t8214\t255",
+                            "ERR3219857.526030\t18128\t1182\t7927\t-\tscaf1\t8978\t2\t6781\t12\t6779\t255",
+                            "ERR3219854.1617584\t20496\t170\t2083\t-\tscaf2\t30523\t122\t2029\t7\t1907\t255",
+                            "ERR3219854.1617584\t20496\t3012\t10888\t-\tscaf1\t8978\t86\t8022\t13\t7936\t255",
+                            "ERR3219854.3730316\t18391\t9497\t16949\t+\tscaf1\t8978\t228\t7815\t14\t7587\t255"]
+    expected_paf_entries = set(expected_paf_entries)
+    with open("scaffolds_4.fa.k40.w100.z1000.paf", 'r') as fin:
+        for line in fin:
+            assert line.strip() in expected_paf_entries
+
