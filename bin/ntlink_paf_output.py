@@ -97,6 +97,14 @@ def get_mapped_blocks(sorted_ctg_pos: list, min_consistent=0.75) -> list:
                                                  increasing=False)
     return []
 
+def check_if_must_check_mapped_blocks(unsorted_hits: list, sorted_hits: list) -> bool:
+    "Use sorting to check if need to go into more detail with checking blocks."
+    if unsorted_hits == sorted_hits:
+        return True
+    if sorted(sorted_hits, key=lambda x: x.ctg_pos, reverse=True) == unsorted_hits:
+        return True
+    return False
+
 
 def print_paf(outfile: io.TextIOWrapper, accepted_contigs: list, read_len: int, read_name: str,
               scaffolds: dict, k: int):
@@ -104,7 +112,11 @@ def print_paf(outfile: io.TextIOWrapper, accepted_contigs: list, read_len: int, 
     for ctg in accepted_contigs:
         ctg_run = accepted_contigs[ctg]
         sorted_mx_positions = sorted(ctg_run.hits, key=lambda x: x.ctg_pos)
-        mapped_blocks = get_mapped_blocks(sorted_mx_positions)
+        check_mapped_blocks = check_if_must_check_mapped_blocks(ctg_run.hits, sorted_mx_positions)
+        if check_mapped_blocks:
+            mapped_blocks = get_mapped_blocks(sorted_mx_positions)
+        else:
+            mapped_blocks = [sorted_mx_positions]
         for mapping in mapped_blocks:
             first_mx_mapping = mapping[0]
             last_mx_mapping = mapping[-1]
