@@ -6,7 +6,7 @@ __author__ = 'laurencoombe'
 
 import argparse
 import datetime
-from collections import defaultdict, namedtuple, Counter
+from collections import defaultdict, namedtuple
 import itertools
 import os
 import random
@@ -17,6 +17,7 @@ import sys
 import numpy as np
 import igraph as ig
 import ntlink_utils
+import ntlink_paf_output
 
 MinimizerEdge = namedtuple("MinimizerEdge", ["mx_i", "mx_i_pos", "mx_i_strand",
                                              "mx_j", "mx_j_pos", "mx_j_strand"])
@@ -25,6 +26,7 @@ MinimizerWithHash = namedtuple("Minimizer_with_hash", ["mx_hash", "contig", "pos
 MappingEntry = namedtuple("MappingEntry", ["read_id", "contig_id", "num_hits", "list_hits"])
 
 class NtlinkPairError(Exception):
+    "ntLink pair exception"
     pass
 
 
@@ -383,7 +385,8 @@ class NtLink():
                                                       self.print_minimizer_positions(
                                                           accepted_anchor_contigs[ctg_run].hits)))
                     if self.args.paf and accepted_anchor_contigs:
-                        self.print_paf(paf_file, accepted_anchor_contigs, length_long_read, read_name)
+                        ntlink_paf_output.print_paf(paf_file, accepted_anchor_contigs, length_long_read, read_name,
+                                                    NtLink.scaffolds, self.args.k)
 
 
                     # Set first and terminal minimizers for the hits
@@ -407,119 +410,6 @@ class NtLink():
             paf_file.close()
 
         return pairs
-
-    @staticmethod
-    def is_consistent(ctg_positions: list, increasing: bool, i1: int, i2: int, duplicate_positions: list) -> bool:
-        "Given the expected monotonicity and a list with contig positions of mappings, determine whether the given indices are consistent"
-        if ctg_positions[i1].ctg_pos in duplicate_positions or ctg_positions[i2].ctg_pos in duplicate_positions:
-            return True  # Err on the side of caution when checking consistency including dups, don't break if unsure, just filter
-        if increasing:
-            return ctg_positions[i1].read_pos <= ctg_positions[i2].read_pos
-        else:
-            return ctg_positions[i1].read_pos >= ctg_positions[i2].read_pos
-
-    @staticmethod
-    def break_alignment_blocks(sorted_ctg_pos, breaks, filters):
-        "Break the alignment blocks at detected locations"
-        return_alignment_blocks = []
-        current_alignment_block = []
-        for i, mapping in enumerate(sorted_ctg_pos):
-            if i in filters:
-                continue
-            if i in breaks:
-                return_alignment_blocks.append(current_alignment_block)
-                current_alignment_block = [mapping]
-            else:
-                current_alignment_block.append(mapping)
-        if current_alignment_block:
-            return_alignment_blocks.append(current_alignment_block)
-
-        return return_alignment_blocks
-
-
-    @staticmethod
-    def filter_and_break_alignment_blocks(transitions, sorted_ctg_pos, duplicate_positions, increasing=True):
-        breaks = set()
-        filters = set()
-        for i, transition in enumerate(transitions):
-            if not transition:
-                if sorted_ctg_pos[i].ctg_pos in duplicate_positions or sorted_ctg_pos[i+1].ctg_pos in duplicate_positions:
-                    continue # Just skip when transitions include duplicate contig positions
-                if i + 2 >= len(transitions):
-                    # This is an end minimizer that's an issue. Remove it
-                    breaks.add(i + 1)
-                elif NtLink.is_consistent(sorted_ctg_pos, increasing, i, i + 2, duplicate_positions):
-                    # This is a single issue minimizer. Remove it
-                    filters.add(i + 1)
-                elif i > 0 and NtLink.is_consistent(sorted_ctg_pos, increasing, i - 1, i + 1, duplicate_positions):
-                    # This is a single issue minimizer. Remove it
-                    filters.add(i)
-                else:
-                    # This is a larger segment problem or problem minimizer at the beginning. Break the alignment block
-                    breaks.add(i + 1)
-
-        if not breaks and not filters:
-            return [sorted_ctg_pos]
-        return NtLink.break_alignment_blocks(sorted_ctg_pos, breaks, filters)
-
-    @staticmethod
-    def get_mapped_blocks(sorted_ctg_pos: list, min_consistent=0.75) -> list:
-        "Go through a list of transitions, deciding whether to filter or cut the alignment block accordingly"
-        ctg_positions = set()
-        dup_positions = set()
-        transitions_incr, transitions_decr = [], []
-
-        for i, j in zip(sorted_ctg_pos, sorted_ctg_pos[1:]):
-            transitions_incr.append(i.read_pos <= j.read_pos)
-            transitions_decr.append(i.read_pos >= j.read_pos)
-            if i.ctg_pos in ctg_positions:
-                dup_positions.add(i.ctg_pos)
-            else:
-                ctg_positions.add(i.ctg_pos)
-        if sorted_ctg_pos[-1].ctg_pos in ctg_positions:
-            dup_positions.add(sorted_ctg_pos[-1].ctg_pos)
-
-        if all(transitions_incr):
-            return [sorted_ctg_pos]
-        if all(transitions_decr):
-            return [sorted_ctg_pos]
-
-        transition_counts = Counter(transitions_incr)
-        if (transition_counts[True]/len(transitions_incr)) >= min_consistent:
-            return NtLink.filter_and_break_alignment_blocks(transitions_incr, sorted_ctg_pos, dup_positions, increasing=True)
-        if (transition_counts[False]/len(transitions_incr)) >= min_consistent:
-            return NtLink.filter_and_break_alignment_blocks(transitions_decr, sorted_ctg_pos, dup_positions, increasing=False)
-        return []
-
-
-    def print_paf(self, outfile, accepted_contigs, read_len, read_name):
-        "Print the given read mappings in PAF-like format"
-        for ctg in accepted_contigs:
-            ctg_run = accepted_contigs[ctg]
-            sorted_mx_positions = sorted(ctg_run.hits, key=lambda x:x.ctg_pos)
-            mapped_blocks = self.get_mapped_blocks(sorted_mx_positions)
-            for mapping in mapped_blocks:
-                first_mx_mapping = mapping[0]
-                last_mx_mapping = mapping[-1]
-                strand_counter = Counter([hit.ctg_strand == hit.read_strand for hit in mapping])
-                if strand_counter[True]/len(strand_counter)*100 >= 50:
-                    strand = "+"
-                else:
-                    strand = "-"
-                target_start, target_end = min(first_mx_mapping.ctg_pos, last_mx_mapping.ctg_pos), \
-                                           max(first_mx_mapping.ctg_pos, last_mx_mapping.ctg_pos) + self.args.k
-                query_start, query_end = min(first_mx_mapping.read_pos, last_mx_mapping.read_pos), \
-                                         max(first_mx_mapping.read_pos, last_mx_mapping.read_pos) + self.args.k
-                assert query_start < query_end
-                assert query_start >= 0
-                assert query_end <= read_len
-
-                out_str = f"{read_name}\t{read_len}\t{query_start}\t{query_end}\t{strand}\t" \
-                          f"{ctg_run.contig}\t{NtLink.scaffolds[ctg_run.contig].length}\t" \
-                          f"{target_start}\t{target_end}\t{len(mapping)}\t" \
-                          f"{target_end - target_start}\t255\n"
-                outfile.write(out_str)
-
 
     def tally_pairs_from_mappings(self, accepted_anchor_contigs, contig_runs, length_long_read, pairs):
         "Tally the pairs from the given mappings"
@@ -712,9 +602,9 @@ class NtLink():
             print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
         except:
             if not self.args.checkpoint and self.args.verbose:
-               subprocess.call(shlex.split(f"rm {self.args.p}.verbose_mapping.tsv")) 
+                subprocess.call(shlex.split(f"rm {self.args.p}.verbose_mapping.tsv"))
             if not self.args.checkpoint and self.args.paf:
-               subprocess.call(shlex.split(f"rm {self.args.p}.paf")) 
+                subprocess.call(shlex.split(f"rm {self.args.p}.paf"))
             raise NtlinkPairError("ntLink pairing stage encountered an error..") 
 
     def __init__(self):
