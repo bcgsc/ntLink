@@ -179,7 +179,7 @@ def test_6():
 
 def test_7():
     "Testing PAF output"
-    command = "ntLink pair target=scaffolds_4.fa reads=long_reads_4_top5.fa k=40 w=100 paf=True"
+    command = "../ntLink pair target=scaffolds_4.fa reads=long_reads_4_top5.fa k=40 w=100 paf=True"
     command_shlex = shlex.split(command)
     return_code = subprocess.call(command_shlex)
     assert return_code == 0
