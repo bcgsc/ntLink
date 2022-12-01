@@ -552,6 +552,8 @@ class NtLink():
             print("\t--sensitive")
         if self.args.repeat_filter:
             print("\t--repeat-filter")
+        if self.args.paf:
+            print("\t--paf")
 
     def main(self):
         "Run ntLink graph stage"
@@ -566,7 +568,8 @@ class NtLink():
     
             if self.args.checkpoint:
                 print("Found checkpoint file, bypassing read mapping...\n")
-                print("Warning: --paf specified, but not compatible with checkpoint")
+                if self.args.paf:
+                    print("Warning: --paf specified, but not compatible with checkpoint")
                 NtLink.list_mx_info = {}
             else:
                 # Read in the minimizers for target assembly
