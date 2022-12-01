@@ -35,14 +35,14 @@ def cleanup_files(target, prefix, k=32, w=100, n=2, **kwargs):
                  f"{prefix}.pairs.tsv",
                  f"{prefix}.n{n}.scaffold.dot", f"{prefix}.stitch.path",
                  f"{target}.k{k}.w{w}.z1000.ntLink.scaffolds.fa", f"{target}.k{k}.w{w}.z1000.ntLink.scaffolds.fa.abyssfac.tsv",
-                 f"{prefix}.k{k}.w{w}.z1000.verbose_mapping.tsv"]
+                 f"{prefix}.verbose_mapping.tsv"]
     if "overlap" not in kwargs or kwargs["overlap"] is not False:
         file_list.extend([f"{prefix}.trimmed_scafs.fa", f"{prefix}.trimmed_scafs.path"])
 
     for out_file in file_list:
         command = "rm {0}".format(out_file)
         command_shlex = shlex.split(command)
-        return_code = subprocess.call(command_shlex)
+        subprocess.call(command_shlex)
 
 
 def run_ntLink(target, reads, prefix, k=32, w=100, n=1, gap_fill=False, **kwargs):
