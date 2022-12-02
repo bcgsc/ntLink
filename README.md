@@ -47,7 +47,7 @@ f			Maximum number of contigs in a run for full transitive edge addition [10]
 a                       Minimum number of anchored ONT reads required for an edge [1]
 z			Minimum size of contig (bp) to scaffold [1000]
 v                       If 1, track time and memory for each step of the pipeline [0]
-conservative		If False, runs ntLink in stitching mode [True]
+paf			If True, outputs read to contig mappings in PAF-like format [False]
 overlap			If True, runs extra step to attempt to identify and trim overlapping joined sequences [True]
 sensitive	        If True, runs mapping in sensitive mode [False]
 
@@ -87,8 +87,13 @@ Example command without gap-filling (target `run_rounds_gaps` runs gap-filling, 
 ```
 ntLink_rounds run_rounds target=my_assembly.fa reads=long_reads.fq.gz k=24 w=250 rounds=5
 ```
-
 See the wiki page for more details.
+
+### Mapping only
+
+In some cases, a user might only be interested in the reads to contigs mappings (which are used to infer scaffolding evidence in the normal ntLink usage).
+To only run the mapping stage, a user can use the `pair` target for the `ntLink` command. The mappings can also be output in PAF-like format by specifying `paf=True`.
+
 
 **For more information about the ntLink algorithm and tips for running ntLink see our [wiki](https://github.com/bcgsc/ntLink/wiki)**
 
