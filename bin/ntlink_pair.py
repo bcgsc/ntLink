@@ -558,14 +558,14 @@ class NtLink():
     def main(self):
         "Run ntLink graph stage"
         print("Running pairing stage of ntLink ...\n")
-    
+
         try:
             # Check if the checkpoint mapping file exists
             if os.path.isfile(self.args.p + ".verbose_mapping.tsv"):
                 self.args.checkpoint = self.args.p + ".verbose_mapping.tsv"
-    
+
             self.print_parameters()
-    
+
             if self.args.checkpoint:
                 print("Found checkpoint file, bypassing read mapping...\n")
                 if self.args.paf:
@@ -575,40 +575,40 @@ class NtLink():
                 # Read in the minimizers for target assembly
                 mxs_info = self.read_minimizers()
                 NtLink.list_mx_info = mxs_info
-    
+
             # Load target scaffolds into memory
             scaffolds = ntlink_utils.read_fasta_file(self.args.s)  # scaffold_id -> Scaffold
             NtLink.scaffolds = scaffolds
-    
+
             if self.args.checkpoint:
                 pairs = self.find_scaffold_pairs_checkpoints()
             else:
                 # Get directed scaffold pairs, gap estimates from long reads
                 pairs = self.find_scaffold_pairs()
-    
+
             pairs = self.filter_pairs_distances(pairs)
-    
+
             pairs = self.filter_weak_anchor_pairs(pairs)
-    
+
             if self.args.pairs:
                 self.write_pairs(pairs)
-    
+
             # Build directed graph
             graph = self.build_scaffold_graph(pairs)
-    
+
             # Filter graph
             graph = self.filter_graph_global(graph, int(self.args.n))
-    
+
             # Print out the directed graph
             self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds)
-    
+
             print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
         except:
             if not self.args.checkpoint and self.args.verbose:
                 subprocess.call(shlex.split(f"rm {self.args.p}.verbose_mapping.tsv"))
             if not self.args.checkpoint and self.args.paf:
                 subprocess.call(shlex.split(f"rm {self.args.p}.paf"))
-            raise NtlinkPairError("ntLink pairing stage encountered an error..") 
+            raise NtlinkPairError("ntLink pairing stage encountered an error..")
 
     def __init__(self):
         "Create an ntLink instance"

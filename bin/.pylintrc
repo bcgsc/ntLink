@@ -5,6 +5,7 @@ max-args = 10
 max-locals = 50
 max-branches = 20 
 max-public-methods = 30
+max-attributes = 8
  
 [MISCELLANEOUS]
 

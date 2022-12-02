@@ -83,7 +83,7 @@ def get_mapped_blocks(sorted_ctg_pos: list, min_consistent=0.75) -> list:
     if all_transitions_incr or all_transitions_decr:
         return [sorted_ctg_pos]
 
-    transition_counts_incr = transitions_incr.count(True) 
+    transition_counts_incr = transitions_incr.count(True)
     if (transition_counts_incr / len(transitions_incr)) >= min_consistent:
         return filter_and_break_alignment_blocks(transitions_incr, sorted_ctg_pos, dup_positions,
                                                  increasing=True)
