@@ -1,5 +1,5 @@
 '''
-Helper functions for PAF ntLink output
+Helper functions for PAF output for ntLink mappings
 '''
 
 __author__ = "Lauren Coombe @lcoombe"
@@ -15,24 +15,24 @@ def is_consistent(ctg_positions: list, increasing: bool, i1: int, i2: int, dupli
         return ctg_positions[i1].read_pos <= ctg_positions[i2].read_pos
     return ctg_positions[i1].read_pos >= ctg_positions[i2].read_pos
 
-def break_alignment_blocks(sorted_ctg_pos: list, breaks: set, filters: set) -> list:
-    "Break the alignment blocks at detected locations"
-    return_alignment_blocks = []
-    current_alignment_block = []
+def break_mapping_blocks(sorted_ctg_pos: list, breaks: set, filters: set) -> list:
+    "Break the mapping blocks at detected locations"
+    return_mapping_blocks = []
+    current_mapping_block = []
     for i, mapping in enumerate(sorted_ctg_pos):
         if i in filters:
             continue
         if i in breaks:
-            return_alignment_blocks.append(current_alignment_block)
-            current_alignment_block = [mapping]
+            return_mapping_blocks.append(current_mapping_block)
+            current_mapping_block = [mapping]
         else:
-            current_alignment_block.append(mapping)
-    return_alignment_blocks.append(current_alignment_block)
+            current_mapping_block.append(mapping)
+    return_mapping_blocks.append(current_mapping_block)
 
-    return return_alignment_blocks
+    return return_mapping_blocks
 
-def filter_and_break_alignment_blocks(transitions: list, sorted_ctg_pos: list, duplicate_positions: set,
-                                      increasing=True) -> list:
+def filter_and_break_mapping_blocks(transitions: list, sorted_ctg_pos: list, duplicate_positions: set,
+                                    increasing=True) -> list:
     "Go through transitions in mapping block, find places to break block (if needed), and return broken blocks"
     breaks = set()
     filters = set()
@@ -50,15 +50,15 @@ def filter_and_break_alignment_blocks(transitions: list, sorted_ctg_pos: list, d
                 # This is a single issue minimizer. Remove it
                 filters.add(i)
             else:
-                # This is a larger segment problem or problem minimizer at the beginning. Break the alignment block
+                # This is a larger segment problem or problem minimizer at the beginning. Break the mapping block
                 breaks.add(i + 1)
 
     if not breaks and not filters:
         return [sorted_ctg_pos]
-    return break_alignment_blocks(sorted_ctg_pos, breaks, filters)
+    return break_mapping_blocks(sorted_ctg_pos, breaks, filters)
 
 def get_mapped_blocks(sorted_ctg_pos: list, min_consistent=0.75) -> list:
-    "Go through a list of transitions, deciding whether to filter or cut the alignment block accordingly"
+    "Go through a list of transitions, deciding whether to filter or cut the mapping block accordingly"
     ctg_positions = set()
     dup_positions = set()
     transitions_incr, transitions_decr = [], []
@@ -85,11 +85,11 @@ def get_mapped_blocks(sorted_ctg_pos: list, min_consistent=0.75) -> list:
 
     transition_counts_incr = transitions_incr.count(True)
     if (transition_counts_incr / len(transitions_incr)) >= min_consistent:
-        return filter_and_break_alignment_blocks(transitions_incr, sorted_ctg_pos, dup_positions,
-                                                 increasing=True)
+        return filter_and_break_mapping_blocks(transitions_incr, sorted_ctg_pos, dup_positions,
+                                               increasing=True)
     if ((len(transitions_incr) - transition_counts_incr) / len(transitions_incr)) >= min_consistent:
-        return filter_and_break_alignment_blocks(transitions_decr, sorted_ctg_pos, dup_positions,
-                                                 increasing=False)
+        return filter_and_break_mapping_blocks(transitions_decr, sorted_ctg_pos, dup_positions,
+                                               increasing=False)
     return []
 
 def check_if_must_check_mapped_blocks(unsorted_hits: list, sorted_hits: list) -> bool:
