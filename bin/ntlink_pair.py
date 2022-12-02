@@ -528,7 +528,7 @@ class NtLink():
         parser.add_argument("--sensitive", help="Run more sensitive read mapping", action="store_true")
         parser.add_argument("--repeat-filter", help="Remove repetitive minimizers within a long read's sketch",
                             action="store_true")
-        parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.5')
+        parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.6')
         parser.add_argument("--verbose", help="Verbose output logging", action='store_true')
 
         return parser.parse_args()

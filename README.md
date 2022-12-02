@@ -111,7 +111,7 @@ To only run the pairing stage of `ntLink` (the stage where the long reads are ma
  
  Installing from source code:
  ```
-curl -L --output ntLink-1.3.5.tar.gz https://github.com/bcgsc/ntLink/releases/download/v1.3.5/ntLink-1.3.5.tar.gz && tar xvzf ntLink-1.3.5.tar.gz 
+curl -L --output ntLink-1.3.6.tar.gz https://github.com/bcgsc/ntLink/releases/download/v1.3.6/ntLink-1.3.6.tar.gz && tar xvzf ntLink-1.3.6.tar.gz 
 ```
 
 #### Testing your installation
