@@ -16,7 +16,6 @@ def is_consistent(ctg_positions: list, increasing: bool, i1: int, i2: int, dupli
         return ctg_positions[i1].read_pos <= ctg_positions[i2].read_pos
     return ctg_positions[i1].read_pos >= ctg_positions[i2].read_pos
 
-
 def break_alignment_blocks(sorted_ctg_pos: list, breaks: set, filters: set) -> list:
     "Break the alignment blocks at detected locations"
     return_alignment_blocks = []
@@ -29,11 +28,9 @@ def break_alignment_blocks(sorted_ctg_pos: list, breaks: set, filters: set) -> l
             current_alignment_block = [mapping]
         else:
             current_alignment_block.append(mapping)
-    if current_alignment_block:
-        return_alignment_blocks.append(current_alignment_block)
+    return_alignment_blocks.append(current_alignment_block)
 
     return return_alignment_blocks
-
 
 def filter_and_break_alignment_blocks(transitions: list, sorted_ctg_pos: list, duplicate_positions: set,
                                       increasing=True) -> list:
@@ -61,7 +58,6 @@ def filter_and_break_alignment_blocks(transitions: list, sorted_ctg_pos: list, d
         return [sorted_ctg_pos]
     return break_alignment_blocks(sorted_ctg_pos, breaks, filters)
 
-
 def get_mapped_blocks(sorted_ctg_pos: list, min_consistent=0.75) -> list:
     "Go through a list of transitions, deciding whether to filter or cut the alignment block accordingly"
     ctg_positions = set()
@@ -88,11 +84,11 @@ def get_mapped_blocks(sorted_ctg_pos: list, min_consistent=0.75) -> list:
     if all_transitions_incr or all_transitions_decr:
         return [sorted_ctg_pos]
 
-    transition_counts = Counter(transitions_incr)
-    if (transition_counts[True] / len(transitions_incr)) >= min_consistent:
+    transition_counts_incr = transitions_incr.count(True) 
+    if (transition_counts_incr / len(transitions_incr)) >= min_consistent:
         return filter_and_break_alignment_blocks(transitions_incr, sorted_ctg_pos, dup_positions,
                                                  increasing=True)
-    if (transition_counts[False] / len(transitions_incr)) >= min_consistent:
+    if ((len(transitions_incr) - transition_counts_incr) / len(transitions_incr)) >= min_consistent:
         return filter_and_break_alignment_blocks(transitions_decr, sorted_ctg_pos, dup_positions,
                                                  increasing=False)
     return []
@@ -100,18 +96,17 @@ def get_mapped_blocks(sorted_ctg_pos: list, min_consistent=0.75) -> list:
 def check_if_must_check_mapped_blocks(unsorted_hits: list, sorted_hits: list) -> bool:
     "Use sorting to check if need to go into more detail with checking blocks."
     if unsorted_hits == sorted_hits:
-        return True
-    if sorted(sorted_hits, key=lambda x: x.ctg_pos, reverse=True) == unsorted_hits:
-        return True
-    return False
-
+        return False
+    if sorted(sorted_hits, key=lambda x: (x.ctg_pos, x.read_pos), reverse=True) == unsorted_hits:
+        return False
+    return True
 
 def print_paf(outfile: io.TextIOWrapper, accepted_contigs: list, read_len: int, read_name: str,
               scaffolds: dict, k: int):
     "Print the given read mappings in PAF-like format"
     for ctg in accepted_contigs:
         ctg_run = accepted_contigs[ctg]
-        sorted_mx_positions = sorted(ctg_run.hits, key=lambda x: x.ctg_pos)
+        sorted_mx_positions = sorted(ctg_run.hits, key=lambda x: (x.ctg_pos, x.read_pos))
         check_mapped_blocks = check_if_must_check_mapped_blocks(ctg_run.hits, sorted_mx_positions)
         if check_mapped_blocks:
             mapped_blocks = get_mapped_blocks(sorted_mx_positions)
@@ -120,8 +115,9 @@ def print_paf(outfile: io.TextIOWrapper, accepted_contigs: list, read_len: int, 
         for mapping in mapped_blocks:
             first_mx_mapping = mapping[0]
             last_mx_mapping = mapping[-1]
-            strand_counter = Counter([hit.ctg_strand == hit.read_strand for hit in mapping])
-            if strand_counter[True] / len(strand_counter) * 100 >= 50:
+            strand_counter_list = [hit.ctg_strand == hit.read_strand for hit in mapping]
+            strand_count_true = strand_counter_list.count(True)
+            if strand_count_true / len(strand_counter_list) * 100 >= 50:
                 strand = "+"
             else:
                 strand = "-"
