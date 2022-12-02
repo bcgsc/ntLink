@@ -91,8 +91,7 @@ See the wiki page for more details.
 
 ### Mapping only
 
-In some cases, a user might only be interested in the reads to contigs mappings (which are used to infer scaffolding evidence in the normal ntLink usage).
-To only run the mapping stage, a user can use the `pair` target for the `ntLink` command. The mappings can also be output in PAF-like format by specifying `paf=True`.
+To only run the pairing stage of `ntLink` (the stage where the long reads are mapped to the contigs), use the `pair` target for the `ntLink` command. The mappings can also be output in PAF-like format by specifying `paf=True`.
 
 
 **For more information about the ntLink algorithm and tips for running ntLink see our [wiki](https://github.com/bcgsc/ntLink/wiki)**
