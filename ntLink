@@ -73,6 +73,9 @@ gap_w=10
 # debugging parameters
 ntlink_pairs_tsv=False
 
+# Output PAF-like format for mappings
+paf=False
+
 SHELL=bash -e -o pipefail
 ifeq ($(shell zsh -e -o pipefail -c 'true' 2>/dev/null; echo $$?), 0)
 # Set pipefail to ensure that all commands of a pipe succeed.
@@ -123,7 +126,7 @@ help:
 	@echo "a			Minimum number of anchored ONT reads required for an edge [1]"
 	@echo "z			Minimum size of contig (bp) to scaffold [1000]"
 	@echo "v			If 1, track time and memory for each step of the pipeline [0]"
-	@echo "conservative		If False, runs ntLink in stitching mode [True]"
+	@echo "paf			If True, outputs read to contig mappings in PAF-like format [False]"
 	@echo "overlap			If True, runs extra step to attempt to identify and trim overlapping joined sequences [True]"
 	@echo "sensitive	        If True, runs mapping in sensitive mode [False]"
 	@echo ""
@@ -196,6 +199,9 @@ ntlink_pair_params+=--sensitive
 endif
 ifeq ($(repeats), True)
 ntlink_pair_params+=--repeat-filter
+endif
+ifeq ($(paf), True)
+ntlink_pair_params+=--paf
 endif
 
 $(prefix).n$(n).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)

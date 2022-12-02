@@ -34,14 +34,15 @@ def cleanup_files(target, prefix, k=32, w=100, n=2, **kwargs):
     file_list = [f"{target}.k{k}.w{w}.z1000.stitch.abyss-scaffold.fa", f"{target}.k{k}.w{w}.tsv",
                  f"{prefix}.pairs.tsv",
                  f"{prefix}.n{n}.scaffold.dot", f"{prefix}.stitch.path",
-                 f"{target}.k{k}.w{w}.z1000.ntLink.scaffolds.fa", f"{target}.k{k}.w{w}.z1000.ntLink.scaffolds.fa.abyssfac.tsv"]
+                 f"{target}.k{k}.w{w}.z1000.ntLink.scaffolds.fa", f"{target}.k{k}.w{w}.z1000.ntLink.scaffolds.fa.abyssfac.tsv",
+                 f"{prefix}.verbose_mapping.tsv"]
     if "overlap" not in kwargs or kwargs["overlap"] is not False:
         file_list.extend([f"{prefix}.trimmed_scafs.fa", f"{prefix}.trimmed_scafs.path"])
 
     for out_file in file_list:
         command = "rm {0}".format(out_file)
         command_shlex = shlex.split(command)
-        return_code = subprocess.call(command_shlex)
+        subprocess.call(command_shlex)
 
 
 def run_ntLink(target, reads, prefix, k=32, w=100, n=1, gap_fill=False, **kwargs):
@@ -157,7 +158,7 @@ def test_4():
     check_trimmed_scaffolds("scaffolds_4.fa.k40.w100.z1000")
 
     # Clean-up files
-    cleanup_files("scaffolds_4.fa", "test4", k=40, w=100)
+    cleanup_files("scaffolds_4.fa", "scaffolds_4.fa.k40.w100.z1000", k=40, w=100)
 
 def test_5():
     "Testing gap-filling target"
@@ -176,4 +177,22 @@ def test_5():
 def test_6():
     "Testing ntLink rounds"
     run_ntlink_rounds("scaffolds_1.fa", "long_reads_1.fa", gap_fill=True, w=200, gap_k=35)
+
+def test_7():
+    "Testing PAF output"
+    command = "../ntLink pair -B target=scaffolds_4.fa reads=long_reads_4_top5.fa k=40 w=100 paf=True"
+    command_shlex = shlex.split(command)
+    return_code = subprocess.call(command_shlex)
+    assert return_code == 0
+
+    expected_paf_entries = ["ERR3219854.377839\t21803\t411\t2361\t-\tscaf2\t30523\t100\t2056\t10\t1956\t255",
+                            "ERR3219854.377839\t21803\t2997\t11206\t-\tscaf1\t8978\t116\t8330\t19\t8214\t255",
+                            "ERR3219857.526030\t18128\t1182\t7927\t-\tscaf1\t8978\t2\t6781\t12\t6779\t255",
+                            "ERR3219854.1617584\t20496\t170\t2083\t-\tscaf2\t30523\t122\t2029\t7\t1907\t255",
+                            "ERR3219854.1617584\t20496\t3012\t10888\t-\tscaf1\t8978\t86\t8022\t13\t7936\t255",
+                            "ERR3219854.3730316\t18391\t9497\t16949\t+\tscaf1\t8978\t228\t7815\t14\t7587\t255"]
+    expected_paf_entries = set(expected_paf_entries)
+    with open("scaffolds_4.fa.k40.w100.z1000.paf", 'r') as fin:
+        for line in fin:
+            assert line.strip() in expected_paf_entries
 
