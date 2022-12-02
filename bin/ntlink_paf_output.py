@@ -5,7 +5,6 @@ Helper functions for PAF ntLink output
 __author__ = "Lauren Coombe @lcoombe"
 
 import io
-from collections import Counter
 
 def is_consistent(ctg_positions: list, increasing: bool, i1: int, i2: int, duplicate_positions: set) -> bool:
     "Given the expected monotonicity and a list with contig positions of mappings," \
