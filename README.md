@@ -50,6 +50,7 @@ v                       If 1, track time and memory for each step of the pipelin
 paf			If True, outputs read to contig mappings in PAF-like format [False]
 overlap			If True, runs extra step to attempt to identify and trim overlapping joined sequences [True]
 sensitive	        If True, runs mapping in sensitive mode [False]
+soft_mask		If True, gaps are filled with lowercase bases [False]
 
 Note: 
 	- Ensure all assembly and read files are in the current working directory, making soft links if necessary
