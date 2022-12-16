@@ -779,7 +779,7 @@ def main() -> None:
     parser.add_argument("--sensitive", help="Run more sensitive read mapping", action="store_true")
     parser.add_argument("--verbose", help="Verbose logging - print out trimmed scaffolds without gaps",
                         action="store_true")
-    parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.6')
+    parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.7')
     args = parser.parse_args()
 
     print_parameters(args)
