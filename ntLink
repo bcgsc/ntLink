@@ -70,6 +70,9 @@ small_w=5
 gap_k=20
 gap_w=10
 
+# Soft-mask filled gaps?
+soft_mask=False
+
 # debugging parameters
 ntlink_pairs_tsv=False
 
@@ -129,6 +132,7 @@ help:
 	@echo "paf			If True, outputs read to contig mappings in PAF-like format [False]"
 	@echo "overlap			If True, runs extra step to attempt to identify and trim overlapping joined sequences [True]"
 	@echo "sensitive	        If True, runs mapping in sensitive mode [False]"
+	@echo "soft_mask		If True, gaps are filled with lowercase bases [False]"
 	@echo ""
 	@echo "Note: "
 	@echo "	- Ensure all assembly and read files are in the current working directory, making soft links if necessary"
@@ -244,11 +248,15 @@ $(target).k$(k).w$(w).z$(z).stitch.abyss-scaffold.fa: $(target) $(prefix).stitch
 	$(ntLink_time) MergeContigs -k2 $< $(prefix).stitch.path > $@
 endif
 
+gap_opts=
+ifeq ($(soft_mask), True)
+	gap_opts=--soft_mask
+endif
 
 $(target).k$(k).w$(w).z$(z).ntLink.scaffolds.gap_fill.fa: $(target) $(prefix).n$(n).scaffold.dot $(prefix).trimmed_scafs.fa
 	$(ntLink_time) $(ntlink_path)/bin/ntlink_patch_gaps.py --path $(prefix).trimmed_scafs.path \
 	 --mappings $(prefix).verbose_mapping.tsv -s $< --reads $(reads) -o $@ --large_k $(k) --min_gap 1 \
-	 --trims $(prefix).trimmed_scafs.tsv -k $(gap_k) -w $(gap_w)
+	 --trims $(prefix).trimmed_scafs.tsv -k $(gap_k) -w $(gap_w) $(gap_opts)
 	ln -sf $@ $(target).k$(k).w$(w).z$(z).ntLink.scaffolds.fa
 	echo "Done ntLink! Final post-ntLink and gap-filled scaffolds can be found in: $(target).k$(k).w$(w).z$(z).ntLink.scaffolds.fa"
 
