@@ -104,7 +104,6 @@ endif
 # First round of ntLink - no gap-filling
 $(target).k$k.w$w.z$z.ntLink.fa: $(target) $(reads)
 	$(ntLink_time) ntLink scaffold target=$< reads=$(reads) k=$k w=$w z=$z
-	ntLink clean extra_clean target=$< reads=$(reads) k=$k w=$w z=$z
 	ln -sf $(target).k$k.w$w.z$z.ntLink.scaffolds.fa $(target).k$k.w$w.z$z.ntLink.fa
 	ln -sf $(target).k$k.w$w.z$z.trimmed_scafs.agp $(target).k$k.w$w.z$z.ntLink.fa.agp
 	ln -sf $(target).k$k.w$w.z$z.verbose_mapping.tsv $(target).k$k.w$w.z$z.ntLink.fa.verbose_mapping.tsv
@@ -130,7 +129,6 @@ endif
 # Subsequent rounds of ntLink - no gap-filling
 %.ntLink.fa:  %.fa $(reads) %.fa.k$k.w$w.z$z.verbose_mapping.tsv
 	$(ntLink_time) ntLink scaffold target=$< reads=$(reads) k=$k w=$w z=$z
-	ntLink clean extra_clean target=$< reads=$(reads) k=$k w=$w z=$z
 	ln -sf $*.fa.k$k.w$w.z$z.ntLink.scaffolds.fa $@
 	ln -sf $*.fa.k$k.w$w.z$z.trimmed_scafs.agp $*.ntLink.fa.agp
 	ln -sf $*.fa.k$k.w$w.z$z.verbose_mapping.tsv $*.ntLink.fa.verbose_mapping.tsv
