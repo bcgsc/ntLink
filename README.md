@@ -4,7 +4,7 @@
 
 ![Logo](https://github.com/bcgsc/ntLink/blob/master/ntlink-logo.png)
 
-## Scaffolding genome assemblies using long reads and minimizers
+## Minimizer-based genome assembly scaffolding and mapping using long reads and minimizers
 
 ## Description of the algorithm
 ntLink uses minimizers to perform a lightweight mapping between the input target assembly and the supplied long reads. These long-read mappings are then used as evidence to orient and order the output scaffolds.
