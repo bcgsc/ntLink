@@ -26,7 +26,7 @@ If you use ntLink in your research, please cite:
 
 Coombe L, Li JX, Lo T, Wong J, Nikolic V, Warren RL and Birol I. LongStitch: high-quality genome assembly correction and scaffolding using long reads. BMC Bioinformatics 22, 534 (2021). https://doi.org/10.1186/s12859-021-04451-7
 
-Coombe L, Warren RL, Wong J, Nikolic V, and Birol I. ntLink: A toolkit for de novo genome assembly scaffolding and mapping using long reads. arXiv (2023). https://doi.org/10.48550/ARXIV.2301.08785
+Coombe L, Warren RL, Wong J, Nikolic V and Birol I. ntLink: A toolkit for de novo genome assembly scaffolding and mapping using long reads. arXiv (2023). https://doi.org/10.48550/ARXIV.2301.08785
 
 
 ## Usage
