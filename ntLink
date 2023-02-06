@@ -2,7 +2,7 @@
 
 # ntLink: Scaffold assemblies using long reads and minimizers
 # Written by Lauren Coombe @lcoombe
-# ntLink v1.3.8
+# ntLink v1.4.0
 
 # Input files
 target=None
@@ -28,6 +28,9 @@ n=1
 
 # Upper threshold for minimum edge weight (for pairing)
 max_n=10
+
+# Output format for the pairing scaffold graph
+graph_format=dot
 
 # Minimum gap size between scaffolds
 g=20
@@ -110,7 +113,7 @@ endif
 help:
 	@echo ""
 	@echo "ntLink: Scaffolding assemblies using long reads"
-	@echo "ntLink v1.3.8"
+	@echo "ntLink v1.4.0"
 	@echo "Usage: ntLink scaffold target=<target scaffolds> reads='List of long read files'"
 	@echo ""
 	@echo "To additionally run gap-filling (fill gap regions with raw read sequence):"
@@ -212,6 +215,12 @@ $(prefix).n$(n).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
 	$(ntLink_time)  sh -c '$(gzip) -cd $(reads) | \
 	indexlr --long --pos --strand --len -k $(k) -w $(w) -t $(t) - | \
 	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
+	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) $(ntlink_pair_params) -'
+
+$(prefix).n$(n).scaffold.gfa: $(target).k$(k).w$(w).tsv $(reads)
+	$(ntLink_time)  sh -c '$(gzip) -cd $(reads) | \
+	indexlr --long --pos --strand --len -k $(k) -w $(w) -t $(t) - | \
+	$(ntlink_path)/bin/ntlink_pair.py --format gfa -p $(prefix) -n $(n) -m $< -s $(target)  \
 	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) $(ntlink_pair_params) -'
 
 # Run abyss-scaffold scaffolding layout

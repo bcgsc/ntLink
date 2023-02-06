@@ -132,6 +132,10 @@ class NtLink():
 
     @staticmethod
     def print_directed_graph(graph, out_prefix, scaffolds):
+        print_directed_dot_graph(graph, out_prefix, scaffolds)
+
+    @staticmethod
+    def print_directed_dot_graph(graph, out_prefix, scaffolds):
         "Prints the directed scaffold graph in dot format"
         out_graph = out_prefix + ".scaffold.dot"
         outfile = open(out_graph, 'w')
@@ -153,6 +157,35 @@ class NtLink():
             outfile.write(edge_str)
 
         outfile.write("}\n")
+
+    @staticmethod
+    def print_directed_gfa2_graph(graph, out_prefix, scaffolds):
+        "Prints the directed scaffold graph in GFA2 format"
+
+        out_graph = out_prefix + ".scaffold.gfa"
+        outfile = open(out_graph, 'w')
+        print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
+
+        outfile.write("H\tVN:Z:2.0")
+
+        graph_info = "graph [scaf_num={}]\n".\
+            format(NtLink.get_largest_ntlink_scaffold_id(scaffolds))
+        outfile.write(graph_info)
+
+        for node in graph.vs():
+            node_str = "S\t{scaffold}\t{length}".\
+                format(scaffold=node['name'], length=scaffolds[node['name'][:-1]].length)
+            outfile.write(node_str)
+
+        for edge in graph.es():
+            edge_str = "{line}\t*\t{s}\t{t}\t{d}\t{var}\tFC:i:{supports}".\
+                format(s=ntlink_utils.vertex_name(graph, edge.source),
+                       line="E" if int(edge['d']) < 0 else "G",
+                       t=ntlink_utils.vertex_name(graph, edge.target),
+                       d=int(edge['d']), var="*", supports=edge['n'])
+            outfile.write(edge_str)
+
+        outfile.write("\n")
 
     def calculate_gap_size(self, i_mx, i_ori, j_mx, j_ori, est_distance):
         "Calculates the estimated distance between two contigs"
@@ -523,12 +556,14 @@ class NtLink():
                                        "Set to 0 to allow mapping block to be up to read length",
                             type=float, default=0)
         parser.add_argument("-c", "--checkpoint", help="Mappings checkpoint file", required=False)
+        parser.add_argument("--format", choices=['dot', 'gfa', 'gfa2', 'both'], help="Output graph format",
+                            default="dot")
         parser.add_argument("--pairs", help="Output pairs TSV file", action="store_true")
         parser.add_argument("--paf", help="Output mappings in PAF-like format", action="store_true")
         parser.add_argument("--sensitive", help="Run more sensitive read mapping", action="store_true")
         parser.add_argument("--repeat-filter", help="Remove repetitive minimizers within a long read's sketch",
                             action="store_true")
-        parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.8')
+        parser.add_argument("-v", "--version", action='version', version='ntLink v1.4.0')
         parser.add_argument("--verbose", help="Verbose output logging", action='store_true')
 
         return parser.parse_args()
@@ -546,6 +581,7 @@ class NtLink():
         print("\t-z ", self.args.z)
         print("\t-f ", self.args.f)
         print("\t-x ", self.args.x)
+        print("\t--format ", self.args.format)
         if self.args.checkpoint:
             print("\t-c ", self.args.checkpoint)
         if self.args.sensitive:
@@ -557,6 +593,11 @@ class NtLink():
 
     def main(self):
         "Run ntLink graph stage"
+        if self.args.format not in ["dot", "gfa", "gfa2", "both"]:
+            print("Invalid graph format:", self.args.format, file=sys.stderr)
+            print("\nSupported graph formats are: dot, gfa (gfa2), both", file=sys.stderr)
+            sys.exit(1)
+
         print("Running pairing stage of ntLink ...\n")
 
         try:
@@ -600,7 +641,13 @@ class NtLink():
             graph = self.filter_graph_global(graph, int(self.args.n))
 
             # Print out the directed graph
-            self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds)
+            if self.args.format == "dot":
+                self.print_directed_dot_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds)
+            if self.args.format == "gfa2" or self.args.format == "gfa":
+                self.print_directed_gfa2_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds)
+            if self.args.format == "both":
+                self.print_directed_dot_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds)
+                self.print_directed_gfa2_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds)
 
             print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
         except:
