@@ -131,16 +131,6 @@ class NtLink():
         return largest_num
 
     @staticmethod
-    def print_directed_graph(graph, out_prefix, scaffolds, format):
-        if format == "dot":
-            print_directed_dot_graph(graph, out_prefix, scaffolds)
-        if format == "gfa2" or format == "gfa":
-            print_directed_gfa2_graph(graph, out_prefix, scaffolds)
-        if format == "both":
-            print_directed_dot_graph(graph, out_prefix, scaffolds)
-            print_directed_gfa2_graph(graph, out_prefix, scaffolds)
-
-    @staticmethod
     def print_directed_dot_graph(graph, out_prefix, scaffolds):
         "Prints the directed scaffold graph in dot format"
         out_graph = out_prefix + ".scaffold.dot"
@@ -198,7 +188,14 @@ class NtLink():
             outfile.write(edge_str)
             outfile.write("\n")
 
-        outfile.write("\n")
+    def print_directed_graph(self, graph, out_prefix, scaffolds):
+        if self.args.format == "dot":
+            self.print_directed_dot_graph(graph, out_prefix, scaffolds)
+        if self.args.format == "gfa2" or self.args.format == "gfa":
+            self.print_directed_gfa2_graph(graph, out_prefix, scaffolds)
+        if self.args.format == "both":
+            self.print_directed_dot_graph(graph, out_prefix, scaffolds)
+            self.print_directed_gfa2_graph(graph, out_prefix, scaffolds)
 
     def calculate_gap_size(self, i_mx, i_ori, j_mx, j_ori, est_distance):
         "Calculates the estimated distance between two contigs"
@@ -650,7 +647,7 @@ class NtLink():
             graph = self.filter_graph_global(graph, int(self.args.n))
 
             # Print out the directed graph
-            print_directed_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds, self.args.format)
+            self.print_directed_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds)
 
             print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
         except:
