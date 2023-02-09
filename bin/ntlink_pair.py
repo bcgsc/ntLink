@@ -166,24 +166,31 @@ class NtLink():
         outfile = open(out_graph, 'w')
         print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
 
-        outfile.write("H\tVN:Z:2.0")
+        outfile.write("H\tVN:Z:2.0\n")
 
         graph_info = "graph [scaf_num={}]\n".\
             format(NtLink.get_largest_ntlink_scaffold_id(scaffolds))
         outfile.write(graph_info)
 
         for node in graph.vs():
-            node_str = "S\t{scaffold}\t{length}".\
-                format(scaffold=node['name'], length=scaffolds[node['name'][:-1]].length)
+            new_node = node['name']
+            if '+' in new_node:
+                continue
+            new_node = re.split(r'[+-]', new_node)[0]
+            node_str = "S\t{scaffold}\t{length}\t{sequence}".\
+                format(scaffold=new_node,length=scaffolds[node['name'][:-1]].length, sequence="*")
             outfile.write(node_str)
+            outfile.write("\n")
 
         for edge in graph.es():
+            source = ntlink_utils.vertex_name(graph, edge.source)
+            target = ntlink_utils.vertex_name(graph, edge.target)
             edge_str = "{line}\t*\t{s}\t{t}\t{d}\t{var}\tFC:i:{supports}".\
-                format(s=ntlink_utils.vertex_name(graph, edge.source),
+                format(s=source, t=target,
                        line="E" if int(edge['d']) < 0 else "G",
-                       t=ntlink_utils.vertex_name(graph, edge.target),
                        d=int(edge['d']), var="*", supports=edge['n'])
             outfile.write(edge_str)
+            outfile.write("\n")
 
         outfile.write("\n")
 
