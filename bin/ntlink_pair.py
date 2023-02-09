@@ -131,8 +131,14 @@ class NtLink():
         return largest_num
 
     @staticmethod
-    def print_directed_graph(graph, out_prefix, scaffolds):
-        print_directed_dot_graph(graph, out_prefix, scaffolds)
+    def print_directed_graph(graph, out_prefix, scaffolds, format):
+        if format == "dot":
+            print_directed_dot_graph(graph, out_prefix, scaffolds)
+        if format == "gfa2" or format == "gfa":
+            print_directed_gfa2_graph(graph, out_prefix, scaffolds)
+        if format == "both":
+            print_directed_dot_graph(graph, out_prefix, scaffolds)
+            print_directed_gfa2_graph(graph, out_prefix, scaffolds)
 
     @staticmethod
     def print_directed_dot_graph(graph, out_prefix, scaffolds):
@@ -600,10 +606,6 @@ class NtLink():
 
     def main(self):
         "Run ntLink graph stage"
-        if self.args.format not in ["dot", "gfa", "gfa2", "both"]:
-            print("Invalid graph format:", self.args.format, file=sys.stderr)
-            print("\nSupported graph formats are: dot, gfa (gfa2), both", file=sys.stderr)
-            sys.exit(1)
 
         print("Running pairing stage of ntLink ...\n")
 
@@ -648,13 +650,7 @@ class NtLink():
             graph = self.filter_graph_global(graph, int(self.args.n))
 
             # Print out the directed graph
-            if self.args.format == "dot":
-                self.print_directed_dot_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds)
-            if self.args.format == "gfa2" or self.args.format == "gfa":
-                self.print_directed_gfa2_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds)
-            if self.args.format == "both":
-                self.print_directed_dot_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds)
-                self.print_directed_gfa2_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds)
+            print_directed_graph(graph, "{0}.n{1}".format(self.args.p, self.args.n), scaffolds, self.args.format)
 
             print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
         except:
