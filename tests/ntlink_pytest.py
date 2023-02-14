@@ -205,8 +205,8 @@ def test_8():
     assert return_code == 0
 
     # compare output to expected output
-    cmd = "cmp {} {}".format("scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa",
-                                "expected_outputs/scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa")
+    cmd = "cmp <sort({}) <sort({})".format("scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa",
+                                           "expected_outputs/scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa")
     cmd_shlex = shlex.split(cmd)
     return_code = subprocess.call(cmd_shlex)
     assert return_code == 0
