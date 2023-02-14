@@ -189,12 +189,9 @@ class NtLink():
             outfile.write("\n")
 
     def print_directed_graph(self, graph, out_prefix, scaffolds):
-        if self.args.format == "dot":
+        if self.args.format == "dot" or self.args.format == "both":
             self.print_directed_dot_graph(graph, out_prefix, scaffolds)
-        if self.args.format == "gfa2" or self.args.format == "gfa":
-            self.print_directed_gfa2_graph(graph, out_prefix, scaffolds)
-        if self.args.format == "both":
-            self.print_directed_dot_graph(graph, out_prefix, scaffolds)
+        if self.args.format == "gfa2" or self.args.format == "gfa" or self.args.format == "both":
             self.print_directed_gfa2_graph(graph, out_prefix, scaffolds)
 
     def calculate_gap_size(self, i_mx, i_ori, j_mx, j_ori, est_distance):

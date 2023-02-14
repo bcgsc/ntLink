@@ -196,3 +196,24 @@ def test_7():
         for line in fin:
             assert line.strip() in expected_paf_entries
 
+def test_8():
+    "Testing printing in gfa2 format"
+    command = "../ntLink scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa reads=long_reads_1.fa \
+            prefix=scaffolds_1.fa.k32.w250.z1000 n=1 w=250 z=1000 k=32 target=scaffolds_1.fa -n"
+    command_shlex = shlex.split(command)
+    return_code = subprocess.call(command_shlex)
+    assert return_code == 0
+
+    # compare output to expected output
+    cmd = "cmp {} {}".format("scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa",
+                                "expected_outputs/scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa")
+    cmd_shlex = shlex.split(cmd)
+    return_code = subprocess.call(cmd_shlex)
+    assert return_code == 0
+
+    # Clean-up files
+    cleanup_files("scaffolds_1.fa", "scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa", k=32, w=250, z=1000)
+
+    
+    
+
