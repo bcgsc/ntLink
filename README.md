@@ -128,7 +128,7 @@ The expected output files can be found in: `tests/expected_outputs`
 
 ## Dependencies
 * Python 3.7+ ([Numpy](https://numpy.org/), [Python-igraph](https://igraph.org/python/))
-* [btllib](https://github.com/bcgsc/btllib)
+* [btllib](https://github.com/bcgsc/btllib) 1.4.10 or lower
 * [ABySS v2.3.0+](https://github.com/bcgsc/abyss)
 * GCC 6+ or Clang 5+ with OpenMP
 * [zlib](https://zlib.net/)
