@@ -131,7 +131,7 @@ class NtLink():
         return largest_num
 
     @staticmethod
-    def print_directed_graph(graph, out_prefix, scaffolds):
+    def print_directed_dot_graph(graph, out_prefix, scaffolds):
         "Prints the directed scaffold graph in dot format"
         out_graph = out_prefix + ".scaffold.dot"
         outfile = open(out_graph, 'w')
@@ -153,6 +153,46 @@ class NtLink():
             outfile.write(edge_str)
 
         outfile.write("}\n")
+
+    @staticmethod
+    def print_directed_gfa2_graph(graph, out_prefix, scaffolds):
+        "Prints the directed scaffold graph in GFA2 format"
+
+        out_graph = out_prefix + ".scaffold.gfa"
+        outfile = open(out_graph, 'w')
+        print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
+
+        outfile.write("H\tVN:Z:2.0\n")
+
+        graph_info = "graph [scaf_num={}]\n".\
+            format(NtLink.get_largest_ntlink_scaffold_id(scaffolds))
+        outfile.write(graph_info)
+
+        for node in graph.vs():
+            new_node = node['name']
+            if '+' in new_node:
+                continue
+            new_node = re.split(r'[+-]', new_node)[0]
+            node_str = "S\t{scaffold}\t{length}\t{sequence}".\
+                format(scaffold=new_node,length=scaffolds[node['name'][:-1]].length, sequence="*")
+            outfile.write(node_str)
+            outfile.write("\n")
+
+        for edge in graph.es():
+            source = ntlink_utils.vertex_name(graph, edge.source)
+            target = ntlink_utils.vertex_name(graph, edge.target)
+            edge_str = "{line}\t*\t{s}\t{t}\t{d}\t{var}\tFC:i:{supports}".\
+                format(s=source, t=target,
+                       line="E" if int(edge['d']) < 0 else "G",
+                       d=int(edge['d']), var="*", supports=edge['n'])
+            outfile.write(edge_str)
+            outfile.write("\n")
+
+    def print_directed_graph(self, graph, out_prefix, scaffolds):
+        if self.args.format == "dot" or self.args.format == "both":
+            self.print_directed_dot_graph(graph, out_prefix, scaffolds)
+        if self.args.format == "gfa2" or self.args.format == "gfa" or self.args.format == "both":
+            self.print_directed_gfa2_graph(graph, out_prefix, scaffolds)
 
     def calculate_gap_size(self, i_mx, i_ori, j_mx, j_ori, est_distance):
         "Calculates the estimated distance between two contigs"
@@ -523,12 +563,14 @@ class NtLink():
                                        "Set to 0 to allow mapping block to be up to read length",
                             type=float, default=0)
         parser.add_argument("-c", "--checkpoint", help="Mappings checkpoint file", required=False)
+        parser.add_argument("--format", choices=['dot', 'gfa', 'gfa2', 'both'], help="Output graph format",
+                            default="dot")
         parser.add_argument("--pairs", help="Output pairs TSV file", action="store_true")
         parser.add_argument("--paf", help="Output mappings in PAF-like format", action="store_true")
         parser.add_argument("--sensitive", help="Run more sensitive read mapping", action="store_true")
         parser.add_argument("--repeat-filter", help="Remove repetitive minimizers within a long read's sketch",
                             action="store_true")
-        parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.8')
+        parser.add_argument("-v", "--version", action='version', version='ntLink v1.4.0')
         parser.add_argument("--verbose", help="Verbose output logging", action='store_true')
 
         return parser.parse_args()
@@ -546,6 +588,7 @@ class NtLink():
         print("\t-z ", self.args.z)
         print("\t-f ", self.args.f)
         print("\t-x ", self.args.x)
+        print("\t--format ", self.args.format)
         if self.args.checkpoint:
             print("\t-c ", self.args.checkpoint)
         if self.args.sensitive:
@@ -557,6 +600,7 @@ class NtLink():
 
     def main(self):
         "Run ntLink graph stage"
+
         print("Running pairing stage of ntLink ...\n")
 
         try:

@@ -196,3 +196,37 @@ def test_7():
         for line in fin:
             assert line.strip() in expected_paf_entries
 
+def test_8():
+    "Testing printing in gfa2 format"
+    command = "../ntLink scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa reads=long_reads_1.fa\
+               prefix=scaffolds_1.fa.k32.w250.z1000 n=1 w=250 z=1000 k=32 target=scaffolds_1.fa"
+    command_shlex = shlex.split(command)
+    return_code = subprocess.call(command_shlex)
+    assert return_code == 0
+
+    # sort files to compare
+    cmd = "sort -f scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa -o\
+           scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa.sorted"
+    cmd_shlex = shlex.split(cmd)
+    cmd_shlex = shlex.split(cmd)
+    return_code = subprocess.call(cmd_shlex)
+    assert return_code == 0
+
+    cmd = "sort -f expected_outputs/scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa -o\
+           expected_outputs/scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa.sorted"
+    cmd_shlex = shlex.split(cmd)
+    cmd_shlex = shlex.split(cmd)
+    return_code = subprocess.call(cmd_shlex)
+    assert return_code == 0
+
+    # compare output to expected output
+    cmd = "cmp {} {}".format("scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa.sorted",
+                             "expected_outputs/scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa.sorted")
+    cmd_shlex = shlex.split(cmd)
+    return_code = subprocess.call(cmd_shlex)
+    assert return_code == 0
+
+    # Clean-up files
+    os.remove("scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa.sorted")
+    os.remove("expected_outputs/scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa.sorted")
+    os.remove("scaffolds_1.fa.k32.w250.z1000.n1.scaffold.gfa")
