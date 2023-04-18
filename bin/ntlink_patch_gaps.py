@@ -261,14 +261,15 @@ def choose_best_read_per_pair(pairs: dict, mappings: dict, sequences: dict, args
                 break
 
 
-def get_gap_fill_reads(reads_filename: str, pairs: dict, args: argparse.Namespace) -> dict:
+def get_gap_fill_reads(reads_filename_list: str, pairs: dict, args: argparse.Namespace) -> dict:
     "Collect the reads needed for gap-filling"
     reads = {} # read_id -> sequence
     target_reads = {pairs[pair].chosen_read for pair in pairs if pairs[pair].chosen_read is not None}
-    with btllib.SeqReader(reads_filename, btllib.SeqReaderFlag.LONG_MODE, args.t) as reads_in:
-        for read in reads_in:
-            if read.id in target_reads:
-                reads[read.id] = read.seq
+    for reads_filename in reads_filename_list:
+        with btllib.SeqReader(reads_filename, btllib.SeqReaderFlag.LONG_MODE, args.t) as reads_in:
+            for read in reads_in:
+                if read.id in target_reads:
+                    reads[read.id] = read.seq
     return reads
 
 
@@ -763,7 +764,7 @@ def main() -> None:
     parser.add_argument("--mappings", help="ntLink verbose mapping TSV", required=True, type=str)
     parser.add_argument("--trims", help="ntLink file listing trims made", required=True, type=str)
     parser.add_argument("-s", help="Input scaffolds", required=True, type=str)
-    parser.add_argument("--reads", help="Input reads", required=True, type=str)
+    parser.add_argument("--reads", help="Input reads", required=True, type=str, nargs="+")
     parser.add_argument("-z", help="Minimum contig size (bp) [1000]", type=int, required=False, default=1000)
     parser.add_argument("-k", help="Kmer size used in minimizer step [20]", type=int, required=False, default=20)
     parser.add_argument("-w", help="Window size used in minimizer step [10]", type=int, required=False, default=10)
