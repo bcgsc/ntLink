@@ -110,7 +110,7 @@ endif
 help:
 	@echo ""
 	@echo "ntLink: Scaffolding assemblies using long reads"
-	@echo "ntLink v1.3.8"
+	@echo "ntLink v1.3.9"
 	@echo "Usage: ntLink scaffold target=<target scaffolds> reads='List of long read files'"
 	@echo ""
 	@echo "To additionally run gap-filling (fill gap regions with raw read sequence):"
