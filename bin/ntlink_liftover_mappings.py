@@ -143,7 +143,7 @@ def main() -> None:
     parser.add_argument("-a", "--agp", help="Path to the AGP file", required=True)
     parser.add_argument("-o", "--output", help="Output file name", required=True)
     parser.add_argument("-k", "--kmer", help="Kmer size", required=True, type=int)
-    parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.8')
+    parser.add_argument("-v", "--version", action='version', version='ntLink v1.3.9')
     args = parser.parse_args()
 
     # Read in the AGP file

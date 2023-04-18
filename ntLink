@@ -2,7 +2,7 @@
 
 # ntLink: Scaffold assemblies using long reads and minimizers
 # Written by Lauren Coombe @lcoombe
-# ntLink v1.3.8
+# ntLink v1.3.9
 
 # Input files
 target=None
@@ -177,7 +177,7 @@ ifneq ($(shell command -v 'python3 -c "import btllib"'),)
 endif
 
 version:
-	@echo "ntLink v1.3.8"
+	@echo "ntLink v1.3.9"
 	@echo "Written by Lauren Coombe (lcoombe@bcgsc.ca)"
 
 
