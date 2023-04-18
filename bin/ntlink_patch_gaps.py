@@ -261,7 +261,7 @@ def choose_best_read_per_pair(pairs: dict, mappings: dict, sequences: dict, args
                 break
 
 
-def get_gap_fill_reads(reads_filename_list: str, pairs: dict, args: argparse.Namespace) -> dict:
+def get_gap_fill_reads(reads_filename_list: list, pairs: dict, args: argparse.Namespace) -> dict:
     "Collect the reads needed for gap-filling"
     reads = {} # read_id -> sequence
     target_reads = {pairs[pair].chosen_read for pair in pairs if pairs[pair].chosen_read is not None}
