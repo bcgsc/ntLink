@@ -18,8 +18,8 @@ def check_stats(abyssfac_filename):
     reference_stats = pd.read_csv("expected_outputs/{}".format(abyssfac_filename), sep="\t")
     ci_stats = pd.read_csv(abyssfac_filename, sep="\t")
 
-    assert int(reference_stats["N50"]) == int(ci_stats["N50"])
-    assert int(reference_stats["n"]) == int(ci_stats["n"])
+    assert int(reference_stats["N50"].iloc[0]) == int(ci_stats["N50"].iloc[0])
+    assert int(reference_stats["n"].iloc[0]) == int(ci_stats["n"].iloc[0])
 
 def check_trimmed_scaffolds(prefix):
     "Check that the trimmed scaffolds are identical to expected"
@@ -50,10 +50,11 @@ def run_ntLink(target, reads, prefix, k=32, w=100, n=1, gap_fill=False, **kwargs
     args_str = " ".join(f"{k}={v}" for k, v in kwargs.items())
     if gap_fill:
         args_str += " gap_fill"
-    command = "../ntLink scaffold -B target={target} reads={reads} prefix={prefix} k={k} w={w} z=1000 n={n} {extra_args}".format(target=target,
+    command = "../ntLink scaffold -B target={target} reads='{reads}' prefix={prefix} k={k} w={w} z=1000 n={n} {extra_args}".format(target=target,
                                                                                                                    reads=reads,
                                                                                                                    prefix=prefix,
                                                                                                                    k=k, w=w, n=n, extra_args=args_str)
+    print(command)
     command_shlex = shlex.split(command)
     return_code = subprocess.call(command_shlex)
     assert return_code == 0
@@ -195,4 +196,17 @@ def test_7():
     with open("scaffolds_4.fa.k40.w100.z1000.paf", 'r') as fin:
         for line in fin:
             assert line.strip() in expected_paf_entries
+       
+def test_8():
+    "Testing gap-filling target with multiple input read files"
+    run_ntLink("scaffolds_1.fa", "long_reads_1-1.fa long_reads_1-2.fa", "test1", gap_fill=True, w=250, gap_k=35)
 
+    # Compare with expected output
+    cmd = "cmp {} {}".format("scaffolds_1.fa.k32.w250.z1000.ntLink.scaffolds.gap_fill.fa",
+                             "expected_outputs/scaffolds_1.fa.k32.w250.z1000.ntLink.scaffolds.gap_fill.fa")
+    cmd_shlex = shlex.split(cmd)
+    return_code = subprocess.call(cmd_shlex)
+    assert return_code == 0
+
+    # Clean-up files
+    cleanup_files("scaffolds_1.fa", "test1", w=250)
