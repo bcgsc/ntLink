@@ -19,7 +19,7 @@ setuptools.setup(
                "bin/ntlink_filter_sequences.py", "bin/ntlink_liftover_mappings.py",
                "bin/ntlink_overlap_sequences.py", "bin/ntlink_patch_gaps.py",
                "bin/ntlink_stitch_paths.py", "bin/ntjoin_utils.py",
-               "bin/ntlink_paf_output.py", "bin/path_node.py"
+               "bin/ntlink_paf_output.py", "bin/path_node.py",
                "ntLink", "ntLink_rounds"],
     classifiers=[
         "Programming Language :: Python :: 3",
