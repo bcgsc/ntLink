@@ -211,7 +211,7 @@ endif
 $(prefix).n$(n).scaffold.dot: $(target).k$(k).w$(w).tsv $(reads)
 	$(ntLink_time)  sh -c '$(gzip) -cd $(reads) | \
 	indexlr --long --pos --strand --len -k $(k) -w $(w) -t $(t) - | \
-	$(ntlink_path)/bin/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
+	$(ntlink_path)/ntlink_pair.py -p $(prefix) -n $(n) -m $< -s $(target)  \
 	-k $(k) -a $(a) -z $(z) -f $(f) -x $(x) $(ntlink_pair_params) -'
 
 # Run abyss-scaffold scaffolding layout
@@ -222,10 +222,10 @@ $(prefix).n%.abyss-scaffold.path: $(prefix).n$(n).scaffold.dot
 
 $(prefix).stitch.path: $(path_targets)
 ifeq ($(conservative), True)
-	$(ntLink_time) $(ntlink_path)/bin/ntlink_stitch_paths.py --min_n $(n) --max_n $(max_n)  -p out \
+	$(ntLink_time) $(ntlink_path)/ntlink_stitch_paths.py --min_n $(n) --max_n $(max_n)  -p out \
 	-g $(prefix).n$(n).scaffold.dot --conservative $^ -o $@
 else
-	$(ntLink_time) $(ntlink_path)/bin/ntlink_stitch_paths.py --min_n $(n) --max_n $(max_n)  -p out \
+	$(ntLink_time) $(ntlink_path)/ntlink_stitch_paths.py --min_n $(n) --max_n $(max_n)  -p out \
 	-g $(prefix).n$(n).scaffold.dot $^ -o $@
 endif
 	rm -f $(prefix).n*.abyss-scaffold.path $(prefix).n*.abyss-scaffold.path.sterr
@@ -234,10 +234,10 @@ $(target).k$(small_k).w$(small_w).tsv: $(target)
 	$(ntLink_time) indexlr --long --pos -k $(small_k) -w $(small_w) -t $(t) $< > $@
 
 $(prefix).trimmed_scafs.fa: $(prefix).stitch.path $(prefix).n$(n).scaffold.dot $(target)
-	$(ntLink_time) sh -c '$(ntlink_path)/bin/ntlink_filter_sequences.py --fasta $(target) \
+	$(ntLink_time) sh -c '$(ntlink_path)/ntlink_filter_sequences.py --fasta $(target) \
 	--dot $(prefix).n$(n).scaffold.dot --path $< -k $(small_k) -g $g -t $t |\
 	indexlr --long --pos -k $(small_k) -w $(small_w) -t $(t) - |\
-	$(ntlink_path)/bin/ntlink_overlap_sequences.py -m -  --path $< \
+	$(ntlink_path)/ntlink_overlap_sequences.py -m -  --path $< \
 	-s $(target) -d $(prefix).n$(n).scaffold.dot -p $(prefix) -g $(g) -k $(small_k) --outgap $(merge_gap) --trim_info'
 
 ifeq ($(overlap), True)
@@ -254,7 +254,7 @@ ifeq ($(soft_mask), True)
 endif
 
 $(target).k$(k).w$(w).z$(z).ntLink.scaffolds.gap_fill.fa: $(target) $(prefix).n$(n).scaffold.dot $(prefix).trimmed_scafs.fa
-	$(ntLink_time) $(ntlink_path)/bin/ntlink_patch_gaps.py --path $(prefix).trimmed_scafs.path \
+	$(ntLink_time) $(ntlink_path)/ntlink_patch_gaps.py --path $(prefix).trimmed_scafs.path \
 	 --mappings $(prefix).verbose_mapping.tsv -s $< --reads $(reads) -o $@ --large_k $(k) --min_gap 1 \
 	 --trims $(prefix).trimmed_scafs.tsv -k $(gap_k) -w $(gap_w) $(gap_opts)
 	ln -sf $@ $(target).k$(k).w$(w).z$(z).ntLink.scaffolds.fa

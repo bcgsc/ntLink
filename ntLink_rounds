@@ -113,7 +113,7 @@ endif
 
 # Liftover
 %.fa.k$k.w$w.z$z.verbose_mapping.tsv: %.fa
-	$(ntLink_time) $(ntlink_path)/bin/ntlink_liftover_mappings.py -k $k \
+	$(ntLink_time) $(ntlink_path)/ntlink_liftover_mappings.py -k $k \
 	-a $*.fa.agp -m $*.fa.verbose_mapping.tsv -o $@
 
 # Subsequent rounds of ntLink - gap-filling
