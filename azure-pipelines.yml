@@ -14,8 +14,9 @@ jobs:
     displayName: Create Anaconda environment
   - script: |
       source activate ntlink_CI
-      conda install --yes --quiet --name ntlink_CI -c conda-forge -c bioconda python pylint pytest pandas abyss=2.3.1
-      conda install --yes --quiet --name ntlink_CI -c conda-forge -c bioconda --file requirements.txt
+      conda install --yes --quiet --name ntlink_CI -c conda-forge -c bioconda python=3.9 mamba
+      mamba install --yes --quiet --name ntlink_CI -c conda-forge -c bioconda pylint pytest pandas abyss
+      mamba install --yes --quiet --name ntlink_CI -c conda-forge -c bioconda --file requirements.txt
     displayName: Install Anaconda packages
   - script: |
       source activate ntlink_CI

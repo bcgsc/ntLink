@@ -18,7 +18,8 @@ setuptools.setup(
     scripts = ["bin/ntlink_pair.py", "bin/read_fasta.py", "bin/ntlink_utils.py",
                "bin/ntlink_filter_sequences.py", "bin/ntlink_liftover_mappings.py",
                "bin/ntlink_overlap_sequences.py", "bin/ntlink_patch_gaps.py",
-               "bin/ntlink_stitch_paths.py", "bin/ntjoin_utils.py"],
+               "bin/ntlink_stitch_paths.py", "bin/ntjoin_utils.py", "bin/ntlink_paf_output.py",
+		"bin/path_node.py", "ntLink", "ntLink_rounds"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",

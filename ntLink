@@ -14,7 +14,7 @@ ntlink_path=$(shell dirname $(realpath $(MAKEFILE_LIST)))/bin
 # If the ntlink python files are detected already in the PATH,
 # assume setup.py has been used for installation, and adjust expected path
 ifneq ($(shell command -v ntlink_pair.py),)
-ntlink_path=$(shell dirname $(command -v ntlink_pair.py))
+ntlink_path=$(shell dirname $(shell command -v ntlink_pair.py))
 endif
 
 # Window size
