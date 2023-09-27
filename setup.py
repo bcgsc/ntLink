@@ -14,7 +14,7 @@ setuptools.setup(
     url="https://github.com/bcgsc/ntLink",
     license="GPLv3",
     python_requires=">=3",
-    install_requires=["python-igraph", "numpy"],
+    install_requires=["python-igraph", "numpy", "btllib"],
     scripts = ["bin/ntlink_pair.py", "bin/read_fasta.py", "bin/ntlink_utils.py",
                "bin/ntlink_filter_sequences.py", "bin/ntlink_liftover_mappings.py",
                "bin/ntlink_overlap_sequences.py", "bin/ntlink_patch_gaps.py",
