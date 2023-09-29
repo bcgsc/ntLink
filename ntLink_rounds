@@ -37,8 +37,16 @@ ntLink_time=command time -v -o $@.time
 endif
 endif
 
-# Path to pairing code
-ntlink_path=$(shell dirname $(realpath $(MAKEFILE_LIST)))
+
+# Path to pairing code and other ntLink files
+ntlink_path=$(shell dirname $(realpath $(MAKEFILE_LIST)))/bin
+
+# If the ntlink python files are detected already in the PATH,
+# assume setup.py has been used for installation, and adjust expected path
+ifneq ($(shell command -v ntlink_liftover_mappings.py),)
+ntlink_path=$(shell dirname $(command -v ntlink_liftover_mappings.py))
+endif
+
 
 .SECONDARY:
 .DELETE_ON_ERROR:
@@ -113,7 +121,7 @@ endif
 
 # Liftover
 %.fa.k$k.w$w.z$z.verbose_mapping.tsv: %.fa
-	$(ntLink_time) $(ntlink_path)/bin/ntlink_liftover_mappings.py -k $k \
+	$(ntLink_time) $(ntlink_path)/ntlink_liftover_mappings.py -k $k \
 	-a $*.fa.agp -m $*.fa.verbose_mapping.tsv -o $@
 
 # Subsequent rounds of ntLink - gap-filling
