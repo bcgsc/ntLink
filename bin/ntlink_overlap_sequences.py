@@ -104,6 +104,15 @@ class ScaffoldCut:
             return 0, self.length
         raise ValueError("Orientation should be +, - or None")
 
+    def check_valid_trims(self, k):
+        "Check if the computed trim coordinates are valid"
+        if self.ori == "+":
+            return self.target_cut < self.source_cut
+        if self.ori == "-":
+            return self.adjust_source_cut(k) < self.adjust_target_cut(k)
+        if self.ori is None:
+            return True
+        raise ValueError("Orientation should be +, - or None")
 
     def __str__(self):
         return f"{self.ctg_id}{self._ori} {self.length} - s:{self._source_cut} t:{self._target_cut}"
@@ -398,6 +407,33 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, g
 
     return True
 
+def check_valid_overlap_trims(path, scaffolds, args):
+    "Look through the path, and check for invalid overlap trimming (target_cut < source_cut)"\
+        "If found, remove and add default gaps instead"
+    return_path = []
+    skip_gap = False
+    gap_re = re.compile(r'(\d)N')
+    for node in path:
+        if re.search(gap_re, node):
+            if not skip_gap:
+                return_path.append(node)
+            skip_gap = False
+            # We're at a gap, continue
+            continue
+        # At a node, check overlaps are valid
+        if (scaffolds[node.strip("+-")].source_cut is not None and \
+            scaffolds[node.strip("+-")].target_cut is not None) and \
+            not scaffolds[node.strip("+-")].check_valid_trims(args.k):
+            # Those cuts are incompatible, just remove the node to be safe
+            assert re.search(gap_re, return_path[-1])
+            return_path[-1] = f"{args.g + 1}N"
+            skip_gap = True
+        else:
+            # Overlap is OK, keep going
+            return_path.append(node)
+    return return_path
+
+
 def merge_overlapping_pathfile(args, gap_re, graph, scaffolds, valid_mx_positions):
     "Read through pathfile, and merge overlapping pieces, updating path file"
     print(datetime.datetime.today(), ": Finding scaffold overlaps", file=sys.stdout)
@@ -426,6 +462,7 @@ def merge_overlapping_pathfile(args, gap_re, graph, scaffolds, valid_mx_position
                         new_path.append(source)
                     new_path.append(gap)
                     new_path.append(target)
+                new_path = check_valid_overlap_trims(new_path, scaffolds, args)
                 out_pathfile.write("{path_id}\t{ctgs}\n".format(path_id=path_id, ctgs=" ".join(new_path)))
                 my_paths[path_id] = new_path
     out_pathfile.close()
