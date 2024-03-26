@@ -539,7 +539,7 @@ def print_agp_file(paths, scaffolds, args):
                 if ctg_end < ctg_start:
                     # Rescue cases where there was invalid trim coordinates, err on the side of retaining the sequence
                     ctg_start, ctg_end = ctg_end, ctg_start
-                agpfile.write(f"{scaffold_entry.ctg_id}\t{ctg_start + 1}\t{ctg_end}\t1\t"
+                agpfile.write(f"{scaffold_entry.ctg_id}\t1\t{ctg_end - ctg_start + 1}\t1\t"
                               f"W\t{scaffold_entry.ctg_id}\t{ctg_start + 1}\t{ctg_end}\t+\n")
 
 
