@@ -60,6 +60,11 @@ class ScaffoldCut:
         "Return source cut"
         return self._source_cut
 
+    def force_cut_updates(self, source_pos, target_pos):
+        "Force the update of the source and target cuts - adjustment for unexpected trims"
+        self._source_cut = source_pos
+        self._target_cut = target_pos
+
     @source_cut.setter
     def source_cut(self, pos):
         if (self.ori == "+" and self._source_cut != self.length) or \
@@ -428,6 +433,8 @@ def check_valid_overlap_trims(path, scaffolds, args):
             assert re.search(gap_re, return_path[-1])
             return_path[-1] = f"{args.g + 1}N"
             skip_gap = True
+            scaffolds[node.strip("+-")].force_cut_updates(scaffolds[node.strip("+-")].target_cut,
+                                                          scaffolds[node.strip("+-")].source_cut)
         else:
             # Overlap is OK, keep going
             return_path.append(node)
