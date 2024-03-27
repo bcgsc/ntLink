@@ -36,6 +36,7 @@ class ScaffoldCut:
             self.sequence = sequence
         else:
             self.sequence = None
+        self._omit_flag = False
 
     @property
     def ori(self):
@@ -59,6 +60,14 @@ class ScaffoldCut:
     def source_cut(self):
         "Return source cut"
         return self._source_cut
+
+    def omit_sequence(self):
+        "Caused unexpected trims - omit sequence from outputs"
+        self._omit_flag = True
+
+    def is_omitted_sequence(self):
+        "Check if sequence should be omitted"
+        return self._omit_flag
 
     @source_cut.setter
     def source_cut(self, pos):
@@ -104,6 +113,15 @@ class ScaffoldCut:
             return 0, self.length
         raise ValueError("Orientation should be +, - or None")
 
+    def check_valid_trims(self, k):
+        "Check if the computed trim coordinates are valid"
+        if self.ori == "+":
+            return self.target_cut < self.source_cut
+        if self.ori == "-":
+            return self.adjust_source_cut(k) < self.adjust_target_cut(k)
+        if self.ori is None:
+            return True
+        raise ValueError("Orientation should be +, - or None")
 
     def __str__(self):
         return f"{self.ctg_id}{self._ori} {self.length} - s:{self._source_cut} t:{self._target_cut}"
@@ -129,7 +147,7 @@ def read_minimizers(tsv_filename, valid_mx_positions):
     print(datetime.datetime.today(), ": Reading minimizers", tsv_filename, file=sys.stdout)
     mx_info = defaultdict(dict)  # contig -> mx -> (contig, position)
     mxs = {}  # Contig -> [list of minimizers]
-    with open(tsv_filename, 'r') as tsv:
+    with open(tsv_filename, 'r', encoding="utf-8") as tsv:
         for line in tsv:
             line = line.strip().split("\t")
             read_minimizer_line(line, mx_info, mxs, valid_mx_positions)
@@ -177,7 +195,7 @@ def read_fasta_file_trim_prep(filename):
     print(datetime.datetime.today(), ": Reading fasta file", filename, file=sys.stdout)
     scaffolds = {}
 
-    with open(filename, 'r') as fasta:
+    with open(filename, 'r', encoding="utf-8") as fasta:
         for header, seq, _, _ in read_fasta(fasta):
             scaffolds[header] = ScaffoldCut(ctg_id=header, sequence=seq)
 
@@ -186,39 +204,39 @@ def read_fasta_file_trim_prep(filename):
 def print_graph(graph, list_mx_info, prefix):
     "Prints the minimizer graph in dot format"
     out_graph = prefix + ".mx.dot"
-    outfile = open(out_graph, 'a')
-    print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
+    with open(out_graph, 'a', encoding="utf-8") as outfile:
+        print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
 
-    outfile.write("graph G {\n")
+        outfile.write("graph G {\n")
 
-    colours = ["red", "green", "blue", "purple", "orange",
-               "turquoise", "pink", "yellow", "orchid", "salmon"]
-    list_files = list(list_mx_info.keys())
-    if len(list_files) > len(colours):
-        colours = ["red"]*len(list_files)
+        colours = ["red", "green", "blue", "purple", "orange",
+                "turquoise", "pink", "yellow", "orchid", "salmon"]
+        list_files = list(list_mx_info.keys())
+        if len(list_files) > len(colours):
+            colours = ["red"]*len(list_files)
 
-    for node in graph.vs():
-        mx_ctg_pos_labels = "\n".join([str(list_mx_info[assembly][node['name']])
-                                       for assembly in list_mx_info
-                                       if node['name'] in list_mx_info[assembly]])
-        node_label = "\"%s\" [label=\"%s\n%s\"]" % (node['name'], node['name'], mx_ctg_pos_labels)
-        outfile.write("%s\n" % node_label)
+        for node in graph.vs():
+            mx_ctg_pos_labels = "\n".join([str(list_mx_info[assembly][node['name']])
+                                        for assembly in list_mx_info
+                                        if node['name'] in list_mx_info[assembly]])
+            node_label = f"\"{node['name']}\" [label=\"{node['name']}\n{mx_ctg_pos_labels}\"]"
+            outfile.write(f"{node_label}\n")
 
-    for edge in graph.es():
-        outfile.write("\"%s\" -- \"%s\"" %
-                      (ntlink_utils.vertex_name(graph, edge.source),
-                       ntlink_utils.vertex_name(graph, edge.target)))
-        weight = edge['weight']
-        support = edge['support']
-        if len(support) == 1:
-            colour = colours[list_files.index(support[0])]
-        elif len(support) == 2:
-            colour = "lightgrey"
-        else:
-            colour = "black"
-        outfile.write(" [weight=%s color=%s]\n" % (weight, colour))
+        for edge in graph.es():
+            outfile.write("\"%s\" -- \"%s\"" %
+                        (ntlink_utils.vertex_name(graph, edge.source),
+                        ntlink_utils.vertex_name(graph, edge.target)))
+            weight = edge['weight']
+            support = edge['support']
+            if len(support) == 1:
+                colour = colours[list_files.index(support[0])]
+            elif len(support) == 2:
+                colour = "lightgrey"
+            else:
+                colour = "black"
+            outfile.write(f" [weight={weight} color={colour}]\n")
 
-    outfile.write("}\n")
+        outfile.write("}\n")
 
     print("\nfile_name\tnumber\tcolour")
     for i, filename in enumerate(list_files):
@@ -383,7 +401,7 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, g
                                                    median_length_from_end=np.median([mid_mx_dist_end_source,
                                                                                      mid_mx_dist_end_target])))
         else:
-            print("NOTE: non-singleton, {} source nodes".format(len(source_nodes)))
+            print(f"NOTE: non-singleton, {len(source_nodes)} source nodes")
     if not paths_components:
         return False
     path = sorted(paths_components, key=lambda x: (x.mapped_region_length, x.median_length_from_end,
@@ -398,14 +416,42 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, scaffolds, args, g
 
     return True
 
+def check_valid_overlap_trims(path, scaffolds, args):
+    "Look through the path, and check for invalid overlap trimming (target_cut < source_cut)"\
+        "If found, remove and add default gaps instead"
+    return_path = []
+    skip_gap = False
+    gap_re = re.compile(r'(\d)N')
+    for node in path:
+        if re.search(gap_re, node):
+            if not skip_gap:
+                return_path.append(node)
+            skip_gap = False
+            # We're at a gap, continue
+            continue
+        # At a node, check overlaps are valid
+        if (scaffolds[node.strip("+-")].source_cut is not None and \
+            scaffolds[node.strip("+-")].target_cut is not None) and \
+            not scaffolds[node.strip("+-")].check_valid_trims(args.k):
+            # Those cuts are incompatible, just remove the node to be safe
+            assert re.search(gap_re, return_path[-1])
+            return_path[-1] = f"{args.g + 1}N"
+            skip_gap = True
+            scaffolds[node.strip("+-")].omit_sequence()
+        else:
+            # Overlap is OK, keep going
+            return_path.append(node)
+    return return_path
+
+
 def merge_overlapping_pathfile(args, gap_re, graph, scaffolds, valid_mx_positions):
     "Read through pathfile, and merge overlapping pieces, updating path file"
     print(datetime.datetime.today(), ": Finding scaffold overlaps", file=sys.stdout)
-    out_pathfile = open(args.p + ".trimmed_scafs.path", 'w')
+    out_pathfile = open(args.p + ".trimmed_scafs.path", 'w', encoding="utf-8")
     my_paths = {}
 
-    with open(args.path, 'r') as path_fin:
-        with open(args.m, 'r') as minimizers_reader:
+    with open(args.path, 'r', encoding="utf-8") as path_fin:
+        with open(args.m, 'r', encoding="utf-8") as minimizers_reader:
             for path in path_fin:
                 new_path = []
                 path_id, path_seq = path.strip().split("\t")
@@ -421,11 +467,12 @@ def merge_overlapping_pathfile(args, gap_re, graph, scaffolds, valid_mx_position
                         cuts_found = merge_overlapping(mxs, mxs_info, source, target, scaffolds, args,
                                           graph.es()[ntlink_utils.edge_index(graph, source, target)]["d"])
                         if cuts_found:
-                            gap = "{}N".format(args.outgap)
+                            gap = f"{args.outgap}N"
                     if not new_path:
                         new_path.append(source)
                     new_path.append(gap)
                     new_path.append(target)
+                new_path = check_valid_overlap_trims(new_path, scaffolds, args)
                 out_pathfile.write("{path_id}\t{ctgs}\n".format(path_id=path_id, ctgs=" ".join(new_path)))
                 my_paths[path_id] = new_path
     out_pathfile.close()
@@ -434,38 +481,41 @@ def merge_overlapping_pathfile(args, gap_re, graph, scaffolds, valid_mx_position
 def print_trimmed_scaffolds(args, scaffolds):
     "Print the trimmed scaffolds fasta to file"
     print(datetime.datetime.today(), ": Printing trimmed scaffolds", file=sys.stdout)
-    fasta_outfile = open(args.p + ".trimmed_scafs.fa", 'w')
-    with open(args.fasta, 'r') as fin:
-        for name, seq, _, _ in read_fasta(fin):
-            scaffold = scaffolds[name]
-            if scaffold.ori == "+":
-                sequence_out = seq[scaffold.target_cut:scaffold.source_cut]
-            elif scaffold.ori == "-":
-                sequence_out = seq[scaffold.adjust_source_cut(args.k):scaffold.adjust_target_cut(args.k)]
-            elif scaffold.ori is None:
-                sequence_out = seq
-            else:
-                raise ValueError("Invalid orientation for Scaffold:", scaffold)
-            if len(sequence_out) == 0:
-                sequence_out = "N"
-            fasta_outfile.write(
-                ">{} {}-{}\n{}\n".format(scaffold.ctg_id, scaffold.source_cut, scaffold.target_cut, sequence_out))
-    fasta_outfile.close()
+    with open(args.p + ".trimmed_scafs.fa", 'w', encoding="utf-8") as fasta_outfile:
+        with open(args.fasta, 'r', encoding="utf-8") as fin:
+            for name, seq, _, _ in read_fasta(fin):
+                scaffold = scaffolds[name]
+                if scaffold.is_omitted_sequence():
+                    continue
+                if scaffold.ori == "+":
+                    sequence_out = seq[scaffold.target_cut:scaffold.source_cut]
+                elif scaffold.ori == "-":
+                    sequence_out = seq[scaffold.adjust_source_cut(args.k):scaffold.adjust_target_cut(args.k)]
+                elif scaffold.ori is None:
+                    sequence_out = seq
+                else:
+                    raise ValueError("Invalid orientation for Scaffold:", scaffold)
+                if len(sequence_out) == 0:
+                    sequence_out = "N"
+                fasta_outfile.write(
+                    f">{scaffold.ctg_id} {scaffold.source_cut}-{scaffold.target_cut}\n{sequence_out}\n")
 
 def print_trim_coordinates(args, scaffolds):
     "Print coordinates of trimming done for scaffolds"
-    with open(args.p + ".trimmed_scafs.tsv", 'w') as tsvfile:
+    with open(args.p + ".trimmed_scafs.tsv", 'w', encoding="utf-8") as tsvfile:
         for scaffold in scaffolds:
             scaffold_entry = scaffolds[scaffold]
+            if scaffold_entry.is_omitted_sequence():
+                continue
             start, end = scaffold_entry.get_trim_coordinates(args.k)
-            out_str = "{}\t{}\t{}\n".format(scaffold_entry.ctg_id, start, end, sep="\t")
+            out_str = f"{scaffold_entry.ctg_id}\t{start}\t{end}\n"
             tsvfile.write(out_str)
 
 def print_agp_file(paths, scaffolds, args):
     "Print the Paths in the AGP format"
     gap_re = re.compile(r'(\d+)N')
     printed_scaffolds = set()
-    with open(args.p + ".trimmed_scafs.agp", 'w') as agpfile:
+    with open(args.p + ".trimmed_scafs.agp", 'w', encoding="utf-8") as agpfile:
         for path_id in paths:
             start = 1
             component_id = 1
@@ -491,8 +541,10 @@ def print_agp_file(paths, scaffolds, args):
         for scaffold in scaffolds:
             if scaffold not in printed_scaffolds:
                 scaffold_entry = scaffolds[scaffold]
+                if scaffold_entry.is_omitted_sequence():
+                    continue
                 ctg_start, ctg_end = scaffold_entry.get_trim_coordinates(args.k)
-                agpfile.write(f"{scaffold_entry.ctg_id}\t{ctg_start + 1}\t{ctg_end}\t1\t"
+                agpfile.write(f"{scaffold_entry.ctg_id}\t1\t{ctg_end - ctg_start}\t1\t"
                               f"W\t{scaffold_entry.ctg_id}\t{ctg_start + 1}\t{ctg_end}\t+\n")
 
 

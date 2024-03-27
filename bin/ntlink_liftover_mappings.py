@@ -33,11 +33,14 @@ class AGP:
         "Returns the length of the scaffold"
         return self.scaf_end - self.scaf_start + 1
 
+    def __str__(self):
+        return f"{self.path_id}, {self.scaf_start}, {self.contig_id}"
+
 
 def read_agp(agp_filename: str) -> dict:
     "Read the AGP file into a dictionary, key being contig ID and value being an AGP object"
     agp_dict = {}
-    with open(agp_filename, 'r') as agp_file:
+    with open(agp_filename, 'r', encoding="utf-8") as agp_file:
         for line in agp_file:
             line = line.strip().split('\t')
             path_id, scaf_start, scaf_end, component_id, component_type, ctg_id, ctg_start, ctg_end, orientation = line
@@ -47,7 +50,7 @@ def read_agp(agp_filename: str) -> dict:
     return agp_dict
 
 
-def parse_mappings(mappings: str) -> list:
+def parse_mappings(mappings: str):
     "Parse the mappings string into a list of MinimizerPositions objects"
     for m in mappings.split(" "):
         ctg_maps, read_maps = m.split("_")
@@ -62,6 +65,7 @@ def liftover_ctg_mappings(mappings_list: list, agp_dict: dict, k: int) -> NewMin
     if ctg not in agp_dict:
         return NewMinimizerMapping(read_id, ctg, 0, [], None)
     agp_entry = agp_dict[ctg]
+
     for m in parse_mappings(mappings):
         if not agp_entry.ctg_start - 1 <= m.ctg_pos <= (agp_entry.ctg_end - k):
             continue # Mapping is outside of the assigned contig region
@@ -119,8 +123,8 @@ def liftover_mappings(mappings_filename: str, agp_dict: dict, output: str, k: in
     "Liftover the verbose mappings file"
     cur_read_id = None
     cur_read_id_mappings = []
-    with open(mappings_filename, 'r') as mappings_file:
-        with open(output, 'w') as liftover_mappings_file:
+    with open(mappings_filename, 'r', encoding="utf-8") as mappings_file:
+        with open(output, 'w', encoding="utf-8") as liftover_mappings_file:
             for line in mappings_file:
                 line = line.strip().split('\t')
                 mapping = liftover_ctg_mappings(line, agp_dict, k)

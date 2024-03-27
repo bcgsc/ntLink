@@ -179,6 +179,8 @@ class NtLink():
             print("Minimizer positions:", NtLink.list_mx_info[i_mx].position,
                   NtLink.list_mx_info[j_mx].position)
             print("Estimated distance: ", est_distance)
+            print(NtLink.list_mx_info[i_mx].contig, NtLink.list_mx_info[j_mx].contig,
+                  a, b)
             raise assert_error
 
         gap_size = est_distance - a - b
