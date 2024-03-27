@@ -2,7 +2,7 @@
 
 # ntLink: Scaffold assemblies using long reads and minimizers - launching ntLink rounds
 # Written by Lauren Coombe @lcoombe
-# ntLink v1.3.9
+# ntLink v1.3.10
 
 # Window size
 w=100
@@ -55,7 +55,7 @@ endif
 help:
 	@echo ""
 	@echo "ntLink: Scaffolding assemblies using long reads - running iterative rounds of ntLink"
-	@echo "ntLink v1.3.9"
+	@echo "ntLink v1.3.10"
 	@echo "Running rounds of ntLink - no gap-filling"
 	@echo "Usage: ntLink_rounds run_rounds target=<target scaffolds> reads='List of long read files' rounds=<Number>"
 	@echo ""
