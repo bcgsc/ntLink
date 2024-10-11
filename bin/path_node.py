@@ -12,13 +12,13 @@ class PathNode:
 
     def get_ori_contig(self):
         "Return contig with orientation"
-        return "{}{}".format(self.contig, self.ori)
+        return f"{self.contig}{self.ori}"
 
     def get_gap(self):
         "Return gap"
         if self.gap_size is not None:
-            return "{}N".format(self.gap_size)
+            return f"{self.gap_size}N"
         return None
 
     def __str__(self):
-        return "{}{}".format(self.contig, self.ori)
+        return f"{self.contig}{self.ori}"
