@@ -38,6 +38,9 @@ max_n=10
 # Minimum gap size between scaffolds
 g=20
 
+# Maximim gap size between secaffolds (-1 indicates no max)
+G=-1
+
 # Gap size between overlapping trimmed scaffolds
 merge_gap=0
 
@@ -131,6 +134,7 @@ help:
 	@echo "w			Window size for minimizers [100]"
 	@echo "n			Minimum graph edge weight [1]"
 	@echo "g			Minimum gap size (bp) [20]"
+	@echo "G			Maximum gap size (bp). -1 indicates no maximum [-1]"
 	@echo "f			Maximum number of contigs in a run for full transitive edge addition [10]"
 	@echo "a			Minimum number of anchored ONT reads required for an edge [1]"
 	@echo "z			Minimum size of contig (bp) to scaffold [1000]"
@@ -229,10 +233,10 @@ $(prefix).n%.abyss-scaffold.path: $(prefix).n$(n).scaffold.dot
 $(prefix).stitch.path: $(path_targets)
 ifeq ($(conservative), True)
 	$(ntLink_time) $(ntlink_path)/ntlink_stitch_paths.py --min_n $(n) --max_n $(max_n)  -p out \
-	-g $(prefix).n$(n).scaffold.dot --conservative $^ -o $@
+	-g $(prefix).n$(n).scaffold.dot --conservative $^ -o $@ --max_gap $(G)
 else
 	$(ntLink_time) $(ntlink_path)/ntlink_stitch_paths.py --min_n $(n) --max_n $(max_n)  -p out \
-	-g $(prefix).n$(n).scaffold.dot $^ -o $@
+	-g $(prefix).n$(n).scaffold.dot $^ -o $@ --max_gap $(G)
 endif
 	rm -f $(prefix).n*.abyss-scaffold.path $(prefix).n*.abyss-scaffold.path.sterr
 

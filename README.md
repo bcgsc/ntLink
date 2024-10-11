@@ -40,20 +40,21 @@ Usage: ntLink scaffold gap_fill target=<target scaffolds> reads='List of long re
 
 Options:
 target			Target assembly to be scaffolded in fasta format
-reads		        List of long read files (separated by a space)
-prefix			Prefix of intermediate output files [<target>.k<k>.w<w>.n<n>]
+reads			List of long read files (separated by a space)
+prefix			Prefix of intermediate output files [<target>.k<k>.w<w>.z<z>]
 t			Number of threads [4]
 k			K-mer size for minimizers [32]
 w			Window size for minimizers [100]
 n			Minimum graph edge weight [1]
 g			Minimum gap size (bp) [20]
+G			Maximum gap size (bp). -1 indicates no maximum [-1]
 f			Maximum number of contigs in a run for full transitive edge addition [10]
-a                       Minimum number of anchored ONT reads required for an edge [1]
+a			Minimum number of anchored ONT reads required for an edge [1]
 z			Minimum size of contig (bp) to scaffold [1000]
-v                       If 1, track time and memory for each step of the pipeline [0]
+v			If 1, track time and memory for each step of the pipeline [0]
 paf			If True, outputs read to contig mappings in PAF-like format [False]
 overlap			If True, runs extra step to attempt to identify and trim overlapping joined sequences [True]
-sensitive	        If True, runs mapping in sensitive mode [False]
+sensitive	    	If True, runs mapping in sensitive mode [False]
 soft_mask		If True, gaps are filled with lowercase bases [False]
 
 Note: 

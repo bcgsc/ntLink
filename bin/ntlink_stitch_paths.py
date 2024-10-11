@@ -264,14 +264,15 @@ class NtLinkPath:
                 return False
         return True
 
-    @staticmethod
-    def format_path_contigs(path, component_graph):
+    def format_path_contigs(self, path, component_graph):
         "Given a path (sequence of oriented contigs), format to a path of PathNode"
         return_path = []
         for ctga, ctgb in zip(path, path[1:]):
             ctga_name, ctga_ori = ctga[:-1], ctga[-1]
             edge_index = ntlink_utils.edge_index(component_graph, ctga, ctgb)
-            gap_estimate = component_graph.es()[edge_index]['d']
+            gap_estimate = int(component_graph.es()[edge_index]['d'])
+            gap_estimate = gap_estimate if self.args.max_gap == -1 or gap_estimate <= self.args.max_gap + 1 \
+                else self.args.max_gap + 1 # Adding +1 to account for abyss-scaffold path file convention
             return_path.append(PathNode(contig=ctga_name, ori=ctga_ori,
                                         gap_size=gap_estimate))
         last_ctg_name, last_ctg_ori = path[-1][:-1], path[-1][-1]
@@ -464,6 +465,8 @@ class NtLinkPath:
         parser.add_argument("-g", help="Unfiltered scaffold graph dot file", required=True, type=str)
         parser.add_argument("-a", help="Ratio of best to second best edge to create potential connection",
                             required=False, default=0.3, type=float)
+        parser.add_argument("--max_gap", help="Maximum gap between contigs. -1 for no maximum gap size [-1]",
+                            required=False, default=-1, type=int)
         parser.add_argument("-o", help="Output path file name", required=True)
         parser.add_argument("-p", help="Output file prefix", required=False, default="out", type=str)
         parser.add_argument("--transitive", help="Require transitive support for edges?", action="store_true")
